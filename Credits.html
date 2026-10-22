@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credits | Fluff Store 2!!</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for Inter Font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    <!-- Custom Tailwind Configuration for theme colors (Matching the index page) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#1e293b', // slate-800 equivalent
+                        'secondary': '#059669', // emerald-600 equivalent
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+    <!-- Header / Navigation Section (Matching the Homepage style) -->
+    <header class="bg-slate-800 shadow-xl py-12 md:py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-4">
+                Project <span class="text-indigo-400">Credits</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-slate-300 max-w-3xl mx-auto">
+                Thank you to everyone who helped bring the Fluff's Games vision to life!
+            </p>
+            
+            <!-- Navigation Button to return home -->
+            <div class="mt-8 flex justify-center">
+                <a href="index.html" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105">
+                    🏠 Back to Games
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Credits Content Section -->
+    <main class="py-12 md:py-16">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl font-bold text-center mb-10 text-emerald-400">The Fluff's Team</h2>
+
+            <!-- Credits Grid (Two columns on desktop) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                <!-- 1. Core Development Card -->
+                <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border-b-4 border-emerald-600 h-full">
+                    <h3 class="text-3xl font-bold text-white mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        Core Development
+                    </h3>
+                    <ul class="space-y-3 text-slate-300 text-lg">
+                        <li><span class="font-semibold text-white">Fluff or Jayce:</span> Creator, Lead Developer, Visionary</li>
+                        <li><span class="font-semibold text-white">The Team of 60 Coders:</span> Implementation & Bug Squashing</li>
+                        <li><span class="font-semibold text-white">Spew14:</span> Helping me create the site.</li>
+                    </ul>
+                </div>
+
+                <!-- 2. Design & Art Card -->
+                <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border-b-4 border-rose-600 h-full">
+                    <h3 class="text-3xl font-bold text-white mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-rose-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Design & Assets
+                    </h3>
+                    <ul class="space-y-3 text-slate-300 text-lg">
+                        <li><span class="font-semibold text-white">Banana Graphics Team:</span> Banana Clicker Artwork</li>
+                        <li><span class="font-semibold text-white">Brainrot Surfers Crew:</span> Character Concepts & Level Design</li>
+                        <li><span class="font-semibold text-white">Community Fluffers:</span> Ideation & Feedback</li>
+                    </ul>
+                </div>
+                
+                <!-- 3. Technologies Used Card -->
+                <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border-b-4 border-sky-600 h-full lg:col-span-2">
+                    <h3 class="text-3xl font-bold text-white mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-sky-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Technology Stack
+                    </h3>
+                    <div class="flex flex-wrap gap-4">
+                        <span class="bg-slate-700 text-sky-300 text-sm font-medium px-4 py-1.5 rounded-full shadow-md">HTML5</span>
+                        <span class="bg-slate-700 text-sky-300 text-sm font-medium px-4 py-1.5 rounded-full shadow-md">JavaScript (The good stuff)</span>
+                        <span class="bg-slate-700 text-sky-300 text-sm font-medium px-4 py-1.5 rounded-full shadow-md">Tailwind CSS</span>
+                        <span class="bg-slate-700 text-sky-300 text-sm font-medium px-4 py-1.5 rounded-full shadow-md">Inter Font Family</span>
+                        <span class="bg-slate-700 text-sky-300 text-sm font-medium px-4 py-1.5 rounded-full shadow-md">VS Code (Probably)</span>
+                    </div>
+                </div>
+
+                <!-- 4. Legal and Administrative Card -->
+                <div class="bg-slate-800 p-8 rounded-xl shadow-2xl border-b-4 border-indigo-600 h-full lg:col-span-2">
+                    <h3 class="text-3xl font-bold text-white mb-4 flex items-center">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-5.618 3.04A12.001 12.001 0 002.944 12c.045 2.158.42 4.264 1.135 6.22l-1.378 1.378a1 1 0 001.414 1.414l1.378-1.378c1.957.715 4.062 1.09 6.22 1.135A12.001 12.001 0 0021.056 12c-.045-2.158-.42-4.264-1.135-6.22z" />
+                        </svg>
+                        Legal & Compliance
+                    </h3>
+                    <ul class="space-y-3 text-slate-300 text-lg">
+                        <li><span class="font-semibold text-white">Fluff's Legal Team:</span> Ensuring compliance and maximum fun.</li>
+                        <li><span class="font-semibold text-white">sigma-boy-jayce-67:</span> For providing the secret password.</li>
+                    </ul>
+                </div>
+
+            </div>
+            <!-- End Credits Grid -->
+
+        </div>
+    </main>
+
+    <!-- Footer (Exactly matching the Homepage style) -->
+    <footer class="bg-gray-900 border-t border-slate-800 mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-sm">
+            <p>&copy; 2025 [fluffgaming123]. Built by Fluff and his team of 60 coders, also don't forget Fluff's Legal team</p>
+            <div class="mt-2 space-x-4">
+                <!-- Links matching the index.html footer -->
+                <a href="https://github.com/[fluffgaming123]" class="hover:text-emerald-400 transition duration-150">GitHub Profile</a>
+                <a href="mailto:stephaniepilat06@gmail.com" class="hover:text-emerald-400 transition duration-150">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

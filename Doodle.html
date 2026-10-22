@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doodle - The Ultimate AI Drawing Game</title>
+    <!-- PeerJS for WebRTC Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* CSS Reset & Variables */
+        :root {
+            --primary: #FF5A5F;
+            --primary-hover: #E04A50;
+            --secondary: #087E8B;
+            --bg-color: #F7F7F9;
+            --text-main: #333333;
+            --card-bg: #FFFFFF;
+            --accent: #FFC107;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+
+        /* UI Containers */
+        .screen {
+            width: 100%;
+            max-width: 800px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* Typography & Buttons */
+        h1 { font-size: 3rem; color: var(--primary); margin-bottom: 1rem; letter-spacing: -1px; }
+        h2 { font-size: 1.8rem; margin-bottom: 1rem; }
+        h3 { font-size: 1.4rem; color: var(--secondary); }
+        
+        input[type="text"] {
+            width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #ddd;
+            border-radius: 8px; font-size: 1rem; transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button:active { transform: scale(0.97); }
+        button.secondary { background-color: var(--secondary); }
+        button.secondary:hover { background-color: #066670; }
+
+        /* Canvas & HUD */
+        #hud {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 100%; max-width: 700px; margin-bottom: 1rem;
+        }
+        .timer-box { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .prompt-box { font-size: 1.5rem; font-weight: bold; background: var(--accent); padding: 5px 15px; border-radius: 20px; }
+        
+        .canvas-container {
+            position: relative; width: 100%; max-width: 700px; margin-bottom: 1rem;
+            background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 4px solid #eee;
+        }
+        canvas {
+            width: 100%; height: auto; border-radius: 8px; touch-action: none;
+            cursor: crosshair; display: block;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+            background: white; padding: 10px; border-radius: 12px; width: 100%; max-width: 700px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .color-swatch {
+            width: 35px; height: 35px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform 0.2s;
+        }
+        .color-swatch:hover { transform: scale(1.1); }
+        .color-swatch.active { border-color: #333; transform: scale(1.2); }
+        
+        .brush-size-container { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+        
+        /* Tool Buttons (Eraser, Clear) */
+        .tool-btn {
+            background: #eee; color: #333; padding: 8px 15px; border-radius: 8px;
+            font-size: 0.9rem; margin: 0; width: auto; flex-grow: 0;
+        }
+        .tool-btn.active { background: #333; color: white; }
+
+        /* Showcase Grid */
+        .showcase-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px; width: 100%; margin-top: 20px;
+        }
+        .showcase-item {
+            background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .showcase-item img {
+            width: 100%; border: 2px solid #eee; border-radius: 8px; background: white; margin-bottom: 10px;
+        }
+        .ai-feedback { font-style: italic; font-size: 0.9rem; color: #666; margin-top: 10px; min-height: 40px; }
+
+        /* End Game Leaderboard */
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .leaderboard-table th, .leaderboard-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .leaderboard-table th { background: #eee; }
+        .grade { font-size: 1.5rem; font-weight: bold; }
+        .grade-S { color: #9C27B0; }
+        .grade-A { color: #4CAF50; }
+        .grade-B { color: #2196F3; }
+        .grade-C { color: #FF9800; }
+        .grade-D { color: #F44336; }
+
+        /* Room Info */
+        .room-badge { display: inline-block; background: #ddd; padding: 5px 15px; border-radius: 15px; font-weight: bold; font-family: monospace; letter-spacing: 2px; }
+        .player-list { list-style: none; margin: 20px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .player-list li { background: var(--secondary); color: white; padding: 8px 16px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN: Main Menu -->
+    <div id="screen-menu" class="screen active">
+        <div class="card text-center">
+            <h1>Doodle</h1>
+            <p class="mb-3">The AI-Powered 30-Second Drawing Challenge</p>
+            
+            <input type="text" id="player-name" placeholder="Enter your name" maxlength="15" class="mb-2">
+            
+            <button onclick="startGameMode('single')">Single Player</button>
+            <button class="secondary" onclick="startGameMode('host')">Host Online Multiplayer</button>
+            <button class="secondary" onclick="showJoinMenu()">Join Online Game</button>
+            <button class="secondary" onclick="startGameMode('pass')">Local Pass & Play</button>
+            
+            <div id="join-section" class="hidden" style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;">
+                <input type="text" id="room-code" placeholder="Enter Room Code" style="text-transform: uppercase;">
+                <button onclick="joinOnlineGame()">Join Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: Lobby (Online Multiplayer) -->
+    <div id="screen-lobby" class="screen hidden">
+        <div class="card text-center">
+            <h2>Lobby</h2>
+            <p class="mb-2">Room Code: <span id="lobby-room-code" class="room-badge">-----</span></p>
+            <p>Waiting for players... (<span id="lobby-count">1</span>/4)</p>
+            <ul id="lobby-players" class="player-list"></ul>
+            
+            <button id="btn-start-multi" class="hidden" onclick="hostStartGame()">Start Game</button>
+            <button class="secondary" onclick="resetToMenu()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: Pass & Play Setup -->
+    <div id="screen-pass-setup" class="screen hidden">
+        <div class="card text-center">
+            <h2>Local Pass & Play Setup</h2>
+            <p class="mb-2">Add 2-4 players.</p>
+            
+            <div style="display: flex; gap: 10px;" class="mb-2">
+                <input type="text" id="pass-player-name" placeholder="Player Name" maxlength="12">
+                <button onclick="addPassPlayer()" style="width: auto;">Add</button>
+            </div>
+            
+            <ul id="pass-players-list" class="player-list mb-3"></ul>
+            
+            <button id="btn-start-pass" disabled onclick="startPassAndPlay()">Start Game</button>
+            <button class="secondary" onclick="resetToMenu()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: Pass & Play Transition Modal -->
+    <div id="screen-pass-transition" class="screen hidden">
+        <div class="card text-center">
+            <h2 id="transition-message">Pass the device to Player!</h2>
+            <p class="mb-3">Get ready to draw: <strong class="prompt-box" id="transition-prompt"></strong></p>
+            <button onclick="beginDrawingTurn()">I'm Ready!</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: Game / Canvas -->
+    <div id="screen-game" class="screen hidden" style="justify-content: flex-start; padding-top: 2rem;">
+        
+        <div id="hud">
+            <div class="timer-box">⏱ <span id="timer-display">30</span></div>
+            <div class="prompt-box" id="current-prompt">Draw: Apple</div>
+            <div style="font-weight: bold; color: var(--secondary);">Round <span id="round-display">1</span>/5</div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="drawing-board" width="800" height="600"></canvas>
+        </div>
+
+        <div class="toolbar">
+            <!-- Colors populated by JS -->
+            <div id="color-palette" style="display: flex; gap: 8px;"></div>
+            
+            <div class="brush-size-container">
+                <label for="brush-size">Size:</label>
+                <input type="range" id="brush-size" min="2" max="40" value="5">
+            </div>
+
+            <button id="tool-eraser" class="tool-btn" onclick="toggleEraser()">Eraser</button>
+            <button class="tool-btn" onclick="clearCanvas()">Clear</button>
+        </div>
+        
+        <!-- Manual Submit Button (Optional if finished early) -->
+        <div style="width: 100%; max-width: 700px; margin-top: 15px;">
+             <button onclick="submitDrawing(true)" id="btn-submit-early">Finish Early</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: Round Showcase -->
+    <div id="screen-showcase" class="screen hidden" style="justify-content: flex-start;">
+        <h2 id="showcase-title">Round Results</h2>
+        <div class="prompt-box mb-3" id="showcase-prompt"></div>
+        
+        <div id="showcase-grid" class="showcase-grid">
+            <!-- Filled by JS -->
+        </div>
+
+        <div style="margin-top: 30px; width: 100%; max-width: 400px;">
+            <button id="btn-next-round" onclick="triggerNextRound()">Next Round</button>
+            <div id="waiting-host-msg" class="hidden text-center" style="font-style: italic; color: #666;">Waiting for host...</div>
+        </div>
+    </div>
+
+    <!-- SCREEN: End Game & Leaderboard -->
+    <div id="screen-end" class="screen hidden">
+        <div class="card">
+            <h1 class="text-center">Final Scores</h1>
+            
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Total Score</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <!-- Filled by JS -->
+                </tbody>
+            </table>
+
+            <button onclick="resetToMenu()" class="mt-3">Play Again</button>
+        </div>
+    </div>
+
+    <!-- AUDIO CONTEXT & LOGIC -->
+    <script>
+        // Game Constants & Prompts
+        const PROMPTS = [
+            "Bicycle", "Cat wearing a hat", "Rocket ship", "Mona Lisa", "A friendly alien",
+            "Toaster", "Penguin on a skateboard", "Hotdog", "Robot", "Dragon", "Pineapple",
+            "Wizard", "Campfire", "Submarine", "Octopus", "Guitar", "Snowman", "Tornado",
+            "Pirate ship", "Hamburger", "Dinosaur", "Unicorn", "Spider web", "Eiffel Tower"
+        ];
+        const COLORS = ["#000000", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#8B4513", "#FFA500", "#808080"];
+        const ROUND_TIME = 30;
+        const MAX_ROUNDS = 5;
+
+        // Game State Variables
+        let audioCtx;
+        let gameState = {
+            mode: 'menu', // single, host, client, pass
+            players: [], // { id, name, isHost, connection, totalScore, currentDrawing: { imgData, score, feedback } }
+            localPlayerId: null,
+            currentRound: 0,
+            currentPrompt: "",
+            timeLeft: ROUND_TIME,
+            timerInterval: null,
+            passPlayCurrentIndex: 0
+        };
+
+        // Canvas Setup
+        const canvas = document.getElementById('drawing-board');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // Drawing State
+        let drawState = {
+            isDrawing: false,
+            color: '#000000',
+            size: 5,
+            isEraser: false,
+            stats: { strokes: 0, colors: new Set(), minX: canvas.width, minY: canvas.height, maxX: 0, maxY: 0 }
+        };
+
+        // PeerJS Variables
+        let peer = null;
+        let hostConnection = null;
+
+        // --- Audio System ---
+        function initAudio() {
+            if(!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function playTone(freq, type, duration, vol=0.1) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+        const sfx = {
+            tick: () => playTone(600, 'sine', 0.1, 0.05),
+            start: () => { playTone(400, 'square', 0.1, 0.1); setTimeout(()=>playTone(600, 'square', 0.2, 0.1), 100); },
+            end: () => { playTone(800, 'sine', 0.2, 0.1); setTimeout(()=>playTone(600, 'sine', 0.4, 0.1), 200); },
+            fanfare: () => { 
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    setTimeout(() => playTone(freq, 'triangle', 0.3, 0.1), i * 150);
+                });
+            }
+        };
+
+        // --- UI Navigation ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function showJoinMenu() {
+            document.getElementById('join-section').classList.toggle('hidden');
+        }
+        function getPlayerName() {
+            let name = document.getElementById('player-name').value.trim();
+            return name || "Artist_" + Math.floor(Math.random()*1000);
+        }
+        function resetToMenu() {
+            if(peer) peer.destroy();
+            clearInterval(gameState.timerInterval);
+            showScreen('screen-menu');
+        }
+
+        // --- Init Modes ---
+        function startGameMode(mode) {
+            initAudio();
+            gameState.mode = mode;
+            gameState.localPlayerId = generateId();
+            let name = getPlayerName();
+            
+            gameState.players = [];
+            gameState.currentRound = 0;
+
+            if (mode === 'single') {
+                gameState.players.push({ id: gameState.localPlayerId, name: name, totalScore: 0 });
+                startNextRound();
+            } else if (mode === 'host') {
+                gameState.players.push({ id: gameState.localPlayerId, name: name, isHost: true, totalScore: 0, connection: null });
+                setupHost();
+            } else if (mode === 'pass') {
+                showScreen('screen-pass-setup');
+                document.getElementById('pass-players-list').innerHTML = '';
+                addPassPlayer(name); // Add main user first
+            }
+        }
+
+        // --- PeerJS Multiplayer Networking ---
+        function generateId() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
+
+        function setupHost() {
+            showScreen('screen-lobby');
+            document.getElementById('lobby-room-code').innerText = "Loading...";
+            
+            let roomCode = generateId();
+            peer = new Peer(roomCode);
+            
+            peer.on('open', (id) => {
+                document.getElementById('lobby-room-code').innerText = id;
+                updateLobbyUI();
+            });
+
+            peer.on('connection', (conn) => {
+                if (gameState.players.length >= 4 || gameState.currentRound > 0) {
+                    conn.send({ type: 'ERROR', msg: 'Room full or game started' });
+                    setTimeout(()=>conn.close(), 500);
+                    return;
+                }
+                
+                conn.on('data', (data) => handleHostData(conn, data));
+                conn.on('close', () => {
+                    gameState.players = gameState.players.filter(p => p.id !== conn.peer);
+                    updateLobbyUI();
+                });
+            });
+        }
+
+        function joinOnlineGame() {
+            initAudio();
+            let code = document.getElementById('room-code').value.trim().toUpperCase();
+            if(!code) return alert("Enter a room code!");
+            
+            showScreen('screen-lobby');
+            document.getElementById('lobby-room-code').innerText = code;
+            
+            gameState.mode = 'client';
+            gameState.localPlayerId = generateId();
+            let name = getPlayerName();
+
+            peer = new Peer();
+            peer.on('open', () => {
+                hostConnection = peer.connect(code);
+                hostConnection.on('open', () => {
+                    hostConnection.send({ type: 'JOIN', id: gameState.localPlayerId, name: name });
+                });
+                hostConnection.on('data', handleClientData);
+                hostConnection.on('close', () => { alert("Host disconnected."); resetToMenu(); });
+            });
+            peer.on('error', (err) => { alert("Connection Error: " + err.type); resetToMenu(); });
+        }
+
+        // Network Data Handlers
+        function handleHostData(conn, data) {
+            switch(data.type) {
+                case 'JOIN':
+                    gameState.players.push({ id: data.id, name: data.name, connection: conn, totalScore: 0 });
+                    updateLobbyUI();
+                    broadcast({ type: 'LOBBY_UPDATE', players: gameState.players.map(p => ({ id: p.id, name: p.name })) });
+                    break;
+                case 'SUBMIT_DRAWING':
+                    let p = gameState.players.find(p => p.id === data.id);
+                    if(p) {
+                        p.currentDrawing = data.drawing;
+                        checkAllDrawingsSubmitted();
+                    }
+                    break;
+            }
+        }
+
+        function handleClientData(data) {
+            switch(data.type) {
+                case 'LOBBY_UPDATE':
+                    gameState.players = data.players;
+                    updateLobbyUI();
+                    break;
+                case 'START_ROUND':
+                    gameState.currentRound = data.round;
+                    gameState.currentPrompt = data.prompt;
+                    startClientRoundLocal();
+                    break;
+                case 'END_ROUND':
+                    submitDrawing(false);
+                    break;
+                case 'SHOWCASE':
+                    showShowcase(data.results);
+                    break;
+                case 'END_GAME':
+                    showEndGame(data.leaderboard);
+                    break;
+            }
+        }
+
+        function broadcast(msg) {
+            gameState.players.forEach(p => {
+                if(p.connection) p.connection.send(msg);
+            });
+        }
+
+        function updateLobbyUI() {
+            const list = document.getElementById('lobby-players');
+            list.innerHTML = '';
+            gameState.players.forEach(p => {
+                let li = document.createElement('li');
+                li.innerText = p.name;
+                list.appendChild(li);
+            });
+            document.getElementById('lobby-count').innerText = gameState.players.length;
+            
+            if (gameState.mode === 'host' && gameState.players.length > 1) {
+                document.getElementById('btn-start-multi').classList.remove('hidden');
+            }
+        }
+
+        function hostStartGame() {
+            startNextRound();
+        }
+
+        // --- Pass & Play Setup ---
+        function addPassPlayer(forceName = null) {
+            let input = document.getElementById('pass-player-name');
+            let name = forceName || input.value.trim();
+            if(!name) return;
+            if(gameState.players.length >= 4) return alert("Max 4 players!");
+            
+            gameState.players.push({ id: generateId(), name: name, totalScore: 0 });
+            input.value = '';
+            
+            let list = document.getElementById('pass-players-list');
+            list.innerHTML = '';
+            gameState.players.forEach(p => {
+                let li = document.createElement('li'); li.innerText = p.name; list.appendChild(li);
+            });
+            
+            if(gameState.players.length >= 2) document.getElementById('btn-start-pass').disabled = false;
+        }
+
+        function startPassAndPlay() {
+            gameState.currentRound = 0;
+            startNextRound();
+        }
+
+        // --- Core Game Loop ---
+        function startNextRound() {
+            gameState.currentRound++;
+            if (gameState.currentRound > MAX_ROUNDS) {
+                calculateEndGame();
+                return;
+            }
+            
+            // Host/Single determines prompt
+            gameState.currentPrompt = PROMPTS[Math.floor(Math.random() * PROMPTS.length)];
+            
+            if (gameState.mode === 'host') {
+                broadcast({ type: 'START_ROUND', round: gameState.currentRound, prompt: gameState.currentPrompt });
+                startClientRoundLocal();
+            } else if (gameState.mode === 'single') {
+                startClientRoundLocal();
+            } else if (gameState.mode === 'pass') {
+                gameState.passPlayCurrentIndex = 0;
+                showPassTransition();
+            }
+        }
+
+        function startClientRoundLocal() {
+            // Clean up old state
+            clearCanvas();
+            document.getElementById('current-prompt').innerText = "Draw: " + gameState.currentPrompt;
+            document.getElementById('round-display').innerText = gameState.currentRound;
+            document.getElementById('btn-submit-early').disabled = false;
+            
+            showScreen('screen-game');
+            sfx.start();
+            
+            gameState.timeLeft = ROUND_TIME;
+            updateTimerDisplay();
+            
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                updateTimerDisplay();
+                if(gameState.timeLeft <= 5 && gameState.timeLeft > 0) sfx.tick();
+                
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    if (gameState.mode === 'host') {
+                        broadcast({ type: 'END_ROUND' });
+                        submitDrawing(false); // host submits own
+                    } else if (gameState.mode === 'single' || gameState.mode === 'pass') {
+                        submitDrawing(false);
+                    }
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer-display').innerText = gameState.timeLeft;
+        }
+
+        // Pass and Play specific
+        function showPassTransition() {
+            let currentPlayer = gameState.players[gameState.passPlayCurrentIndex];
+            document.getElementById('transition-message').innerText = `Pass device to ${currentPlayer.name}!`;
+            document.getElementById('transition-prompt').innerText = gameState.currentPrompt;
+            showScreen('screen-pass-transition');
+        }
+        function beginDrawingTurn() {
+            startClientRoundLocal();
+        }
+
+        // --- Canvas Drawing Logic ---
+        function setupCanvas() {
+            // Setup Toolbar
+            const palette = document.getElementById('color-palette');
+            COLORS.forEach((c, idx) => {
+                let div = document.createElement('div');
+                div.className = `color-swatch ${idx===0 ? 'active':''}`;
+                div.style.backgroundColor = c;
+                div.onclick = () => selectColor(c, div);
+                palette.appendChild(div);
+            });
+
+            // Events
+            canvas.addEventListener('pointerdown', startDraw);
+            canvas.addEventListener('pointermove', draw);
+            window.addEventListener('pointerup', stopDraw);
+            window.addEventListener('pointercancel', stopDraw);
+            
+            // clear background white
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function selectColor(hex, el) {
+            drawState.color = hex;
+            drawState.isEraser = false;
+            document.getElementById('tool-eraser').classList.remove('active');
+            document.querySelectorAll('.color-swatch').forEach(e => e.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+
+        function toggleEraser() {
+            drawState.isEraser = true;
+            document.getElementById('tool-eraser').classList.add('active');
+            document.querySelectorAll('.color-swatch').forEach(e => e.classList.remove('active'));
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // reset stats
+            drawState.stats = { strokes: 0, colors: new Set(), minX: canvas.width, minY: canvas.height, maxX: 0, maxY: 0 };
+        }
+
+        document.getElementById('brush-size').addEventListener('input', (e) => drawState.size = e.target.value);
+
+        function startDraw(e) {
+            if(gameState.timeLeft <= 0 || document.getElementById('screen-game').classList.contains('hidden')) return;
+            drawState.isDrawing = true;
+            drawState.stats.strokes++;
+            if(!drawState.isEraser) drawState.stats.colors.add(drawState.color);
+            
+            const pos = getMousePos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            updateBoundingBox(pos);
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!drawState.isDrawing) return;
+            const pos = getMousePos(e);
+            
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = drawState.isEraser ? "white" : drawState.color;
+            ctx.lineWidth = drawState.size;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.stroke();
+            
+            if(!drawState.isEraser) updateBoundingBox(pos);
+            e.preventDefault();
+        }
+
+        function stopDraw() {
+            if(drawState.isDrawing) {
+                ctx.closePath();
+                drawState.isDrawing = false;
+            }
+        }
+
+        function updateBoundingBox(pos) {
+            if (pos.x < drawState.stats.minX) drawState.stats.minX = pos.x;
+            if (pos.x > drawState.stats.maxX) drawState.stats.maxX = pos.x;
+            if (pos.y < drawState.stats.minY) drawState.stats.minY = pos.y;
+            if (pos.y > drawState.stats.maxY) drawState.stats.maxY = pos.y;
+        }
+
+        // --- AI Scoring Engine ---
+        function evaluateDrawing() {
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let drawnPixels = 0;
+            
+            // Check non-white pixels
+            for(let i=0; i<imgData.length; i+=4) {
+                // If not pure white
+                if(imgData[i] < 250 || imgData[i+1] < 250 || imgData[i+2] < 250) {
+                    drawnPixels++;
+                }
+            }
+
+            if (drawnPixels < 10) return { score: 0, feedback: "A minimalist masterpiece... wait, it's just blank." };
+
+            const coverage = drawnPixels / (canvas.width * canvas.height);
+            let score = 0;
+
+            // 1. Coverage (optimal is usually 5% to 30% for a doodle)
+            if (coverage > 0.05 && coverage < 0.3) score += 35;
+            else if (coverage >= 0.3) score += 20; // Too messy
+            else score += 10; // Too tiny
+
+            // 2. Complexity (strokes)
+            let strokes = drawState.stats.strokes;
+            if (strokes > 3 && strokes < 40) score += 25;
+            else if (strokes >= 40) score += 15; // Scribble alert
+            else score += 5; // A single line?
+
+            // 3. Color Usage
+            score += Math.min(drawState.stats.colors.size * 5, 20);
+
+            // 4. Geometry / Bounding Box (Use of canvas space)
+            let bbArea = (drawState.stats.maxX - drawState.stats.minX) * (drawState.stats.maxY - drawState.stats.minY);
+            let bbRatio = bbArea / (canvas.width * canvas.height);
+            if (bbRatio > 0.15 && bbRatio < 0.8) score += 20;
+            else if (bbRatio >= 0.8) score += 10;
+            else score += 5;
+
+            // AI "Random Confidence" jitter (-5 to +5)
+            score += Math.floor(Math.random() * 11) - 5;
+            score = Math.max(0, Math.min(100, Math.floor(score))); // clamp
+
+            // Feedback Generation
+            let feedback = "";
+            if (score >= 90) feedback = "Masterpiece! The Louvre is calling.";
+            else if (score >= 75) feedback = "Modern art critics are weeping in joy.";
+            else if (score >= 60) feedback = "Not bad, I can definitely see the vision.";
+            else if (score >= 40) feedback = "Abstract. Very, very abstract.";
+            else if (score >= 20) feedback = "Did you draw this with your non-dominant hand?";
+            else feedback = "Are you sure you didn't just drop your mouse?";
+
+            return { score, feedback };
+        }
+
+        function submitDrawing(isManual = false) {
+            clearInterval(gameState.timerInterval);
+            document.getElementById('btn-submit-early').disabled = true;
+            sfx.end();
+
+            const evalResult = evaluateDrawing();
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // compress slightly
+
+            let payload = {
+                score: evalResult.score,
+                feedback: evalResult.feedback,
+                imgData: dataUrl
+            };
+
+            if (gameState.mode === 'single') {
+                gameState.players[0].currentDrawing = payload;
+                showShowcase([{ name: gameState.players[0].name, ...payload }]);
+            } 
+            else if (gameState.mode === 'client') {
+                hostConnection.send({ type: 'SUBMIT_DRAWING', id: gameState.localPlayerId, drawing: payload });
+                showScreen('screen-showcase'); // Wait screen effectively
+                document.getElementById('showcase-grid').innerHTML = "<p>Waiting for other players...</p>";
+            }
+            else if (gameState.mode === 'host') {
+                // Host submits their own
+                let p = gameState.players.find(p => p.id === gameState.localPlayerId);
+                p.currentDrawing = payload;
+                checkAllDrawingsSubmitted();
+            }
+            else if (gameState.mode === 'pass') {
+                gameState.players[gameState.passPlayCurrentIndex].currentDrawing = payload;
+                gameState.passPlayCurrentIndex++;
+                if (gameState.passPlayCurrentIndex < gameState.players.length) {
+                    showPassTransition();
+                } else {
+                    // All local players done
+                    let results = gameState.players.map(p => ({
+                        name: p.name, ...p.currentDrawing
+                    }));
+                    showShowcase(results);
+                }
+            }
+        }
+
+        // Host checks if everyone submitted
+        function checkAllDrawingsSubmitted() {
+            if (gameState.mode !== 'host') return;
+            
+            let allSubmitted = gameState.players.every(p => p.currentDrawing);
+            if (allSubmitted) {
+                let results = gameState.players.map(p => ({
+                    name: p.name, ...p.currentDrawing
+                }));
+                broadcast({ type: 'SHOWCASE', results: results });
+                showShowcase(results);
+            }
+        }
+
+        // --- Showcase Phase ---
+        function showShowcase(results) {
+            showScreen('screen-showcase');
+            document.getElementById('showcase-prompt').innerText = gameState.currentPrompt;
+            
+            const grid = document.getElementById('showcase-grid');
+            grid.innerHTML = '';
+            
+            results.forEach(res => {
+                // Add to total score locally if host or single/pass
+                if (gameState.mode !== 'client') {
+                    let p = gameState.players.find(x => x.name === res.name);
+                    if(p) p.totalScore += res.score;
+                }
+
+                let div = document.createElement('div');
+                div.className = 'showcase-item';
+                div.innerHTML = `
+                    <h3>${res.name}</h3>
+                    <img src="${res.imgData}" alt="drawing">
+                    <div style="font-size: 1.5rem; font-weight:bold; color: var(--primary)">${res.score}/100</div>
+                    <div class="ai-feedback">"${res.feedback}"</div>
+                `;
+                grid.appendChild(div);
+            });
+
+            // UI Button logic
+            let btnNext = document.getElementById('btn-next-round');
+            let waitMsg = document.getElementById('waiting-host-msg');
+            
+            if (gameState.mode === 'client') {
+                btnNext.classList.add('hidden');
+                waitMsg.classList.remove('hidden');
+            } else {
+                btnNext.classList.remove('hidden');
+                waitMsg.classList.add('hidden');
+                btnNext.innerText = gameState.currentRound < MAX_ROUNDS ? "Next Round" : "Finish Game";
+            }
+            
+            // Clear payloads for next round
+            if(gameState.mode !== 'client') {
+                gameState.players.forEach(p => p.currentDrawing = null);
+            }
+        }
+
+        function triggerNextRound() {
+            if (gameState.mode === 'client') return; // clients can't trigger
+            if (gameState.currentRound < MAX_ROUNDS) {
+                startNextRound();
+            } else {
+                calculateEndGame();
+            }
+        }
+
+        // --- End Game ---
+        function calculateEndGame() {
+            sfx.fanfare();
+            
+            // Sort by score
+            let leaderboard = [...gameState.players].sort((a,b) => b.totalScore - a.totalScore);
+            
+            if (gameState.mode === 'host') {
+                broadcast({ type: 'END_GAME', leaderboard: leaderboard.map(p => ({name: p.name, totalScore: p.totalScore})) });
+            }
+            
+            showEndGame(leaderboard);
+        }
+
+        function getGrade(avgScore) {
+            if(avgScore >= 90) return "S";
+            if(avgScore >= 80) return "A";
+            if(avgScore >= 70) return "B";
+            if(avgScore >= 60) return "C";
+            return "D";
+        }
+
+        function showEndGame(leaderboard) {
+            showScreen('screen-end');
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '';
+            
+            leaderboard.forEach((p, index) => {
+                let maxPossible = MAX_ROUNDS * 100;
+                let avg = p.totalScore / MAX_ROUNDS;
+                let grade = getGrade(avg);
+                
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>#${index + 1}</td>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.totalScore} / ${maxPossible}</td>
+                    <td class="grade grade-${grade}">${grade}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Initialize Application
+        window.onload = () => {
+            setupCanvas();
+        };
+
+    </script>
+</body>
+</html>

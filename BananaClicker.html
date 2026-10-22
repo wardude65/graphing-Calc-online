@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banana Clicker Game</title>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot, collection, query, limit, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- USER PROVIDED FIREBASE CONFIGURATION (Used as fallback/default) ---
+    const LOCAL_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyAr3P4JTkAon4rENKDqzyLXz46NjLU7hi4",
+        authDomain: "banana-clicker1.firebaseapp.com",
+        projectId: "banana-clicker1",
+        storageBucket: "banana-clicker1.firebasestorage.app",
+        messagingSenderId: "722609375434",
+        appId: "1:722609375434:web:6b702b319b9a19a1180c33",
+        measurementId: "G-LPC8C65ZSC"
+    };
+
+    // --- Firebase Setup ---
+    // Use environment variables if available, otherwise fall back to the user's config.
+    const appId = typeof __app_id !== 'undefined' ? __app_id : LOCAL_FIREBASE_CONFIG.appId;
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : LOCAL_FIREBASE_CONFIG;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    let userId = null;
+
+    setLogLevel('debug');
+
+    // --- Game State Variables ---
+    let bananas = 0;
+    let bananasPerClick = 1;
+    let bananasPerSecond = 0;
+    let bananaCoin = 0;
+    let bananaCoinPerSecond = 0;
+    let totalClicks = 0;
+    let bananaEvolutions = 0;
+    let evolutionMultiplier = 1;
+    let talentPoints = 0;
+    let lastSaveTime = Date.now();
+    let activeBCFuture = null;
+    let currentCoinRate = 10000; // Initialize here
+
+    const upgradeInterval = 1000;
+    let isAuthReady = false;
+
+    // --- DOM Elements ---
+    const bananaEl = document.getElementById('banana');
+    const bananaCountEl = document.getElementById('bananaCount');
+    const bpcValueEl = document.getElementById('bpcValue');
+    const bpsValueEl = document.getElementById('bpsValue');
+    const bcValueEl = document.getElementById('bcValue');
+    const bcpsValueEl = document.getElementById('bcpsValue');
+    const userIdDisplayEl = document.getElementById('userIdDisplay');
+    const evoValueEl = document.getElementById('evoValue');
+    const evoMultValueEl = document.getElementById('evoMultValue');
+    const talentPointsEl = document.getElementById('talentPoints');
+    const upgradesListEl = document.getElementById('upgrades-list');
+    const bcUpgradesListEl = document.getElementById('bc-upgrades-list');
+    const achievementsListEl = document.getElementById('achievements-list');
+    const notificationAreaEl = document.getElementById('notification-area');
+    const coinRateDisplayEl = document.getElementById('coinRateDisplay');
+    const nextEvolutionEl = document.getElementById('nextEvolution');
+    const leaderboardListEl = document.getElementById('leaderboard-list');
+    const talentTreeListEl = document.getElementById('talent-tree-list');
+    const bcFutureResultEl = document.getElementById('bc-future-result');
+    const investmentListEl = document.getElementById('investment-list');
+
+    // --- Upgrade Definitions (currency: 'banana' or 'coin') ---
+    const UPGRADE_DEFINITIONS = [
+        // Standard Bananas upgrades (Available from Evo 0)
+        { id: 1, name: "Monkey Assistant", description: "Increases BPS by 1.", cost: 10, initialCost: 10, bpsIncrease: 1, type: 'bps', count: 0, costMultiplier: 1.15, currency: 'banana' },
+        { id: 2, name: "Better Gloves", description: "Increases BPC by 5.", cost: 50, initialCost: 50, bpcIncrease: 5, type: 'bpc', count: 0, costMultiplier: 1.2, currency: 'banana' },
+        { id: 3, name: "Banana Tree Farm", description: "Increases BPS by 10.", cost: 200, initialCost: 200, bpsIncrease: 10, type: 'bps', count: 0, costMultiplier: 1.25, currency: 'banana' },
+        { id: 4, name: "Golden Banana Recipe", description: "Increases BPC by 50.", cost: 1000, initialCost: 1000, bpcIncrease: 50, type: 'bpc', count: 0, costMultiplier: 1.3, currency: 'banana' },
+        
+        // Locked behind Evolution 1
+        { id: 5, name: "Banana Factory", description: "Increases BPS by 50.", cost: 5000, initialCost: 5000, bpsIncrease: 50, type: 'bps', count: 0, costMultiplier: 1.35, currency: 'banana', requiredEvolution: 1 },
+        { id: 6, name: "Banana Energizer", description: "Increases BPC by 100.", cost: 15000, initialCost: 15000, bpcIncrease: 100, type: 'bpc', count: 0, costMultiplier: 1.4, currency: 'banana', requiredEvolution: 1 },
+        
+        // Locked behind Evolution 2
+        { id: 7, name: "Artificial Bananas", description: "Increases BPS by 250.", cost: 50000, initialCost: 50000, bpsIncrease: 250, type: 'bps', count: 0, costMultiplier: 1.5, currency: 'banana', requiredEvolution: 2 },
+        
+        // BananaCoin Upgrades (Unlocked at Evolution 3)
+        { id: 8, name: "Quantum Harvester", description: "Permanent +0.5x Evolution Multiplier.", cost: 10, initialCost: 10, bcMultiplier: 0.5, type: 'evo_mult', count: 0, costMultiplier: 2.5, currency: 'coin', requiredEvolution: 3 }
+    ];
+    let upgrades = JSON.parse(JSON.stringify(UPGRADE_DEFINITIONS));
+    
+    // --- Investment Definitions (NEW BCPS System) ---
+    const INVESTMENT_DEFINITIONS = [
+        { id: 101, name: "BC Mining Rig", description: "Generates +0.1 BCPS.", cost: 100, initialCost: 100, bcpsIncrease: 0.1, count: 0, costMultiplier: 1.5 },
+        { id: 102, name: "Decentralized Bank", description: "Generates +1 BCPS.", cost: 1000, initialCost: 1000, bcpsIncrease: 1, count: 0, costMultiplier: 1.8 }
+    ];
+    let investments = JSON.parse(JSON.stringify(INVESTMENT_DEFINITIONS)); // Active mutable state
+
+    // --- Evolution Definitions ---
+    const EVOLUTION_REQUIREMENTS = [
+        { evo: 1, requiredBananas: 500000, multiplier: 2 },
+        { evo: 2, requiredBananas: 5000000, multiplier: 3 },
+        { evo: 3, requiredBananas: 50000000, multiplier: 4 },
+        { evo: 4, requiredBananas: 500000000, multiplier: 5 }
+    ];
+
+    // --- Talent Definitions ---
+    const TALENT_DEFINITIONS = [
+        { id: 1, name: "Click Focus", description: "+10% BPC multiplier per level.", cost: 1, bpcMult: 0.1, count: 0, max: 10 },
+        { id: 2, name: "Idle Focus", description: "+10% BPS multiplier per level.", cost: 1, bpsMult: 0.1, count: 0, max: 10 },
+        { id: 3, name: "Market Analyst", description: "+5% BC Future Win Chance per level.", cost: 3, tradeBonus: 0.05, count: 0, max: 5 }
+    ];
+    let talents = JSON.parse(JSON.stringify(TALENT_DEFINITIONS));
+
+    // --- Achievement Definitions ---
+    const achievements = [
+        { id: 'click_100', name: 'Rookie Clicker', condition: 'Click the banana 100 times.', unlocked: false, requirement: 100 },
+        { id: 'banana_1000', name: 'Small Fortune', condition: 'Reach 1,000 total bananas.', unlocked: false, requirement: 1000 },
+        { id: 'bps_100', name: 'Auto Harvester', condition: 'Reach 100 BPS.', unlocked: false, requirement: 100 },
+        { id: 'coin_1', name: 'Crypto King', condition: 'Hold 1 BananaCoin.', unlocked: false, requirement: 1 },
+        { id: 'banana_100000', name: 'Banana Baron', condition: 'Reach 100,000 total bananas.', unlocked: false, requirement: 100000 },
+    ];
+
+
+    // --- Game Persistence (Firestore) ---
+    const GAME_DATA_PATH = `/artifacts/${appId}/users/`;
+    const LEADERBOARD_PATH = `/artifacts/${appId}/public/data/leaderboard`;
+
+    function getGameDocRef() {
+        if (!userId) { return null; }
+        return doc(db, GAME_DATA_PATH, userId, 'game_data', 'state');
+    }
+
+    async function saveGame() {
+        if (!isAuthReady || !userId) return;
+
+        const gameDocRef = getGameDocRef();
+        if (!gameDocRef) return;
+
+        const gameState = {
+            bananas: bananas,
+            bananaCoin: bananaCoin,
+            totalClicks: totalClicks,
+            bananaEvolutions: bananaEvolutions,
+            talentPoints: talentPoints, 
+            lastSaveTime: Date.now(),   
+            currentCoinRate: currentCoinRate,
+            upgrades: JSON.stringify(upgrades),
+            investments: JSON.stringify(investments),
+            talents: JSON.stringify(talents), 
+            activeBCFuture: activeBCFuture,
+            unlockedAchievements: JSON.stringify(achievements.filter(a => a.unlocked).map(a => a.id)),
+        };
+
+        try {
+            await setDoc(gameDocRef, gameState, { merge: true });
+        } catch (error) {
+            console.error("Error saving game state:", error);
+        }
+    }
+
+    async function updateLeaderboard() {
+        if (!isAuthReady || !userId) return;
+        const leaderboardDocRef = doc(db, LEADERBOARD_PATH, userId);
+
+        const leaderboardData = {
+            bananas: bananas,
+            bananaCoin: bananaCoin,
+            evolution: bananaEvolutions,
+            userId: userId
+        };
+        try {
+            await setDoc(leaderboardDocRef, leaderboardData, { merge: true });
+        } catch (error) {
+            console.error("Error updating leaderboard:", error);
+        }
+    }
+    
+    /**
+     * Calculates and applies bananas earned while the game was closed.
+     */
+    function checkOfflineProgress(loadedTime) {
+        const currentTime = Date.now();
+        const timeDiffSeconds = Math.floor((currentTime - loadedTime) / 1000);
+        const maxOfflineTime = 60 * 60 * 24; // 24 hours max
+        const offlineDuration = Math.min(timeDiffSeconds, maxOfflineTime);
+
+        if (bananasPerSecond > 0 && offlineDuration > 60) {
+            const bananasEarned = Math.floor(bananasPerSecond * offlineDuration);
+            bananas += bananasEarned;
+            showNotification(`You earned ${formatNumber(bananasEarned)} 🍌 while away for ${Math.floor(offlineDuration / 3600)} hours!`, 'info');
+        }
+    }
+
+    function loadGame() {
+        const gameDocRef = getGameDocRef();
+        if (!gameDocRef) {
+            recalculateStats();
+            updateUI();
+            return;
+        }
+
+        onSnapshot(gameDocRef, (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+
+                const initialBPS = bananasPerSecond;
+                
+                bananas = data.bananas || 0;
+                bananaCoin = data.bananaCoin || 0;
+                totalClicks = data.totalClicks || 0;
+                bananaEvolutions = data.bananaEvolutions || 0;
+                talentPoints = data.talentPoints || 0;
+                activeBCFuture = data.activeBCFuture || null;
+                currentCoinRate = data.currentCoinRate || 10000;
+                
+                if (data.upgrades) { upgrades = JSON.parse(data.upgrades); } else { upgrades = JSON.parse(JSON.stringify(UPGRADE_DEFINITIONS)); }
+                if (data.investments) { investments = JSON.parse(data.investments); } else { investments = JSON.parse(JSON.stringify(INVESTMENT_DEFINITIONS)); }
+                if (data.talents) { talents = JSON.parse(data.talents); } else { talents = JSON.parse(JSON.stringify(TALENT_DEFINITIONS)); }
+
+                if (data.unlockedAchievements) {
+                    const unlockedIds = JSON.parse(data.unlockedAchievements);
+                    achievements.forEach(a => { if (unlockedIds.includes(a.id)) { a.unlocked = true; } });
+                }
+
+                recalculateStats();
+                updateUI();
+                
+                // OFFLINE PROGRESS CHECK: MUST happen after recalculateStats to use the loaded BPS
+                const loadedTime = data.lastSaveTime || Date.now();
+                checkOfflineProgress(loadedTime);
+
+                // Check for ongoing future trade
+                if (activeBCFuture && activeBCFuture.endTime < Date.now()) {
+                    resolveBCFutureTrade(activeBCFuture);
+                }
+                
+                lastSaveTime = Date.now();
+            } else {
+                upgrades = JSON.parse(JSON.stringify(UPGRADE_DEFINITIONS));
+                investments = JSON.parse(JSON.stringify(INVESTMENT_DEFINITIONS));
+                talents = JSON.parse(JSON.stringify(TALENT_DEFINITIONS));
+                recalculateStats();
+                updateUI();
+                saveGame();
+            }
+        }, (error) => {
+            console.error("Error listening to game state:", error);
+        });
+    }
+
+    function loadLeaderboard() {
+        if (!isAuthReady) return;
+        const leaderboardQuery = query(
+            collection(db, LEADERBOARD_PATH),
+            orderBy('evolution', 'desc'),
+            limit(20)
+        );
+
+        onSnapshot(leaderboardQuery, (snapshot) => {
+            let topPlayers = [];
+            snapshot.forEach(doc => { topPlayers.push(doc.data()); });
+
+            topPlayers.sort((a, b) => {
+                if (b.evolution !== a.evolution) { return b.evolution - a.evolution; }
+                if (b.bananas !== a.bananas) { return b.bananas - a.bananas; }
+                return b.bananaCoin - a.bananaCoin;
+            });
+            
+            topPlayers = topPlayers.slice(0, 5);
+
+            leaderboardListEl.innerHTML = '';
+            let rank = 1;
+            topPlayers.forEach(data => {
+                const isCurrentUser = data.userId === userId;
+                const listItem = document.createElement('li');
+                listItem.className = isCurrentUser ? 'leaderboard-item current-user' : 'leaderboard-item';
+
+                let displayName = data.userId;
+                if (isCurrentUser) { displayName = 'YOU (' + data.userId.substring(0, 8) + '...)'; } 
+                else { displayName = data.userId.substring(0, 10) + '...'; }
+
+                listItem.innerHTML = `
+                    <span class="rank-badge">${rank++}</span>
+                    <span class="rank-name">${displayName}</span>
+                    <span class="rank-value">Evo: ${data.evolution} | 🍌: ${formatNumber(data.bananas)} | 💰: ${formatNumber(data.bananaCoin)}</span>
+                `;
+                leaderboardListEl.appendChild(listItem);
+            });
+            while (rank <= 5) {
+                const placeholder = document.createElement('li');
+                placeholder.className = 'leaderboard-item placeholder';
+                placeholder.innerHTML = `<span class="rank-badge">${rank++}</span> <span class="rank-name">Empty Slot</span> <span class="rank-value">Need more clicks!</span>`;
+                leaderboardListEl.appendChild(placeholder);
+            }
+        }, (error) => {
+            console.error("Error loading leaderboard:", error);
+        });
+    }
+
+    function recalculateStats() {
+        let rawBPC = 1;
+        let rawBPS = 0;
+        let evoMultBonus = 0;
+        let talentBPCMult = 1;
+        let talentBPSMult = 1;
+        let rawBCPS = 0;
+
+        // 1. Calculate base stats from Banana upgrades
+        upgrades.filter(u => u.currency === 'banana').forEach(u => {
+            if (u.type === 'bps') {
+                rawBPS += u.bpsIncrease * u.count;
+            } else if (u.type === 'bpc') {
+                rawBPC += u.bpcIncrease * u.count;
+            }
+        });
+        
+        // 2. Calculate raw BCPS from investments
+        investments.forEach(i => {
+            rawBCPS += i.bcpsIncrease * i.count;
+        });
+
+
+        // 3. Calculate Evolution Multiplier (Base + BC Upgrades)
+        evolutionMultiplier = bananaEvolutions + 1;
+        upgrades.filter(u => u.type === 'evo_mult').forEach(u => { evoMultBonus += u.bcMultiplier * u.count; });
+        evolutionMultiplier += evoMultBonus;
+        
+        // 4. Calculate Talent Multipliers
+        talents.filter(t => t.id === 1).forEach(t => talentBPCMult += t.bpcMult * t.count);
+        talents.filter(t => t.id === 2).forEach(t => talentBPSMult += t.bpsMult * t.count);
+
+        // 5. Apply final multiplier (Evolution * Talent)
+        bananasPerClick = Math.floor(rawBPC * evolutionMultiplier * talentBPCMult);
+        bananasPerSecond = Math.floor(rawBPS * evolutionMultiplier * talentBPSMult);
+        
+        // Apply final multiplier to BCPS
+        bananaCoinPerSecond = rawBCPS * evolutionMultiplier;
+
+        // Update Evolution/Talent UI
+        evoValueEl.textContent = bananaEvolutions;
+        evoMultValueEl.textContent = evolutionMultiplier.toFixed(1);
+        talentPointsEl.textContent = talentPoints;
+
+        const nextEvo = EVOLUTION_REQUIREMENTS.find(e => e.evo === bananaEvolutions + 1);
+        if (nextEvo) {
+            nextEvolutionEl.innerHTML = `Next (Evo ${nextEvo.evo}): ${formatNumber(nextEvo.requiredBananas)} 🍌 (Rewards ${nextEvo.multiplier}x Multiplier)`;
+            document.getElementById('evolveButton').disabled = bananas < nextEvo.requiredBananas;
+        } else {
+            nextEvolutionEl.textContent = `MAX EVOLUTION REACHED`;
+            document.getElementById('evolveButton').disabled = true;
+        }
+    }
+
+    // --- Core Functions ---
+
+    const formatNumber = (num) => {
+        return Math.floor(num).toLocaleString('en-US');
+    };
+
+    /**
+     * Displays a temporary notification (FIXED UI).
+     */
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+
+        // Append to the fixed container
+        notificationAreaEl.appendChild(notification);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            notification.addEventListener('transitionend', () => notification.remove());
+        }, 4500);
+    }
+
+    /**
+     * Creates a floating text animation when the banana is clicked.
+     */
+    function showClickAnimation(amount) {
+        const animationEl = document.createElement('span');
+        animationEl.className = 'click-animation';
+        animationEl.textContent = `+${formatNumber(amount)}`;
+
+        // Calculate position based on the banana element
+        const rect = bananaEl.getBoundingClientRect();
+        
+        // Position relative to the body/viewport
+        animationEl.style.left = `${rect.left + rect.width / 2}px`;
+        animationEl.style.top = `${rect.top + rect.height / 2}px`;
+        
+        // Append to body
+        document.body.appendChild(animationEl);
+
+        setTimeout(() => {
+            animationEl.remove();
+        }, 1000); 
+    }
+    
+    // --- Render Functions ---
+
+    function renderUpgrades() {
+        upgradesListEl.innerHTML = '';
+        upgrades.filter(u => u.currency === 'banana').forEach(upgrade => {
+            // Check required Evolution level
+            const requiredEvo = upgrade.requiredEvolution || 0;
+            const isEvolutionLocked = bananaEvolutions < requiredEvo;
+
+            const card = document.createElement('div');
+            card.className = 'upgrade-card';
+            
+            if (isEvolutionLocked) {
+                // Render locked card
+                card.classList.add('locked');
+                card.innerHTML = `
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">${upgrade.name} (LOCKED 🔒)</div>
+                        <div class="upgrade-cost text-orange-500">Requires Evolution ${requiredEvo}</div>
+                        <div class="upgrade-description">${upgrade.description}</div>
+                    </div>
+                    <button class="buy-button" disabled>Locked</button>
+                `;
+            } else {
+                // Render buyable card
+                const canAfford = bananas >= upgrade.cost;
+                card.innerHTML = `
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">${upgrade.name} (${upgrade.count})</div>
+                        <div class="upgrade-cost">Cost: ${formatNumber(upgrade.cost)} 🍌</div>
+                        <div class="upgrade-description">${upgrade.description}</div>
+                    </div>
+                    <button class="buy-button" onclick="buyUpgrade(${upgrade.id})" ${canAfford ? '' : 'disabled'}>
+                        Buy
+                    </button>
+                `;
+            }
+            upgradesListEl.appendChild(card);
+        });
+    }
+    
+    /**
+     * Renders the BCPS Investment panel.
+     */
+    function renderInvestments() {
+        investmentListEl.innerHTML = '';
+        investments.forEach(investment => {
+            const card = document.createElement('div');
+            card.className = 'upgrade-card bc-upgrade';
+            const canAfford = bananaCoin >= investment.cost;
+
+            card.innerHTML = `
+                <div class="upgrade-info">
+                    <div class="upgrade-name">${investment.name} (${investment.count})</div>
+                    <div class="upgrade-cost">Cost: ${formatNumber(investment.cost)} 💰</div>
+                    <div class="upgrade-description">${investment.description}</div>
+                </div>
+                <button class="buy-button" onclick="buyInvestment(${investment.id})" ${canAfford ? '' : 'disabled'}>
+                    Invest
+                </button>
+            `;
+            investmentListEl.appendChild(card);
+        });
+    }
+
+    function renderBCUpgrades() {
+        bcUpgradesListEl.innerHTML = '';
+        const coinUpgrades = upgrades.filter(u => u.currency === 'coin');
+        
+        if (bananaEvolutions < 3) {
+            bcUpgradesListEl.innerHTML = `<p class="evo-locked-message">🔒 Unlocks at Banana Evolution 3.</p>`;
+            return;
+        }
+
+        coinUpgrades.forEach(upgrade => {
+            const card = document.createElement('div');
+            card.className = 'upgrade-card bc-upgrade';
+            const canAfford = bananaCoin >= upgrade.cost;
+
+            card.innerHTML = `
+                <div class="upgrade-info">
+                    <div class="upgrade-name">${upgrade.name} (${upgrade.count})</div>
+                    <div class="upgrade-cost">Cost: ${formatNumber(upgrade.cost)} 💰</div>
+                    <div class="upgrade-description">${upgrade.description}</div>
+                </div>
+                <button class="buy-button" onclick="buyUpgrade(${upgrade.id})" ${canAfford ? '' : 'disabled'}>
+                    Buy
+                </button>
+            `;
+            bcUpgradesListEl.appendChild(card);
+        });
+    }
+
+    function renderAchievements() {
+        achievementsListEl.innerHTML = '';
+        achievements.forEach(a => {
+            const card = document.createElement('div');
+            card.className = `achievement-card ${a.unlocked ? 'unlocked' : ''}`;
+            card.innerHTML = `
+                <div class="achievement-name">${a.name} ${a.unlocked ? '✅' : '🔒'}</div>
+                <div class="achievement-condition">${a.condition}</div>
+            `;
+            achievementsListEl.appendChild(card);
+        });
+    }
+
+    /**
+     * Renders the Talent Tree panel.
+     */
+    function renderTalentTree() {
+        talentTreeListEl.innerHTML = '';
+
+        talents.forEach(talent => {
+            const card = document.createElement('div');
+            card.className = 'upgrade-card talent-card';
+            const isMaxed = talent.count >= talent.max;
+            const canAfford = talentPoints >= talent.cost && !isMaxed;
+            
+            card.innerHTML = `
+                <div class="upgrade-info">
+                    <div class="upgrade-name">${talent.name} (Lvl ${talent.count}/${talent.max})</div>
+                    <div class="upgrade-cost">Cost: ${talent.cost} TP</div>
+                    <div class="upgrade-description">${talent.description}</div>
+                </div>
+                <button class="buy-button" onclick="buyTalent(${talent.id})" ${canAfford ? '' : 'disabled'}>
+                    ${isMaxed ? 'MAX' : 'Learn'}
+                </button>
+            `;
+            talentTreeListEl.appendChild(card);
+        });
+    }
+    
+    // --- Trading Logic ---
+    const MIN_COIN_RATE = 5000;
+    const MAX_COIN_RATE = 15000;
+
+    function updateCoinRate() {
+        const fluctuation = (Math.random() * 1000) - 500;
+        currentCoinRate += fluctuation;
+        currentCoinRate = Math.min(MAX_COIN_RATE, Math.max(MIN_COIN_RATE, currentCoinRate));
+        currentCoinRate = Math.floor(currentCoinRate);
+        
+        updateUI();
+        saveGame();
+    }
+    
+    // BC Future Trading
+    window.startBCFutureTrade = function(amount, prediction) {
+        if (activeBCFuture) {
+            showNotification('You have an active trade. Wait for resolution!', 'error');
+            return;
+        }
+        if (bananaCoin < amount) {
+            showNotification('Not enough BananaCoin!', 'error');
+            return;
+        }
+
+        const tradeDuration = 30000; // 30 seconds
+        const endTime = Date.now() + tradeDuration;
+        const startRate = currentCoinRate;
+        
+        bananaCoin -= amount; // Deduct cost immediately
+        
+        activeBCFuture = {
+            amount: amount,
+            prediction: prediction,
+            startRate: startRate,
+            endTime: endTime,
+            initialCoinRate: startRate,
+        };
+        
+        // Show trading message
+        bcFutureResultEl.innerHTML = `<p>Trading ${amount} BC on **${prediction.toUpperCase()}**... Resolves in 30s.</p>`;
+        bcFutureResultEl.classList.add('active');
+        
+        updateUI();
+        saveGame();
+        
+        // Set a timeout to resolve the trade
+        setTimeout(() => resolveBCFutureTrade(activeBCFuture), tradeDuration);
+    }
+    
+    function resolveBCFutureTrade(trade) {
+        activeBCFuture = null; // Clear active trade
+
+        // Check the market rate now
+        const endRate = currentCoinRate;
+        let actualOutcome;
+
+        if (endRate > trade.startRate) {
+            actualOutcome = 'rise';
+        } else if (endRate < trade.startRate) {
+            actualOutcome = 'fall';
+        } else {
+            actualOutcome = trade.prediction; // Tie means your prediction wins
+        }
+
+        // Calculate win chance based on Market Analyst talent
+        const marketAnalystTalent = talents.find(t => t.id === 3);
+        const talentBonus = marketAnalystTalent ? marketAnalystTalent.tradeBonus * marketAnalystTalent.count : 0;
+        const baseWinChance = 0.5; // 50% base chance
+        const totalWinChance = baseWinChance + talentBonus;
+
+        let won = false;
+        if (actualOutcome === trade.prediction) {
+             // If prediction matched, apply win chance (allows for critical win)
+            won = Math.random() < totalWinChance;
+        } else {
+            // If prediction missed, apply loss chance (allows for critical loss)
+            won = Math.random() < talentBonus; // Only win if talent bonus triggers a surprise win
+        }
+
+
+        const multiplier = 3; // 3x multiplier for a win
+        
+        if (won) {
+            const reward = Math.floor(trade.amount * multiplier);
+            bananaCoin += reward;
+            showNotification(`BC Future WON! You predicted ${trade.prediction.toUpperCase()}. Gained ${formatNumber(reward)} BC!`, 'success');
+            bcFutureResultEl.innerHTML = `<p class="win">BC Future WON! Gained ${formatNumber(reward)} BC! (Rate ${formatNumber(trade.startRate)} ➡️ ${formatNumber(endRate)})</p>`;
+        } else {
+            // Player already paid the cost (trade.amount was deducted at start)
+            // No refund for a loss in this high-risk model
+            showNotification(`BC Future LOST! You predicted ${trade.prediction.toUpperCase()}. Lost ${formatNumber(trade.amount)} BC.`, 'error');
+            bcFutureResultEl.innerHTML = `<p class="loss">BC Future LOST! Lost ${formatNumber(trade.amount)} BC. (Rate ${formatNumber(trade.startRate)} ➡️ ${formatNumber(endRate)})</p>`;
+        }
+        
+        bcFutureResultEl.classList.remove('active');
+        updateUI();
+        saveGame();
+    }
+    
+    // --- Update Functions ---
+
+    function updateUI() {
+        bananaCountEl.textContent = formatNumber(bananas);
+        bpcValueEl.textContent = formatNumber(bananasPerClick);
+        bpsValueEl.textContent = formatNumber(bananasPerSecond);
+        bcValueEl.textContent = formatNumber(bananaCoin);
+        bcpsValueEl.textContent = bananaCoinPerSecond.toFixed(1); // Display BCPS with 1 decimal
+        coinRateDisplayEl.textContent = formatNumber(currentCoinRate);
+
+        if (userId) { userIdDisplayEl.textContent = userId; }
+
+        renderUpgrades();
+        renderBCUpgrades();
+        renderAchievements();
+        renderTalentTree();
+        renderInvestments();
+    }
+
+    window.clickBanana = function() {
+        bananas += bananasPerClick;
+        totalClicks++;
+        showClickAnimation(bananasPerClick);
+        updateUI();
+        checkAchievements();
+        saveGame();
+    }
+
+    window.buyUpgrade = function(id) {
+        const upgrade = upgrades.find(u => u.id === id);
+        if (!upgrade) return;
+
+        // Check Evolution Lock
+        const requiredEvo = upgrade.requiredEvolution || 0;
+        if (bananaEvolutions < requiredEvo) {
+            showNotification(`Upgrade locked! Requires Evolution ${requiredEvo}.`, 'error');
+            return;
+        }
+
+        let cost = upgrade.cost;
+        let canAfford = false;
+
+        if (upgrade.currency === 'banana' && bananas >= cost) {
+            bananas -= cost;
+            canAfford = true;
+        } else if (upgrade.currency === 'coin' && bananaCoin >= cost) {
+            bananaCoin -= cost;
+            canAfford = true;
+        }
+
+        if (canAfford) {
+            upgrade.count++;
+            upgrade.cost = Math.floor(upgrade.cost * upgrade.costMultiplier);
+
+            recalculateStats();
+            updateUI();
+            checkAchievements();
+            saveGame();
+            showNotification(`Bought ${upgrade.name}!`, 'success');
+        } else {
+            const currencyName = upgrade.currency === 'banana' ? 'bananas' : 'BananaCoin';
+            showNotification(`Not enough ${currencyName} (Need ${formatNumber(cost)})!`, 'error');
+        }
+    }
+
+    /**
+     * Purchase a BananaCoin Investment (BCPS).
+     */
+    window.buyInvestment = function(id) {
+        const investment = investments.find(i => i.id === id);
+        if (!investment) return;
+
+        const cost = investment.cost;
+        if (bananaCoin < cost) {
+            showNotification(`Not enough BananaCoin (Need ${formatNumber(cost)})!`, 'error');
+            return;
+        }
+
+        bananaCoin -= cost;
+        investment.count++;
+        investment.cost = Math.floor(investment.cost * investment.costMultiplier);
+
+        recalculateStats();
+        updateUI();
+        saveGame();
+        showNotification(`Invested in ${investment.name}!`, 'success');
+    }
+
+    /**
+     * Spend Talent Points to buy a Talent.
+     */
+    window.buyTalent = function(id) {
+        const talent = talents.find(t => t.id === id);
+        if (!talent) return;
+
+        if (talent.count >= talent.max) {
+            showNotification(`${talent.name} is already maxed!`, 'error');
+            return;
+        }
+        if (talentPoints < talent.cost) {
+            showNotification(`Not enough Talent Points (Need ${talent.cost})!`, 'error');
+            return;
+        }
+
+        talentPoints -= talent.cost;
+        talent.count++;
+        
+        recalculateStats();
+        updateUI();
+        saveGame();
+        showNotification(`Learned ${talent.name}! (Level ${talent.count})`, 'achievement');
+    }
+
+    function checkAchievements() {
+        let newlyUnlocked = false;
+
+        achievements.forEach(a => {
+            if (a.unlocked) return;
+
+            let conditionMet = false;
+            switch (a.id) {
+                case 'click_100': conditionMet = totalClicks >= a.requirement; break;
+                case 'banana_1000':
+                case 'banana_100000': conditionMet = bananas >= a.requirement; break;
+                case 'bps_100': conditionMet = bananasPerSecond >= a.requirement; break;
+                case 'coin_1': conditionMet = bananaCoin >= a.requirement; break;
+            }
+
+            if (conditionMet) {
+                a.unlocked = true;
+                newlyUnlocked = true;
+                showNotification(`Achievement Unlocked: ${a.name}!`, 'achievement');
+            }
+        });
+
+        if (newlyUnlocked) {
+            renderAchievements();
+            saveGame();
+        }
+    }
+
+    window.evolve = function() {
+        const nextEvo = EVOLUTION_REQUIREMENTS.find(e => e.evo === bananaEvolutions + 1);
+
+        if (!nextEvo || bananas < nextEvo.requiredBananas) {
+            showNotification(`Cannot evolve yet!`, 'error');
+            return;
+        }
+        
+        // --- Perform Evolution ---
+        bananaEvolutions = nextEvo.evo;
+        talentPoints += 1; // Grant talent point
+
+        // Reset soft currency and click count
+        bananas = 0;
+        totalClicks = 0;
+
+        // Reset all banana-based upgrades (count and cost)
+        upgrades.filter(u => u.currency === 'banana').forEach(u => {
+            u.count = 0;
+            u.cost = u.initialCost;
+        });
+        
+        // --- NEW: Visual Evolution Flash ---
+        const container = document.querySelector('.game-container');
+        container.classList.add('evolution-active');
+        setTimeout(() => {
+            container.classList.remove('evolution-active');
+        }, 1500);
+
+        recalculateStats();
+        updateUI();
+        showNotification(`Banana Evolution ${nextEvo.evo} Complete! You gained 1 Talent Point!`, 'achievement');
+        saveGame();
+    }
+
+    window.buyBananaCoin = function(amount) {
+        const cost = amount * currentCoinRate;
+        if (bananas >= cost) {
+            bananas -= cost;
+            bananaCoin += amount;
+            updateUI();
+            checkAchievements();
+            saveGame();
+            showNotification(`Bought ${formatNumber(amount)} BC!`, 'success');
+        } else {
+            showNotification(`Not enough bananas (Need ${formatNumber(cost)})!`, 'error');
+        }
+    }
+
+    window.sellBananaCoin = function(amount) {
+        if (bananaCoin >= amount) {
+            const income = amount * currentCoinRate;
+            bananaCoin -= amount;
+            bananas += income;
+            updateUI();
+            saveGame();
+            showNotification(`Sold ${formatNumber(amount)} BC for ${formatNumber(income)} bananas!`, 'success');
+        } else {
+            showNotification('Not enough BananaCoin to sell!', 'error');
+        }
+    }
+
+    function gameLoop() {
+        // Add bananas based on BPS
+        bananas += bananasPerSecond * (upgradeInterval / 1000);
+        // Add BananaCoin based on BCPS
+        bananaCoin += bananaCoinPerSecond * (upgradeInterval / 1000);
+
+        recalculateStats();
+        updateUI();
+        checkAchievements();
+        updateLeaderboard();
+        saveGame();
+    }
+
+
+    // --- Initialization ---
+
+    async function authenticateAndInit() {
+        try {
+            if (initialAuthToken) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth);
+            }
+        } catch (error) {
+            console.error("Firebase Auth Error:", error);
+        }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userId = user.uid;
+            isAuthReady = true;
+            loadGame(); 
+            loadLeaderboard();
+            
+            setInterval(gameLoop, upgradeInterval);
+            setInterval(updateCoinRate, 5000);
+
+        } else {
+            // Fallback for environment without auth or if sign-in failed
+            userId = 'Anonymous-User-' + crypto.randomUUID();
+            isAuthReady = true;
+            recalculateStats();
+            updateUI();
+            setInterval(gameLoop, upgradeInterval);
+            setInterval(updateCoinRate, 5000); 
+        }
+    });
+
+
+    window.onload = function() {
+        authenticateAndInit();
+    }
+
+</script>
+<style>
+    :root {
+        --banana-yellow: #ffe135;
+        --jungle-green: #228b22;
+        --dark-brown: #5c4033;
+        --shadow-color: rgba(0, 0, 0, 0.4);
+        --info-blue: #2196f3;
+        --success-green: #4caf50;
+        --error-red: #f44336;
+        --achievement-orange: #ff9800;
+        --evolution-purple: #9c27b0;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        margin: 0;
+        padding-top: 60px; /* Space for fixed notification bar */
+        background: linear-gradient(135deg, var(--banana-yellow) 0%, #ffd700 100%);
+        color: var(--dark-brown);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Align top due to fixed header */
+        min-height: 100vh;
+        text-align: center;
+        overflow-x: hidden;
+    }
+
+    .game-container {
+        background-color: #fff;
+        padding: 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px var(--shadow-color);
+        max-width: 90%;
+        width: 1000px; 
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        animation: fadeIn 0.8s ease-out;
+        transition: box-shadow 0.5s ease;
+    }
+    
+    /* NEW: Evolution Flash Animation */
+    @keyframes evolutionFlash {
+        0% { box-shadow: 0 0 50px 20px var(--evolution-purple); border-color: var(--evolution-purple); }
+        50% { box-shadow: 0 0 50px 10px var(--achievement-orange); border-color: var(--achievement-orange); }
+        100% { box-shadow: 0 10px 30px var(--shadow-color); border-color: transparent; }
+    }
+    .evolution-active {
+        animation: evolutionFlash 1.5s ease-out;
+    }
+
+    /* NEW: Fixed Notification Area */
+    #notification-area {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        padding: 10px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none; /* Allows clicks to pass through */
+    }
+
+    .notification {
+        background-color: #333;
+        color: white;
+        padding: 12px 25px;
+        margin-bottom: 8px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        opacity: 1;
+        transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        transform: translateY(0);
+        pointer-events: auto; /* Re-enable pointer events on the notification itself */
+        font-weight: 600;
+        min-width: 300px;
+    }
+
+    .notification.fade-out {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    .notification.success { background-color: var(--success-green); }
+    .notification.error { background-color: var(--error-red); }
+    .notification.achievement { background-color: var(--achievement-orange); }
+    .notification.info { background-color: var(--info-blue); }
+    
+    /* NEW: Flying Text Animation */
+    .click-animation {
+        position: fixed; /* Must be fixed/absolute to fly over content */
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--jungle-green);
+        text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.5);
+        opacity: 1;
+        pointer-events: none;
+        user-select: none;
+        animation: flyUpAndFade 1s ease-out forwards;
+        z-index: 50;
+        transform: translate(-50%, -50%); /* Center the text */
+    }
+
+    @keyframes flyUpAndFade {
+        0% { transform: translate(-50%, -50%) translateY(0); opacity: 1; }
+        100% { transform: translate(-50%, -50%) translateY(-100px); opacity: 0; }
+    }
+
+
+    .main-content {
+        display: flex;
+        gap: 20px;
+    }
+
+    .left-panel {
+        flex: 1.5;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .right-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    #score-display {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        line-height: 1.2;
+    }
+
+    #banana {
+        cursor: pointer;
+        font-size: 150px;
+        user-select: none;
+        transition: transform 0.1s ease-out, filter 0.1s ease-out;
+        display: inline-block;
+        line-height: 1;
+    }
+
+    #banana:active {
+        transform: scale(0.95) rotate(-5deg);
+        filter: drop-shadow(0 0 5px var(--banana-yellow));
+    }
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+        background-color: #f7f7f7;
+        padding: 10px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 5px;
+        border-radius: 8px;
+        background-color: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        word-wrap: break-word;
+    }
+
+    .stat-value {
+        font-weight: 900;
+        color: var(--jungle-green);
+        word-break: break-all;
+    }
+    
+    /* Game Sections */
+    .game-section {
+        padding: 15px;
+        border-radius: 15px;
+        background-color: #f7f7f7;
+        border: 1px solid #eee;
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: var(--dark-brown);
+    }
+    
+    /* Upgrades & Talents */
+    #upgrades-list, #bc-upgrades-list, #talent-tree-list, #investment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        text-align: left;
+    }
+    
+    .upgrade-card, .leaderboard-item, .talent-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: #fcfcfc;
+        padding: 12px 15px;
+        border-radius: 15px;
+        border: 1px solid #e0e0e0;
+        transition: all 0.2s ease;
+    }
+    
+    .talent-card {
+        border: 1px solid var(--info-blue);
+    }
+    .talent-card:hover {
+        border-color: var(--info-blue);
+        box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+    }
+    
+    .upgrade-card:hover {
+        border-color: var(--banana-yellow);
+        box-shadow: 0 4px 10px rgba(255, 225, 53, 0.3);
+    }
+    
+    .upgrade-info {
+        flex-grow: 1;
+    }
+
+    .upgrade-name {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--jungle-green);
+    }
+    .buy-button {
+        background-color: var(--jungle-green);
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        transition: background-color 0.15s ease, transform 0.1s ease;
+        white-space: nowrap;
+    }
+    .buy-button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    /* Evolution Section */
+    .evolution-info {
+        background-color: #fff3e0; 
+        padding: 15px;
+        border-radius: 15px;
+        border: 2px solid #ff9800;
+        margin-bottom: 10px;
+    }
+
+    #evolveButton {
+        background-color: #ff9800;
+        font-size: 1.1rem;
+    }
+    #evolveButton:hover:not(:disabled) {
+        background-color: #e68900;
+    }
+
+    .evo-locked-message {
+        text-align: center;
+        color: #999;
+        font-style: italic;
+        padding: 10px;
+    }
+    
+    /* Leaderboard Styles */
+    #leaderboard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .leaderboard-item {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+
+    .leaderboard-item .rank-badge {
+        background-color: var(--jungle-green);
+        color: white;
+        border-radius: 50%;
+        width: 25px;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        margin-right: 10px;
+    }
+    .leaderboard-item.current-user {
+        border: 2px dashed #1e88e5; 
+        background-color: #e3f2fd;
+        font-weight: bold;
+    }
+    .rank-name {
+        flex: 1;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* BC Future Styles (NEW) */
+    .exchange-button {
+        flex: 1;
+        padding: 8px 10px;
+        margin: 5px;
+    }
+    .exchange-interface {
+        display: flex;
+        justify-content: space-around;
+    }
+    .buy { background-color: #007bff; }
+    .sell { background-color: #dc3545; }
+    .buy:hover:not(:disabled) { background-color: #0056b3; }
+    .sell:hover:not(:disabled) { background-color: #b02a37; }
+    
+    #bc-future-result {
+        margin-top: 10px;
+        font-style: italic;
+        min-height: 20px;
+        text-align: center;
+    }
+    .win { color: var(--success-green); font-weight: bold; }
+    .loss { color: var(--error-red); font-weight: bold; }
+
+
+    /* Responsive Adjustments */
+    @media (max-width: 900px) {
+        .main-content {
+            flex-direction: column;
+        }
+        .stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+</head>
+<body>
+
+    <div id="notification-area"></div>
+
+    <div class="game-container">
+        <h1>🍌 Banana Clicker 🐒</h1>
+
+        <div id="score-display">
+            <span id="bananaCount">0</span> Bananas
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                BPC: <span id="bpcValue" class="stat-value">1</span>
+            </div>
+            <div class="stat-item">
+                BPS: <span id="bpsValue" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                BananaCoin: <span id="bcValue" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                BCPS: <span id="bcpsValue" class="stat-value">0.0</span>
+            </div>
+            <div class="stat-item">
+                Evolution: <span id="evoValue" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                Evo Multiplier: <span id="evoMultValue" class="stat-value">1.0</span>x
+            </div>
+            <div class="stat-item">
+                Talent Points: <span id="talentPoints" class="stat-value">0</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="left-panel">
+                <div id="banana" onclick="clickBanana()">
+                    &#x1F34C; <!-- Banana Emoji -->
+                </div>
+
+                <div class="evolution-section">
+                    <div class="section-title">Banana Evolution (Prestige) ✨</div>
+                    <div class="evolution-info">
+                        <p id="nextEvolution">Next (Evo 1): 500,000 🍌 (Rewards 2x Multiplier)</p>
+                        <button id="evolveButton" class="buy-button" onclick="evolve()" disabled>
+                            Evolve! (Reset for Multiplier + 1 TP)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="upgrades-section">
+                    <div class="section-title">Standard Upgrades (Banana)</div>
+                    <div id="upgrades-list" class="game-section">
+                        <!-- Upgrades will be dynamically inserted here -->
+                    </div>
+                </div>
+
+                <div class="crypto-section">
+                    <div class="section-title">BananaCoin Upgrades (Evo 3)</div>
+                    <div id="bc-upgrades-list" class="game-section">
+                        <!-- BC Upgrades rendered here (unlocked at Evo 3) -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="crypto-section">
+                    <div class="section-title">BananaCoin Exchange 💰</div>
+                    <div class="game-section">
+                        <p>Rate: 1 BananaCoin (BC) = <span id="coinRateDisplay">10,000</span> 🍌</p>
+                        <div class="exchange-interface">
+                            <button class="exchange-button buy" onclick="buyBananaCoin(1)">Buy 1 BC</button>
+                            <button class="exchange-button sell" onclick="sellBananaCoin(1)">Sell 1 BC</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="crypto-future-section">
+                    <div class="section-title">BC Futures Trading (High Risk) 📉</div>
+                    <div class="game-section">
+                        <p>Bet 5 BC on the rate changing in the next 30s for a 3x payoff!</p>
+                        <div class="exchange-interface">
+                            <button class="exchange-button buy" onclick="startBCFutureTrade(5, 'rise')" ${activeBCFuture ? 'disabled' : ''}>Bet 5 BC: RISE</button>
+                            <button class="exchange-button sell" onclick="startBCFutureTrade(5, 'fall')" ${activeBCFuture ? 'disabled' : ''}>Bet 5 BC: FALL</button>
+                        </div>
+                        <div id="bc-future-result"></div>
+                    </div>
+                </div>
+
+                <div class="investment-section">
+                    <div class="section-title">BC Investment Fund (BCPS) 🏦</div>
+                    <div id="investment-list" class="game-section">
+                        <!-- Investments rendered here -->
+                    </div>
+                </div>
+
+                <div class="talent-tree-section">
+                    <div class="section-title">Talent Tree (Spend TP) 🌳</div>
+                    <div id="talent-tree-list" class="game-section">
+                        <!-- Talents rendered here -->
+                    </div>
+                </div>
+
+                <div class="leaderboard-section">
+                    <div class="section-title">Global Leaderboard 🥇</div>
+                    <div class="game-section">
+                        <ul id="leaderboard-list">
+                            <!-- Leaderboard items rendered here -->
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="achievements-section">
+                    <div class="section-title">Achievements 🏆</div>
+                    <div class="game-section">
+                        <div id="achievements-list">
+                            <!-- Achievements rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                Current User ID: <span id="userIdDisplay" class="stat-value">Loading...</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

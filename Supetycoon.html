@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Supe Tycoon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            touch-action: none; /* Prevent pinch zoom on mobile */
+        }
+        
+        h1, h2, h3, .bangers-font {
+            font-family: 'Bangers', cursive;
+            letter-spacing: 1px;
+        }
+
+        .panel {
+            display: none;
+            height: calc(100vh - 140px); /* Account for top header and bottom nav */
+            overflow-y: auto;
+            padding-bottom: 2rem;
+        }
+        .panel.active {
+            display: block; /* Changed from flex to block to fix specificity bug */
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .supe-card {
+            transition: all 0.2s ease;
+        }
+        .supe-card:active {
+            transform: scale(0.95);
+        }
+        
+        .progress-bar-fill {
+            transition: width 0.3s ease;
+        }
+
+        .floating-text {
+            position: absolute;
+            animation: floatUp 1s ease-out forwards;
+            pointer-events: none;
+            font-weight: bold;
+            z-index: 50;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        
+        .shake-screen {
+            animation: shake 0.3s;
+        }
+
+        .btn-press {
+            transition: transform 0.1s, filter 0.1s;
+        }
+        .btn-press:active:not(:disabled) {
+            transform: scale(0.95);
+            filter: brightness(0.8);
+        }
+        .btn-press:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Particle System Base */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen text-slate-100 selection:bg-blue-500 selection:text-white">
+
+    <header class="glass-panel p-4 sticky top-0 z-40 shadow-lg flex justify-between items-center h-[80px]">
+        <div class="flex flex-col">
+            <h1 class="text-3xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+                Supe Tycoon
+            </h1>
+            <span class="text-xs text-slate-400 font-mono tracking-wider">v1.1.0</span>
+        </div>
+        
+        <div class="flex flex-col items-end">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-xl">💰</span>
+                <span id="moneyDisplay" class="text-2xl md:text-3xl font-bold text-green-400 font-mono drop-shadow-md">$0</span>
+            </div>
+            <div class="text-xs text-slate-300 font-semibold bg-slate-800/80 px-2 py-1 rounded-full border border-slate-600">
+                <span id="mpsDisplay">+$0</span> / sec
+            </div>
+        </div>
+    </header>
+
+    <div class="px-4 py-2 bg-slate-900 border-b border-slate-700 flex justify-between items-center text-sm font-semibold h-[40px] z-30">
+        <div class="flex items-center gap-2">
+            <div id="currentSupeEmoji" class="text-xl">🦸</div>
+            <span id="currentSupeName" class="text-blue-300">Loading...</span>
+        </div>
+        <div class="flex gap-4">
+            <div class="flex items-center gap-1 text-purple-400">
+                <i class="fas fa-sync-alt text-xs"></i>
+                <span id="rebirthDisplay">0</span>
+            </div>
+             <button onclick="document.getElementById('settingsModal').classList.remove('hidden')" class="text-slate-400 hover:text-white transition-colors">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </div>
+
+    <main class="flex-1 relative w-full max-w-4xl mx-auto">
+        
+        <!-- TYCOON PANEL -->
+        <div id="panel-tycoon" class="panel active px-4 py-6">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-3xl text-white drop-shadow-md">Your Factory</h2>
+                    <p class="text-slate-400 text-sm">Build droppers to automate income.</p>
+                </div>
+                <button id="rebirthBtn" onclick="attemptRebirth()" class="hidden btn-press bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-bold py-2 px-4 rounded-xl shadow-[0_0_15px_rgba(168,85,247,0.5)] border-2 border-purple-400 bangers-font text-xl">
+                    REBIRTH
+                </button>
+            </div>
+            
+            <div id="floorsContainer" class="space-y-8">
+                <!-- Floor 1 -->
+                <div class="bg-slate-800 rounded-2xl border border-slate-600 overflow-hidden shadow-xl">
+                    <div class="bg-slate-700 p-3 border-b border-slate-600 flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-slate-200"><i class="fas fa-layer-group text-blue-400 mr-2"></i>Floor 1</h3>
+                        <span class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-300 font-mono" id="floor1Total">+$0/s</span>
+                    </div>
+                    <div class="p-4 space-y-3" id="floor1Content">
+                        <!-- Droppers generated here -->
+                    </div>
+                </div>
+
+                <!-- Floor 2 -->
+                <div id="floor2Wrapper" class="bg-slate-800/50 rounded-2xl border border-slate-700 overflow-hidden shadow-xl relative opacity-75">
+                    <div class="bg-slate-700/50 p-3 border-b border-slate-600/50 flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-slate-400"><i class="fas fa-layer-group text-blue-500/50 mr-2"></i>Floor 2</h3>
+                        <span class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400 font-mono hidden" id="floor2Total">+$0/s</span>
+                    </div>
+                    
+                    <div id="floor2Locked" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm rounded-2xl p-6 text-center">
+                        <i class="fas fa-lock text-4xl text-slate-500 mb-2"></i>
+                        <h4 class="font-bold text-lg mb-1">Floor 2 Locked</h4>
+                        <p class="text-sm text-slate-400 mb-4">Purchase all Floor 1 droppers to expand.</p>
+                        <button id="unlockFloor2Btn" onclick="unlockFloor(2)" class="btn-press bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg shadow-lg disabled:opacity-50 hidden">
+                            Unlock ($50K)
+                        </button>
+                    </div>
+
+                    <div class="p-4 space-y-3 hidden" id="floor2Content">
+                        <!-- Droppers generated here -->
+                    </div>
+                </div>
+                
+                <!-- Floor 3 -->
+                <div id="floor3Wrapper" class="bg-slate-800/30 rounded-2xl border border-slate-800 overflow-hidden shadow-xl relative opacity-50">
+                    <div class="bg-slate-700/30 p-3 border-b border-slate-700/50 flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-slate-500"><i class="fas fa-layer-group text-blue-600/30 mr-2"></i>Floor 3</h3>
+                        <span class="text-xs bg-slate-800 px-2 py-1 rounded text-slate-500 font-mono hidden" id="floor3Total">+$0/s</span>
+                    </div>
+                    
+                    <div id="floor3Locked" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-sm rounded-2xl p-6 text-center">
+                        <i class="fas fa-lock text-4xl text-slate-600 mb-2"></i>
+                        <h4 class="font-bold text-lg mb-1 text-slate-400">Floor 3 Locked</h4>
+                        <p class="text-sm text-slate-500 mb-4">Purchase all Floor 2 droppers to expand.</p>
+                        <button id="unlockFloor3Btn" onclick="unlockFloor(3)" class="btn-press bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg disabled:opacity-50 hidden">
+                            Unlock ($5M)
+                        </button>
+                    </div>
+
+                    <div class="p-4 space-y-3 hidden" id="floor3Content">
+                        <!-- Droppers generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POWERS PANEL -->
+        <div id="panel-powers" class="panel px-4 py-6">
+            <h2 class="text-3xl text-white mb-2 drop-shadow-md">Supe Powers</h2>
+            <p class="text-slate-400 text-sm mb-6">Upgrade abilities for the Battle Arena.</p>
+            
+            <div id="powersContainer" class="space-y-4">
+                <!-- Powers generated via JS -->
+            </div>
+        </div>
+
+        <!-- BATTLE PANEL -->
+        <div id="panel-battle" class="panel h-full px-0 py-0">
+            <!-- Content Wrapper (Fixes Flex Bug) -->
+            <div class="flex flex-col h-full bg-slate-900">
+                <!-- Battle Stats Bar -->
+                <div class="bg-slate-800 p-3 flex justify-between items-center border-b border-slate-700">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded border border-red-500/30">
+                            Streak: <span id="streakDisplay">0</span>
+                        </span>
+                    </div>
+                    <button onclick="fleeBattle()" id="fleeBtn" class="hidden text-sm text-slate-400 hover:text-white transition-colors">
+                        Flee <i class="fas fa-running"></i>
+                    </button>
+                </div>
+
+                <!-- Battle Arena Area -->
+                <div class="flex-1 relative flex flex-col justify-center items-center overflow-hidden bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black p-4">
+                    
+                    <div id="particles" class="absolute inset-0 pointer-events-none"></div>
+
+                    <!-- Idle State -->
+                    <div id="battleIdleState" class="flex flex-col items-center justify-center w-full max-w-sm">
+                        <i class="fas fa-skull text-6xl text-slate-600 mb-4 drop-shadow-[0_0_15px_rgba(0,0,0,1)]"></i>
+                        <h3 class="text-2xl font-bold text-white mb-2">Arena is Empty</h3>
+                        <p class="text-slate-400 text-center mb-6 text-sm">Defeat enemies to earn chunks of cash based on your Tycoon income.</p>
+                        <button onclick="startBattle()" class="btn-press w-full bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold py-4 px-6 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.4)] text-xl border-b-4 border-red-800 bangers-font tracking-widest">
+                            FIGHT NEXT ENEMY
+                        </button>
+                    </div>
+
+                    <!-- Active Combat State -->
+                    <div id="battleActiveState" class="hidden w-full max-w-md flex flex-col h-full justify-between py-4">
+                        
+                        <!-- Enemy Info -->
+                        <div class="flex flex-col items-center w-full animate-fade-in-down">
+                            <span id="enemyEmoji" class="text-6xl mb-2 drop-shadow-[0_0_20px_rgba(255,0,0,0.5)]">🦹</span>
+                            <h3 id="enemyName" class="text-xl font-bold text-red-400 mb-1">Street Thug</h3>
+                            <div class="w-full bg-slate-800 h-6 rounded-full border-2 border-slate-600 relative overflow-hidden shadow-inner">
+                                <div id="enemyHpBar" class="bg-gradient-to-r from-red-500 to-red-400 h-full w-full transition-all duration-200"></div>
+                                <span id="enemyHpText" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow-md">100/100</span>
+                            </div>
+                        </div>
+
+                        <!-- VS Divider -->
+                        <div class="flex justify-center my-4 opacity-30">
+                            <i class="fas fa-bolt text-4xl text-yellow-500"></i>
+                        </div>
+
+                        <!-- Player Info -->
+                        <div class="flex flex-col w-full animate-fade-in-up">
+                            <!-- Player HP (Conceptual, enemies don't attack back in this idle variant, but good for UI feel) -->
+                            <div class="w-full bg-slate-800 h-4 rounded-full border border-slate-600 relative overflow-hidden shadow-inner mb-4 opacity-80">
+                                <div class="bg-gradient-to-r from-green-500 to-green-400 h-full w-full"></div>
+                                <span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">YOU</span>
+                            </div>
+
+                            <!-- Combat Log -->
+                            <div id="combatLog" class="h-16 text-center text-sm font-bold text-yellow-300 flex items-center justify-center italic drop-shadow-md px-4 line-clamp-2">
+                                Ready to fight!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Bar (Powers) -->
+                <div class="bg-slate-800 p-4 border-t border-slate-700 h-[140px]">
+                    <div id="battleActionState" class="hidden h-full">
+                        <div class="grid grid-cols-5 gap-2 h-full" id="battlePowersContainer">
+                            <!-- Power Buttons Generate Here -->
+                        </div>
+                    </div>
+                    <div id="battleLockedState" class="h-full flex items-center justify-center">
+                        <p class="text-slate-500 text-sm text-center">Combat interface offline.<br>Start a battle to engage.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROSTER PANEL -->
+        <div id="panel-roster" class="panel px-4 py-6">
+            <div class="flex justify-between items-end mb-6">
+                <h2 class="text-3xl text-white drop-shadow-md">Supe Roster</h2>
+                <span class="text-sm font-mono text-slate-400 bg-slate-800 px-3 py-1 rounded-full border border-slate-700" id="rosterCount">1/21 Unlocked</span>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="rosterContainer">
+                <!-- Roster cards generated here -->
+            </div>
+        </div>
+
+        <!-- STATS PANEL -->
+        <div id="panel-stats" class="panel px-4 py-6">
+            <h2 class="text-3xl text-white mb-6 drop-shadow-md">Statistics</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="statsContainer">
+                <!-- Stats generated via JS -->
+            </div>
+            
+            <div class="mt-8 pt-6 border-t border-slate-700">
+                <h3 class="text-xl text-white mb-4">Achievements</h3>
+                <div class="space-y-2" id="achievementsContainer">
+                    <!-- Achievements generated via JS -->
+                </div>
+            </div>
+        </div>
+        
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bg-slate-900 border-t border-slate-800 pb-safe h-[60px] z-40 fixed bottom-0 w-full max-w-4xl left-1/2 transform -translate-x-1/2">
+        <ul class="flex justify-around h-full">
+            <li class="flex-1">
+                <button onclick="switchTab('tycoon')" class="nav-btn w-full h-full flex flex-col items-center justify-center gap-1 text-blue-400 bg-slate-800/50 transition-colors">
+                    <i class="fas fa-industry text-lg"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-wide">Tycoon</span>
+                </button>
+            </li>
+            <li class="flex-1">
+                <button onclick="switchTab('powers')" class="nav-btn w-full h-full flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-purple-400 transition-colors relative">
+                    <i class="fas fa-fist-raised text-lg"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-wide">Powers</span>
+                    <span id="powerUpgradeBadge" class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full hidden"></span>
+                </button>
+            </li>
+            <li class="flex-1">
+                <button onclick="switchTab('battle')" class="nav-btn w-full h-full flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-red-400 transition-colors relative">
+                    <div class="relative">
+                        <i class="fas fa-swords text-lg"></i>
+                        <span class="absolute -top-1 -right-2 flex h-3 w-3">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wide">Battle</span>
+                </button>
+            </li>
+            <li class="flex-1">
+                <button onclick="switchTab('roster')" class="nav-btn w-full h-full flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-yellow-400 transition-colors">
+                    <i class="fas fa-users text-lg"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-wide">Roster</span>
+                </button>
+            </li>
+            <li class="flex-1">
+                <button onclick="switchTab('stats')" class="nav-btn w-full h-full flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-emerald-400 transition-colors">
+                    <i class="fas fa-chart-bar text-lg"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-wide">Stats</span>
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-600 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
+            <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h2 class="text-2xl font-bold mb-6 text-white text-center">Settings & Save</h2>
+            
+            <div class="space-y-3">
+                <button onclick="exportSave()" class="w-full btn-press bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2">
+                    <i class="fas fa-download"></i> Export Save Code
+                </button>
+                <button onclick="importSave()" class="w-full btn-press bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2">
+                    <i class="fas fa-upload"></i> Import Save Code
+                </button>
+                <div class="h-px bg-slate-700 my-4"></div>
+                <button onclick="hardReset()" class="w-full btn-press bg-red-900/50 hover:bg-red-600 text-red-200 hover:text-white border border-red-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                    <i class="fas fa-skull-crossbones"></i> HARD RESET
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 text-center mt-4">Game autosaves every 5 seconds.</p>
+        </div>
+    </div>
+
+    <!-- Rebirth Overlay Modal -->
+    <div id="rebirthModal" class="hidden fixed inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center p-6 text-center">
+        <div class="animate-bounce mb-8">
+            <i class="fas fa-crown text-7xl text-yellow-400 drop-shadow-[0_0_30px_rgba(250,204,21,0.8)]"></i>
+        </div>
+        <h1 class="text-5xl md:text-6xl text-white bangers-font mb-2 tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">NEW SUPE UNLOCKED!</h1>
+        <div class="w-32 h-32 text-8xl flex items-center justify-center bg-slate-800 rounded-full border-4 border-yellow-400 my-6 shadow-[0_0_50px_rgba(250,204,21,0.4)]" id="rebirthEmoji">
+            🦸
+        </div>
+        <h2 class="text-3xl font-bold text-white mb-2" id="rebirthName">Hero Name</h2>
+        <p class="text-xl text-purple-300 font-bold mb-8">Permanent Multiplier: <span id="rebirthMult">x2</span></p>
+        
+        <p class="text-slate-400 mb-8 max-w-sm">Your Tycoon and money have been reset, but your income is now permanently multiplied!</p>
+        
+        <button onclick="finishRebirth()" class="btn-press bg-white text-black font-bold py-4 px-12 rounded-full text-xl hover:bg-slate-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+            CONTINUE
+        </button>
+    </div>
+
+    <script>
+        // --- UTILS ---
+        const formatMoney = (num) => {
+            if (num < 1000) return '$' + Math.floor(num).toString();
+            if (num < 1000000) return '$' + (num / 1000).toFixed(1) + 'K';
+            if (num < 1000000000) return '$' + (num / 1000000).toFixed(2) + 'M';
+            if (num < 1000000000000) return '$' + (num / 1000000000).toFixed(2) + 'B';
+            if (num < 1000000000000000) return '$' + (num / 1000000000000).toFixed(2) + 'T';
+            if (num < 1000000000000000000) return '$' + (num / 1000000000000000).toFixed(2) + 'Qa';
+            if (num < 1000000000000000000000) return '$' + (num / 1000000000000000000).toFixed(2) + 'Qi';
+            return '$' + (num / 1000000000000000000000).toFixed(2) + 'Sx';
+        };
+
+        const formatNumber = (num) => {
+             if (num < 1000) return Math.floor(num).toString();
+             if (num < 1000000) return (num / 1000).toFixed(1) + 'K';
+             if (num < 1000000000) return (num / 1000000).toFixed(2) + 'M';
+             return (num / 1000000000).toFixed(2) + 'B';
+        }
+
+        function showToast(msg, type='info') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full shadow-xl z-50 text-white font-bold text-sm transition-all duration-300 translate-y-[-100px] flex items-center gap-2 ${type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-blue-600'}`;
+            
+            const icon = type === 'error' ? 'fa-exclamation-circle' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+            toast.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+            
+            document.body.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => { toast.style.transform = 'translate(-50%, 0)'; }, 10);
+            
+            // Animate out
+            setTimeout(() => { 
+                toast.style.transform = 'translate(-50%, -100px)'; 
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // Particle System
+        function createParticles(x, y, color = '#4ade80', count = 10) {
+            const container = document.getElementById('particles');
+            if(!container) return;
+            
+            for(let i=0; i<count; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                const size = Math.random() * 8 + 4;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.backgroundColor = color;
+                p.style.left = x + 'px';
+                p.style.top = y + 'px';
+                
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 60 + 20;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity - 30; // slight upward bias
+                
+                p.style.transition = 'all 0.6s cubic-bezier(0.1, 0.8, 0.3, 1)';
+                
+                container.appendChild(p);
+                
+                // Trigger animation next frame
+                requestAnimationFrame(() => {
+                    p.style.transform = `translate(${tx}px, ${ty}px) scale(0)`;
+                    p.style.opacity = '0';
+                });
+                
+                setTimeout(() => p.remove(), 600);
+            }
+        }
+
+        function createFloatingText(text, x, y, color = '#4ade80') {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.innerText = text;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.color = color;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function shakeScreen() {
+            document.body.classList.add('shake-screen');
+            setTimeout(() => document.body.classList.remove('shake-screen'), 300);
+        }
+
+        // --- GAME STATE ---
+        let state = {
+            money: 0,
+            totalMoneyEarned: 0,
+            supeIndex: 0,
+            rebirths: 0,
+            lastSaveTime: Date.now(),
+            droppers: {}, // { "f1_d1": level, ... }
+            unlockedFloors: 1, // 1, 2, or 3
+            powerLevels: {}, // { "bw1": level, ... }
+            stats: {
+                enemiesDefeated: 0,
+                battlesWon: 0,
+                highestStreak: 0,
+                totalClicks: 0
+            },
+            achievements: [] // array of achievement IDs
+        };
+
+        // --- SAVE / LOAD SYSTEM ---
+        function saveGame() {
+            state.lastSaveTime = Date.now();
+            localStorage.setItem('supeTycoonSave1', JSON.stringify(state));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('supeTycoonSave1');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Merge saved state with default state to handle new variables in updates
+                    state = { ...state, ...parsed };
+                    
+                    // Ensure nested objects exist if they were missing
+                    if(!state.droppers) state.droppers = {};
+                    if(!state.powerLevels) state.powerLevels = {};
+                    if(!state.stats) state.stats = { enemiesDefeated: 0, battlesWon: 0, highestStreak: 0, totalClicks: 0 };
+                    if(!state.achievements) state.achievements = [];
+
+                    // Offline Progress Calculation
+                    if (state.lastSaveTime) {
+                        const now = Date.now();
+                        const diffSeconds = (now - state.lastSaveTime) / 1000;
+                        const actualTime = Math.min(diffSeconds, 86400); // Max 24h offline earnings
+                        
+                        // Calculate simulated income based on loaded state
+                        let tempIncome = 0;
+                        const currentSupe = SUPES[state.supeIndex];
+                        const rMult = 1 + (state.rebirths * 0.5);
+                        
+                        Object.keys(state.droppers).forEach(key => {
+                            const [f, d] = key.split('_');
+                            const floorData = TYCOON_DATA[f.replace('f', '')];
+                            if(floorData) {
+                                const dropper = floorData.droppers.find(dr => dr.id === key);
+                                if(dropper) {
+                                    const lvl = state.droppers[key];
+                                    tempIncome += dropper.baseIncome * lvl * currentSupe.baseMultiplier * rMult;
+                                }
+                            }
+                        });
+
+                        const earned = tempIncome * actualTime;
+                        if(earned > 10) { // Don't show toast for tiny amounts
+                            state.money += earned;
+                            state.totalMoneyEarned += earned;
+                            setTimeout(() => {
+                                alert(`Welcome Back, Hero!\n\nYour Tycoon earned ${formatMoney(earned)} while you were offline for ${Math.floor(actualTime/60)} minutes.`);
+                            }, 500);
+                        }
+                    }
+                } catch(e) { 
+                    console.error("Save load failed, starting fresh", e); 
+                }
+            }
+        }
+
+        function exportSave() {
+            saveGame();
+            const saveData = localStorage.getItem('supeTycoonSave1');
+            if (saveData) {
+                const encoded = btoa(saveData);
+                // Attempt clipboard, fallback to prompt
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(encoded)
+                        .then(() => showToast("Save code copied to clipboard!", "success"))
+                        .catch(() => prompt("Copy your save code manually:", encoded));
+                } else {
+                    prompt("Copy your save code manually (Ctrl+C):", encoded);
+                }
+            }
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function importSave() {
+            const data = prompt("Paste your save code here:");
+            if (data) {
+                try {
+                    const decoded = atob(data);
+                    JSON.parse(decoded); // validate JSON
+                    localStorage.setItem('supeTycoonSave1', decoded);
+                    showToast("Save loaded! Refreshing game...", "success");
+                    setTimeout(() => location.reload(), 1500);
+                } catch(e) { 
+                    showToast("Invalid save code!", "error"); 
+                }
+            }
+        }
+
+        function hardReset() {
+            if(confirm("DANGER!\n\nAre you sure you want to delete EVERYTHING? This cannot be undone.")) {
+                localStorage.removeItem('supeTycoonSave1');
+                location.reload();
+            }
+        }
+
+        // --- GAME DATA ---
+        const SUPES = [
+            { id: 0, name: "Black Widow", rarity: "Common", emoji: "🕷️", baseMultiplier: 1, color: "text-gray-400",
+              powers: [ { id: 'bw1', name: "Widow's Bite", cost: 50, dmg: 10, cd: 1 }, { id: 'bw2', name: "Grappling Hook", cost: 200, dmg: 25, cd: 2 }, { id: 'bw3', name: "Widow's Strike", cost: 500, dmg: 60, cd: 3 }, { id: 'bw4', name: "Tactical Assault", cost: 1500, dmg: 150, cd: 5 }, { id: 'bw5', name: "Red Room Revenge", cost: 5000, dmg: 400, cd: 8 } ] },
+            { id: 1, name: "Hawkeye", rarity: "Common", emoji: "🏹", baseMultiplier: 1.5, color: "text-gray-400",
+              powers: [ { id: 'hk1', name: "Precision Shot", cost: 1e4, dmg: 800, cd: 1 }, { id: 'hk2', name: "Explosive Arrow", cost: 2.5e4, dmg: 2000, cd: 3 }, { id: 'hk3', name: "Electric Arrow", cost: 5e4, dmg: 4500, cd: 4 }, { id: 'hk4', name: "Trick Arrow Barrage", cost: 1.2e5, dmg: 1e4, cd: 6 }, { id: 'hk5', name: "Ultimate Bullseye", cost: 3e5, dmg: 2.5e4, cd: 10 } ] },
+            { id: 2, name: "The Deep", rarity: "Uncommon", emoji: "🐙", baseMultiplier: 2.5, color: "text-green-400",
+              powers: [ { id: 'td1', name: "Ocean Punch", cost: 1e6, dmg: 5e4, cd: 1 }, { id: 'td2', name: "Dolphin Assist", cost: 3e6, dmg: 1.5e5, cd: 3 }, { id: 'td3', name: "Water Blast", cost: 8e6, dmg: 4e5, cd: 4 }, { id: 'td4', name: "Sea Creature Summon", cost: 2e7, dmg: 1e6, cd: 6 }, { id: 'td5', name: "Deep Sea Fury", cost: 5e7, dmg: 2.5e6, cd: 10 } ] },
+            { id: 3, name: "Punisher", rarity: "Uncommon", emoji: "💀", baseMultiplier: 4, color: "text-green-400",
+              powers: [ { id: 'pu1', name: "Pistol Burst", cost: 1e8, dmg: 5e6, cd: 1 }, { id: 'pu2', name: "Shotgun Blast", cost: 3e8, dmg: 1.5e7, cd: 3 }, { id: 'pu3', name: "Grenade", cost: 8e8, dmg: 4e7, cd: 5 }, { id: 'pu4', name: "Heavy Assault", cost: 2e9, dmg: 1e8, cd: 7 }, { id: 'pu5', name: "Punisher's Vengeance", cost: 5e9, dmg: 2.5e8, cd: 12 } ] },
+            { id: 4, name: "Batman", rarity: "Rare", emoji: "🦇", baseMultiplier: 8, color: "text-blue-400",
+              powers: [ { id: 'bm1', name: "Batarang", cost: 1e10, dmg: 5e8, cd: 1 }, { id: 'bm2', name: "Grapnel Strike", cost: 4e10, dmg: 2e9, cd: 2 }, { id: 'bm3', name: "Smoke Bomb", cost: 1e11, dmg: 5e9, cd: 4 }, { id: 'bm4', name: "Batmobile Attack", cost: 5e11, dmg: 2.5e10, cd: 8 }, { id: 'bm5', name: "Dark Knight's Fury", cost: 2e12, dmg: 1e11, cd: 15 } ] },
+            { id: 5, name: "Deadpool", rarity: "Rare", emoji: "⚔️", baseMultiplier: 15, color: "text-blue-400",
+              powers: [ { id: 'dp1', name: "Dual Pistols", cost: 1e13, dmg: 5e11, cd: 1 }, { id: 'dp2', name: "Katana Slash", cost: 4e13, dmg: 2e12, cd: 2 }, { id: 'dp3', name: "Regeneration", cost: 1e14, dmg: 5e12, cd: 4 }, { id: 'dp4', name: "Maximum Effort", cost: 5e14, dmg: 2.5e13, cd: 8 }, { id: 'dp5', name: "Mercenary Mayhem", cost: 2e15, dmg: 1e14, cd: 12 } ] },
+            { id: 6, name: "Wolverine", rarity: "Epic", emoji: "🐺", baseMultiplier: 30, color: "text-purple-400",
+              powers: [ { id: 'wv1', name: "Claw Slash", cost: 1e16, dmg: 5e14, cd: 1 }, { id: 'wv2', name: "Berserker Rage", cost: 4e16, dmg: 2e15, cd: 2 }, { id: 'wv3', name: "Healing Factor", cost: 1e17, dmg: 5e15, cd: 4 }, { id: 'wv4', name: "Adamantium Strike", cost: 5e17, dmg: 2.5e16, cd: 8 }, { id: 'wv5', name: "Weapon X Fury", cost: 2e18, dmg: 1e17, cd: 12 } ] },
+            { id: 7, name: "Spider-Man", rarity: "Epic", emoji: "🕸️", baseMultiplier: 60, color: "text-purple-400",
+              powers: [ { id: 'sm1', name: "Web Shot", cost: 1e19, dmg: 5e17, cd: 1 }, { id: 'sm2', name: "Web Swing Strike", cost: 4e19, dmg: 2e18, cd: 2 }, { id: 'sm3', name: "Spider Sense", cost: 1e20, dmg: 5e18, cd: 4 }, { id: 'sm4', name: "Web Barrage", cost: 5e20, dmg: 2.5e19, cd: 8 }, { id: 'sm5', name: "Spider Smash", cost: 2e21, dmg: 1e20, cd: 12 } ] },
+            { id: 8, name: "Iron Man", rarity: "Legendary", emoji: "🤖", baseMultiplier: 120, color: "text-yellow-400",
+              powers: [ { id: 'im1', name: "Repulsor Blast", cost: 1e22, dmg: 5e20, cd: 1 }, { id: 'im2', name: "Missile Barrage", cost: 4e22, dmg: 2e21, cd: 2 }, { id: 'im3', name: "Unibeam", cost: 1e23, dmg: 5e21, cd: 4 }, { id: 'im4', name: "Iron Man Flight", cost: 5e23, dmg: 2.5e22, cd: 8 }, { id: 'im5', name: "Arc Reactor Overload", cost: 2e24, dmg: 1e23, cd: 15 } ] },
+            { id: 9, name: "A-Train", rarity: "Legendary", emoji: "⚡", baseMultiplier: 250, color: "text-yellow-400",
+              powers: [ { id: 'at1', name: "Speed Punch", cost: 1e25, dmg: 5e23, cd: 1 }, { id: 'at2', name: "Dash Attack", cost: 4e25, dmg: 2e24, cd: 2 }, { id: 'at3', name: "Super Speed", cost: 1e26, dmg: 5e24, cd: 4 }, { id: 'at4', name: "Lightning Rush", cost: 5e26, dmg: 2.5e25, cd: 8 }, { id: 'at5', name: "Speed Force Strike", cost: 2e27, dmg: 1e26, cd: 15 } ] },
+            { id: 10, name: "Captain America", rarity: "Mythic", emoji: "🛡️", baseMultiplier: 500, color: "text-red-500",
+              powers: [ { id: 'ca1', name: "Shield Throw", cost: 1e28, dmg: 5e26, cd: 1 }, { id: 'ca2', name: "Shield Bash", cost: 4e28, dmg: 2e27, cd: 2 }, { id: 'ca3', name: "Super Soldier Strike", cost: 1e29, dmg: 5e27, cd: 4 }, { id: 'ca4', name: "Ricochet Barrage", cost: 5e29, dmg: 2.5e28, cd: 8 }, { id: 'ca5', name: "Avengers Rally", cost: 2e30, dmg: 1e29, cd: 15 } ] },
+            { id: 11, name: "Hulk", rarity: "Mythic", emoji: "🟢", baseMultiplier: 1000, color: "text-red-500",
+              powers: [ { id: 'hk1', name: "Hulk Smash", cost: 1e31, dmg: 5e29, cd: 1 }, { id: 'hk2', name: "Ground Pound", cost: 4e31, dmg: 2e30, cd: 2 }, { id: 'hk3', name: "Thunder Clap", cost: 1e32, dmg: 5e30, cd: 4 }, { id: 'hk4', name: "Hulk Rage", cost: 5e32, dmg: 2.5e31, cd: 8 }, { id: 'hk5', name: "World Breaker", cost: 2e33, dmg: 1e32, cd: 15 } ] },
+            { id: 12, name: "Thor", rarity: "Secret", emoji: "⚡", baseMultiplier: 2500, color: "text-pink-400",
+              powers: [ { id: 'th1', name: "Mjolnir Strike", cost: 1e34, dmg: 5e32, cd: 1 }, { id: 'th2', name: "Lightning Bolt", cost: 4e34, dmg: 2e33, cd: 2 }, { id: 'th3', name: "Hammer Throw", cost: 1e35, dmg: 5e33, cd: 4 }, { id: 'th4', name: "Thunderstorm", cost: 5e35, dmg: 2.5e34, cd: 8 }, { id: 'th5', name: "God of Thunder", cost: 2e36, dmg: 1e35, cd: 15 } ] },
+            { id: 13, name: "Homelander", rarity: "Secret", emoji: "🇺🇸", baseMultiplier: 5000, color: "text-pink-400",
+              powers: [ { id: 'hl1', name: "Super Punch", cost: 1e37, dmg: 5e35, cd: 1 }, { id: 'hl2', name: "Heat Vision", cost: 4e37, dmg: 2e36, cd: 2 }, { id: 'hl3', name: "Super Hearing", cost: 1e38, dmg: 5e36, cd: 4 }, { id: 'hl4', name: "Flight", cost: 5e38, dmg: 2.5e37, cd: 8 }, { id: 'hl5', name: "Homelander's Fury", cost: 2e39, dmg: 1e38, cd: 15 } ] },
+            { id: 14, name: "Doctor Strange", rarity: "Cosmic", emoji: "🌀", baseMultiplier: 10000, color: "text-cyan-400",
+              powers: [ { id: 'ds1', name: "Mystic Bolt", cost: 1e40, dmg: 5e38, cd: 1 }, { id: 'ds2', name: "Shield of Seraphim", cost: 4e40, dmg: 2e39, cd: 2 }, { id: 'ds3', name: "Portal Strike", cost: 1e41, dmg: 5e39, cd: 4 }, { id: 'ds4', name: "Mirror Dimension", cost: 5e41, dmg: 2.5e40, cd: 8 }, { id: 'ds5', name: "Time Manipulation", cost: 2e42, dmg: 1e41, cd: 15 } ] },
+            { id: 15, name: "Superman", rarity: "Cosmic", emoji: "🦸‍♂️", baseMultiplier: 25000, color: "text-cyan-400",
+              powers: [ { id: 'su1', name: "Super Punch", cost: 1e43, dmg: 5e41, cd: 1 }, { id: 'su2', name: "Heat Vision", cost: 4e43, dmg: 2e42, cd: 2 }, { id: 'su3', name: "Freeze Breath", cost: 1e44, dmg: 5e42, cd: 4 }, { id: 'su4', name: "Super Speed", cost: 5e44, dmg: 2.5e43, cd: 8 }, { id: 'su5', name: "Solar Rage", cost: 2e45, dmg: 1e44, cd: 15 } ] },
+            { id: 16, name: "Thanos", rarity: "God", emoji: "🧤", baseMultiplier: 60000, color: "text-indigo-400",
+              powers: [ { id: 'tn1', name: "Infinity Punch", cost: 1e46, dmg: 5e44, cd: 1 }, { id: 'tn2', name: "Power Stone Blast", cost: 4e46, dmg: 2e45, cd: 2 }, { id: 'tn3', name: "Reality Warp", cost: 1e47, dmg: 5e45, cd: 4 }, { id: 'tn4', name: "Titan's Fury", cost: 5e47, dmg: 2.5e46, cd: 8 }, { id: 'tn5', name: "Infinity Gauntlet", cost: 2e48, dmg: 1e47, cd: 15 } ] },
+            { id: 17, name: "Galactus", rarity: "God", emoji: "🪐", baseMultiplier: 150000, color: "text-indigo-400",
+              powers: [ { id: 'ga1', name: "Cosmic Blast", cost: 1e49, dmg: 5e47, cd: 1 }, { id: 'ga2', name: "Planet Eater", cost: 4e49, dmg: 2e48, cd: 2 }, { id: 'ga3', name: "Energy Drain", cost: 1e50, dmg: 5e48, cd: 4 }, { id: 'ga4', name: "Cosmic Storm", cost: 5e50, dmg: 2.5e49, cd: 8 }, { id: 'ga5', name: "Devourer of Worlds", cost: 2e51, dmg: 1e50, cd: 15 } ] },
+            { id: 18, name: "Invincible", rarity: "Ultimate", emoji: "🩸", baseMultiplier: 400000, color: "text-fuchsia-500",
+              powers: [ { id: 'in1', name: "Viltrumite Punch", cost: 1e52, dmg: 5e50, cd: 1 }, { id: 'in2', name: "Super Speed", cost: 4e52, dmg: 2e51, cd: 2 }, { id: 'in3', name: "Flying Strike", cost: 1e53, dmg: 5e51, cd: 4 }, { id: 'in4', name: "Viltrumite Rage", cost: 5e53, dmg: 2.5e52, cd: 8 }, { id: 'in5', name: "Invincible's Fury", cost: 2e54, dmg: 1e53, cd: 15 } ] },
+            { id: 19, name: "Omni-Man", rarity: "Ultimate", emoji: "👨🏻", baseMultiplier: 1000000, color: "text-fuchsia-500",
+              powers: [ { id: 'om1', name: "Viltrumite Strike", cost: 1e55, dmg: 5e53, cd: 1 }, { id: 'om2', name: "Super Speed", cost: 4e55, dmg: 2e54, cd: 2 }, { id: 'om3', name: "Flight", cost: 1e56, dmg: 5e54, cd: 4 }, { id: 'om4', name: "Viltrumite Rampage", cost: 5e56, dmg: 2.5e55, cd: 8 }, { id: 'om5', name: "Nolan's Wrath", cost: 2e57, dmg: 1e56, cd: 15 } ] },
+            { id: 20, name: "Thragg", rarity: "Ultimate", emoji: "👑", baseMultiplier: 3000000, color: "text-fuchsia-500",
+              powers: [ { id: 'tr1', name: "Viltrumite Punch", cost: 1e58, dmg: 5e56, cd: 1 }, { id: 'tr2', name: "High-Speed Assault", cost: 4e58, dmg: 2e57, cd: 2 }, { id: 'tr3', name: "Brutal Strike", cost: 1e59, dmg: 5e57, cd: 4 }, { id: 'tr4', name: "Grand Regent's Fury", cost: 5e59, dmg: 2.5e58, cd: 8 }, { id: 'tr5', name: "Ultimate Viltrumite", cost: 2e60, dmg: 1e59, cd: 15 } ] }
+        ];
+
+        const TYCOON_DATA = {
+            1: {
+                unlockCost: 0,
+                droppers: [
+                    { id: 'f1_d1', name: 'Basic Dropper', baseCost: 10, baseIncome: 1 },
+                    { id: 'f1_d2', name: 'Advanced Dropper', baseCost: 150, baseIncome: 10 },
+                    { id: 'f1_d3', name: 'Super Dropper', baseCost: 1200, baseIncome: 85 },
+                    { id: 'f1_d4', name: 'Heroic Dropper', baseCost: 8500, baseIncome: 500 },
+                    { id: 'f1_d5', name: 'Mega Dropper', baseCost: 50000, baseIncome: 2500 }
+                ]
+            },
+            2: {
+                unlockCost: 50000,
+                droppers: [
+                    { id: 'f2_d1', name: 'Tech Dropper', baseCost: 250000, baseIncome: 12000 },
+                    { id: 'f2_d2', name: 'Stark Dropper', baseCost: 1500000, baseIncome: 65000 },
+                    { id: 'f2_d3', name: 'Vibranium Dropper', baseCost: 8000000, baseIncome: 300000 },
+                    { id: 'f2_d4', name: 'Quantum Dropper', baseCost: 45000000, baseIncome: 1500000 },
+                    { id: 'f2_d5', name: 'Infinity Dropper', baseCost: 250000000, baseIncome: 8000000 }
+                ]
+            },
+            3: {
+                unlockCost: 5000000, // Reduced from 500M to 5M so it scales better before Rebirth 1
+                droppers: [
+                    { id: 'f3_d1', name: 'Cosmic Dropper', baseCost: 1000000000, baseIncome: 40000000 },
+                    { id: 'f3_d2', name: 'Galactic Dropper', baseCost: 8000000000, baseIncome: 250000000 },
+                    { id: 'f3_d3', name: 'Universal Dropper', baseCost: 65000000000, baseIncome: 1800000000 },
+                    { id: 'f3_d4', name: 'Multiverse Dropper', baseCost: 500000000000, baseIncome: 12000000000 },
+                    { id: 'f3_d5', name: 'Omniversal Dropper', baseCost: 4000000000000, baseIncome: 90000000000 }
+                ]
+            }
+        };
+
+        const ENEMIES = [
+            { name: "Street Thug", emoji: "🦹", baseHp: 50, baseReward: 25 },
+            { name: "Armored Goon", emoji: "🪖", baseHp: 200, baseReward: 100 },
+            { name: "Mutant Rogue", emoji: "🧟", baseHp: 1000, baseReward: 450 },
+            { name: "Super Villain", emoji: "🦹‍♂️", baseHp: 5000, baseReward: 2000 },
+            { name: "Rogue Android", emoji: "🤖", baseHp: 25000, baseReward: 10000 },
+            { name: "Alien Invader", emoji: "👽", baseHp: 150000, baseReward: 50000 },
+            { name: "Cosmic Entity", emoji: "☄️", baseHp: 1000000, baseReward: 300000 }
+        ];
+
+        // --- CORE SYSTEMS ---
+
+        function getIncomePerSecond() {
+            let total = 0;
+            const currentSupe = SUPES[state.supeIndex];
+            const rMult = 1 + (state.rebirths * 0.5); // +50% per rebirth
+            
+            Object.keys(state.droppers).forEach(key => {
+                const [f, d] = key.split('_');
+                const floorData = TYCOON_DATA[f.replace('f', '')];
+                if(floorData) {
+                    const dropper = floorData.droppers.find(dr => dr.id === key);
+                    if(dropper) {
+                        const lvl = state.droppers[key];
+                        total += dropper.baseIncome * lvl * currentSupe.baseMultiplier * rMult;
+                    }
+                }
+            });
+            return total;
+        }
+
+        function getDropperCost(baseCost, currentLevel) {
+            // Cost scales by 1.15^level
+            return baseCost * Math.pow(1.15, currentLevel || 0);
+        }
+
+        function buyDropper(id, event) {
+            const [fStr, d] = id.split('_');
+            const f = parseInt(fStr.replace('f', ''));
+            const dropper = TYCOON_DATA[f].droppers.find(dr => dr.id === id);
+            
+            const currentLvl = state.droppers[id] || 0;
+            const cost = getDropperCost(dropper.baseCost, currentLvl);
+
+            if (state.money >= cost) {
+                state.money -= cost;
+                state.droppers[id] = currentLvl + 1;
+                
+                // Visual feedback
+                if(event) {
+                    const rect = event.target.getBoundingClientRect();
+                    createParticles(rect.left + rect.width/2, rect.top, '#3b82f6', 15);
+                    createFloatingText('+1 Level', rect.left + rect.width/2, rect.top - 20, '#60a5fa');
+                }
+                
+                updateUI();
+                checkUnlocks();
+                saveGame();
+            } else {
+                showToast("Not enough money!", "error");
+            }
+        }
+
+        function unlockFloor(f) {
+            const cost = TYCOON_DATA[f].unlockCost;
+            if(state.money >= cost) {
+                state.money -= cost;
+                state.unlockedFloors = f;
+                showToast(`Floor ${f} Unlocked!`, "success");
+                updateUI();
+                saveGame();
+            } else {
+                showToast("Not enough money!", "error");
+            }
+        }
+
+        function checkUnlocks() {
+            // Check if F1 is maxed (at least 1 of each) to allow F2 unlock
+            if(state.unlockedFloors === 1) {
+                let f1Complete = true;
+                TYCOON_DATA[1].droppers.forEach(d => { if(!state.droppers[d.id]) f1Complete = false; });
+                
+                const btn = document.getElementById('unlockFloor2Btn');
+                if(f1Complete) {
+                    btn.classList.remove('hidden');
+                    btn.disabled = state.money < TYCOON_DATA[2].unlockCost;
+                }
+            }
+
+            if(state.unlockedFloors === 2) {
+                let f2Complete = true;
+                TYCOON_DATA[2].droppers.forEach(d => { if(!state.droppers[d.id]) f2Complete = false; });
+                
+                const btn = document.getElementById('unlockFloor3Btn');
+                if(f2Complete) {
+                    btn.classList.remove('hidden');
+                    btn.disabled = state.money < TYCOON_DATA[3].unlockCost;
+                }
+            }
+            
+            // Rebirth unlock: built at least 1 dropper on floor 3
+            if(state.unlockedFloors === 3 && state.droppers['f3_d1']) {
+                document.getElementById('rebirthBtn').classList.remove('hidden');
+            } else {
+                document.getElementById('rebirthBtn').classList.add('hidden');
+            }
+        }
+
+        function attemptRebirth() {
+            if(state.supeIndex >= SUPES.length - 1) {
+                alert("You have reached the final Supe! You've beaten the game!");
+                return;
+            }
+            
+            if(confirm("REBIRTH?\n\nThis will reset your Money, Floors, and Droppers, but you will unlock the next Superhero and gain a permanent +50% income multiplier!")) {
+                // Reset Tycoon
+                state.money = 0;
+                state.droppers = {};
+                state.unlockedFloors = 1;
+                state.powerLevels = {}; // Reset powers for new character
+                
+                // Increment
+                state.rebirths++;
+                state.supeIndex++;
+                
+                const nextSupe = SUPES[state.supeIndex];
+                
+                // Show modal
+                document.getElementById('rebirthEmoji').innerText = nextSupe.emoji;
+                document.getElementById('rebirthName').innerText = nextSupe.name;
+                document.getElementById('rebirthName').className = `text-4xl font-bold mb-2 ${nextSupe.color}`;
+                document.getElementById('rebirthMult').innerText = `x${1 + (state.rebirths * 0.5)}`;
+                document.getElementById('rebirthModal').classList.remove('hidden');
+                
+                saveGame();
+                renderAll();
+                if(battleState.active) fleeBattle(); // stop combat
+            }
+        }
+        
+        function finishRebirth() {
+            document.getElementById('rebirthModal').classList.add('hidden');
+        }
+
+        function getPowerCost(baseCost, currentLevel) {
+            return baseCost * Math.pow(1.5, currentLevel || 0); // Powers scale steeply
+        }
+
+        function getPowerDamage(baseDmg, currentLevel) {
+            const mult = SUPES[state.supeIndex].baseMultiplier;
+            return baseDmg * Math.pow(1.2, currentLevel || 0) * mult;
+        }
+
+        function buyPower(id, event) {
+            const supe = SUPES[state.supeIndex];
+            const pData = supe.powers.find(p => p.id === id);
+            
+            const currentLvl = state.powerLevels[id] || 0;
+            const cost = getPowerCost(pData.cost, currentLvl);
+
+            if (state.money >= cost) {
+                state.money -= cost;
+                state.powerLevels[id] = currentLvl + 1;
+                
+                if(event) {
+                    const rect = event.target.getBoundingClientRect();
+                    createParticles(rect.left + rect.width/2, rect.top, '#a855f7', 15);
+                }
+                
+                renderPowers();
+                renderBattleActions();
+                updateUI();
+                saveGame();
+            } else {
+                showToast("Not enough money!", "error");
+            }
+        }
+
+        let battleState = {
+            active: false,
+            enemyHp: 0,
+            enemyMaxHp: 0,
+            enemyType: null,
+            cooldowns: {}, // { "bw1": timestamp_ready }
+            streak: 0
+        };
+
+        function getEnemyScale() {
+            // Enemies scale based on current Supe base multiplier to keep pace with player damage
+            return SUPES[state.supeIndex].baseMultiplier * Math.pow(1.5, battleState.streak);
+        }
+
+        function startBattle() {
+            const hasPowers = Object.keys(state.powerLevels).some(k => state.powerLevels[k] > 0);
+            if(!hasPowers) {
+                alert("You need to buy at least one Power to fight!");
+                switchTab('powers');
+                return;
+            }
+
+            // Pick enemy type based on streak length loosely
+            let eIndex = Math.min(Math.floor(battleState.streak / 3), ENEMIES.length - 1);
+            // Slight random variance
+            if(Math.random() > 0.7 && eIndex > 0) eIndex--;
+            
+            const baseEnemy = ENEMIES[eIndex];
+            const scale = getEnemyScale();
+            
+            battleState.active = true;
+            battleState.enemyType = baseEnemy;
+            battleState.enemyMaxHp = baseEnemy.baseHp * scale;
+            battleState.enemyHp = battleState.enemyMaxHp;
+            
+            document.getElementById('battleIdleState').classList.add('hidden');
+            document.getElementById('battleActiveState').classList.remove('hidden');
+            document.getElementById('battleLockedState').classList.add('hidden');
+            document.getElementById('battleActionState').classList.remove('hidden');
+            document.getElementById('fleeBtn').classList.remove('hidden');
+            
+            document.getElementById('enemyName').innerText = baseEnemy.name;
+            document.getElementById('enemyEmoji').innerText = baseEnemy.emoji;
+            document.getElementById('combatLog').innerText = "An enemy approaches!";
+            
+            updateBattleUI();
+        }
+
+        function usePower(id) {
+            if(!battleState.active) return;
+            
+            const supe = SUPES[state.supeIndex];
+            const pData = supe.powers.find(p => p.id === id);
+            const lvl = state.powerLevels[id];
+            
+            if(!lvl) return; // Not unlocked
+            
+            const now = Date.now();
+            if(battleState.cooldowns[id] && battleState.cooldowns[id] > now) return; // On cooldown
+
+            // Attack
+            const dmg = getPowerDamage(pData.dmg, lvl);
+            battleState.enemyHp -= dmg;
+            
+            // Set Cooldown (multiply by 1000 for ms)
+            battleState.cooldowns[id] = now + (pData.cd * 1000);
+            
+            // Visuals
+            shakeScreen();
+            const emojiRect = document.getElementById('enemyEmoji').getBoundingClientRect();
+            createFloatingText(`-${formatNumber(dmg)}`, emojiRect.left + 20 + Math.random()*40, emojiRect.top, '#ef4444');
+            document.getElementById('combatLog').innerText = `Used ${pData.name}! Deals ${formatNumber(dmg)} damage!`;
+            
+            // Re-render buttons to show CD state
+            renderBattleActions();
+            updateBattleUI();
+
+            // Win condition
+            if(battleState.enemyHp <= 0) {
+                winBattle();
+            }
+        }
+
+        function winBattle() {
+            battleState.active = false;
+            battleState.streak++;
+            state.stats.enemiesDefeated++;
+            
+            if(battleState.streak > state.stats.highestStreak) {
+                state.stats.highestStreak = battleState.streak;
+            }
+            
+            const scale = getEnemyScale();
+            // Reward is based on enemy base + tycoon income context
+            let reward = (battleState.enemyType.baseReward * scale) + (getIncomePerSecond() * 15); 
+            // Streak bonus
+            reward = reward * (1 + (battleState.streak * 0.1));
+            
+            state.money += reward;
+            state.totalMoneyEarned += reward;
+            
+            showToast(`Victory! Earned ${formatMoney(reward)}`, 'success');
+            
+            document.getElementById('battleActiveState').classList.add('hidden');
+            document.getElementById('battleIdleState').classList.remove('hidden');
+            document.getElementById('battleActionState').classList.add('hidden');
+            document.getElementById('battleLockedState').classList.remove('hidden');
+            document.getElementById('fleeBtn').classList.add('hidden');
+            document.getElementById('streakDisplay').innerText = battleState.streak;
+            
+            saveGame();
+        }
+
+        function fleeBattle() {
+            battleState.active = false;
+            battleState.streak = 0;
+            
+            document.getElementById('battleActiveState').classList.add('hidden');
+            document.getElementById('battleIdleState').classList.remove('hidden');
+            document.getElementById('battleActionState').classList.add('hidden');
+            document.getElementById('battleLockedState').classList.remove('hidden');
+            document.getElementById('fleeBtn').classList.add('hidden');
+            document.getElementById('streakDisplay').innerText = battleState.streak;
+            
+            document.getElementById('combatLog').innerText = "Fled the battle...";
+        }
+
+        function updateBattleUI() {
+            if(!battleState.active) return;
+            
+            const hpPct = Math.max(0, (battleState.enemyHp / battleState.enemyMaxHp) * 100);
+            document.getElementById('enemyHpBar').style.width = `${hpPct}%`;
+            document.getElementById('enemyHpText').innerText = `${formatNumber(Math.max(0, battleState.enemyHp))} / ${formatNumber(battleState.enemyMaxHp)}`;
+        }
+
+
+        // --- RENDERING ---
+        
+        function switchTab(tabId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('text-blue-400', 'text-purple-400', 'text-red-400', 'text-yellow-400', 'text-emerald-400');
+                b.classList.add('text-slate-500');
+                b.classList.remove('bg-slate-800/50');
+            });
+
+            document.getElementById('panel-' + tabId).classList.add('active');
+            
+            // Highlight nav
+            const btn = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
+            btn.classList.remove('text-slate-500');
+            btn.classList.add('bg-slate-800/50');
+            if(tabId === 'tycoon') btn.classList.add('text-blue-400');
+            if(tabId === 'powers') btn.classList.add('text-purple-400');
+            if(tabId === 'battle') btn.classList.add('text-red-400');
+            if(tabId === 'roster') btn.classList.add('text-yellow-400');
+            if(tabId === 'stats') btn.classList.add('text-emerald-400');
+
+            if(tabId === 'powers') renderPowers();
+            if(tabId === 'roster') renderRoster();
+            if(tabId === 'stats') renderStats();
+        }
+
+        function renderTycoon() {
+            const currentSupe = SUPES[state.supeIndex];
+            const rMult = 1 + (state.rebirths * 0.5);
+            
+            // Build Floor HTML
+            [1, 2, 3].forEach(f => {
+                const container = document.getElementById(`floor${f}Content`);
+                let html = '';
+                let floorTotal = 0;
+                
+                TYCOON_DATA[f].droppers.forEach(d => {
+                    const lvl = state.droppers[d.id] || 0;
+                    const cost = getDropperCost(d.baseCost, lvl);
+                    const income = d.baseIncome * currentSupe.baseMultiplier * rMult;
+                    if(lvl > 0) floorTotal += income * lvl;
+                    
+                    const canAfford = state.money >= cost;
+                    
+                    html += `
+                        <div class="bg-slate-700/50 rounded-xl p-3 flex justify-between items-center border border-slate-600/50 hover:bg-slate-700 transition-colors">
+                            <div class="flex-1">
+                                <h4 class="font-bold text-white text-sm md:text-base">${d.name} <span class="text-blue-400 text-xs ml-1">Lvl ${lvl}</span></h4>
+                                <div class="text-xs text-slate-400 font-mono mt-1">+${formatMoney(income)}/s</div>
+                            </div>
+                            <button onclick="buyDropper('${d.id}', event)" 
+                                    class="btn-press ml-4 px-4 py-2 rounded-lg font-bold text-sm min-w-[90px] ${canAfford ? 'bg-green-600 text-white hover:bg-green-500 shadow-[0_0_10px_rgba(22,163,74,0.3)]' : 'bg-slate-600 text-slate-400 opacity-75'}"
+                                    ${!canAfford ? 'disabled' : ''}>
+                                ${formatMoney(cost)}
+                            </button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                
+                const totalDisplay = document.getElementById(`floor${f}Total`);
+                if(totalDisplay) {
+                    totalDisplay.innerText = `+${formatMoney(floorTotal)}/s`;
+                    if(floorTotal > 0) totalDisplay.classList.remove('hidden');
+                }
+            });
+
+            // Floor visibility logic
+            document.getElementById('floor2Wrapper').className = state.unlockedFloors >= 2 ? "bg-slate-800 rounded-2xl border border-slate-600 overflow-hidden shadow-xl" : "bg-slate-800/50 rounded-2xl border border-slate-700 overflow-hidden shadow-xl relative opacity-75";
+            document.getElementById('floor2Content').className = state.unlockedFloors >= 2 ? "p-4 space-y-3" : "p-4 space-y-3 hidden";
+            document.getElementById('floor2Locked').className = state.unlockedFloors >= 2 ? "hidden" : "absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm rounded-2xl p-6 text-center";
+            
+            document.getElementById('floor3Wrapper').className = state.unlockedFloors >= 3 ? "bg-slate-800 rounded-2xl border border-slate-600 overflow-hidden shadow-xl" : "bg-slate-800/30 rounded-2xl border border-slate-800 overflow-hidden shadow-xl relative opacity-50";
+            document.getElementById('floor3Content').className = state.unlockedFloors >= 3 ? "p-4 space-y-3" : "p-4 space-y-3 hidden";
+            document.getElementById('floor3Locked').className = state.unlockedFloors >= 3 ? "hidden" : "absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-sm rounded-2xl p-6 text-center";
+        
+            checkUnlocks();
+        }
+
+        function renderPowers() {
+            const supe = SUPES[state.supeIndex];
+            const container = document.getElementById('powersContainer');
+            let html = '';
+            
+            let affordableCount = 0;
+
+            supe.powers.forEach((p, idx) => {
+                const lvl = state.powerLevels[p.id] || 0;
+                const cost = getPowerCost(p.cost, lvl);
+                const dmg = getPowerDamage(p.dmg, lvl);
+                const nextDmg = getPowerDamage(p.dmg, lvl + 1);
+                const canAfford = state.money >= cost;
+                
+                if(canAfford) affordableCount++;
+                
+                html += `
+                    <div class="bg-slate-800 rounded-xl p-4 border border-slate-600 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="flex items-center gap-4 w-full md:w-auto">
+                            <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl border-2 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                                P${idx+1}
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-white text-lg">${p.name} <span class="bg-purple-600/30 text-purple-400 text-xs px-2 py-0.5 rounded ml-2">Lvl ${lvl}</span></h4>
+                                <div class="flex gap-4 mt-1 text-xs font-mono">
+                                    <span class="text-red-400"><i class="fas fa-crosshairs"></i> ${formatNumber(dmg)} dmg</span>
+                                    <span class="text-blue-300"><i class="fas fa-clock"></i> ${p.cd}s cd</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="w-full md:w-auto flex flex-col items-end gap-1">
+                            ${lvl > 0 ? `<span class="text-[10px] text-green-400 font-mono">Next: +${formatNumber(nextDmg - dmg)} dmg</span>` : ''}
+                            <button onclick="buyPower('${p.id}', event)" 
+                                    class="btn-press w-full md:w-auto px-6 py-2 rounded-lg font-bold text-sm ${canAfford ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'bg-slate-700 text-slate-400 opacity-75'}"
+                                    ${!canAfford ? 'disabled' : ''}>
+                                ${lvl === 0 ? 'Unlock ' : 'Upgrade '}${formatMoney(cost)}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            
+            // Badge logic
+            const badge = document.getElementById('powerUpgradeBadge');
+            if(affordableCount > 0) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+        }
+
+        function renderBattleActions() {
+            if(!battleState.active) return;
+            const supe = SUPES[state.supeIndex];
+            const container = document.getElementById('battlePowersContainer');
+            let html = '';
+            
+            const now = Date.now();
+
+            supe.powers.forEach((p, idx) => {
+                const lvl = state.powerLevels[p.id];
+                if(!lvl) {
+                    // Locked slot
+                    html += `
+                        <button disabled class="h-full rounded-xl bg-slate-800 border-2 border-slate-700 flex flex-col items-center justify-center opacity-50 relative overflow-hidden">
+                            <i class="fas fa-lock text-slate-600 mb-1"></i>
+                            <span class="text-[10px] text-slate-500 font-bold uppercase">Locked</span>
+                        </button>
+                    `;
+                    return;
+                }
+                
+                const cdUntil = battleState.cooldowns[p.id] || 0;
+                const isOnCd = cdUntil > now;
+                
+                html += `
+                    <button id="btn_pow_${p.id}" onclick="usePower('${p.id}')" ${isOnCd ? 'disabled' : ''} class="btn-press h-full rounded-xl bg-slate-700 border-2 border-purple-500/50 flex flex-col items-center justify-center relative overflow-hidden hover:bg-slate-600 transition-colors shadow-inner">
+                        <span class="text-xs md:text-sm font-bold text-white mb-1">P${idx+1}</span>
+                        <div class="absolute bottom-0 left-0 h-1 bg-purple-500 w-full"></div>
+                        
+                        <!-- CD Overlay -->
+                        <div id="cd_${p.id}" class="absolute inset-0 bg-black/70 flex items-center justify-center text-white font-bold font-mono text-lg backdrop-blur-[1px] ${isOnCd ? '' : 'hidden'}">
+                            --
+                        </div>
+                    </button>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderRoster() {
+            const container = document.getElementById('rosterContainer');
+            let html = '';
+            
+            document.getElementById('rosterCount').innerText = `${state.supeIndex + 1}/${SUPES.length} Unlocked`;
+
+            SUPES.forEach((s, idx) => {
+                const isUnlocked = idx <= state.supeIndex;
+                const isCurrent = idx === state.supeIndex;
+                
+                if (isUnlocked) {
+                    html += `
+                        <div class="supe-card bg-slate-800 rounded-xl border-2 ${isCurrent ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]' : 'border-slate-600'} p-4 flex flex-col items-center text-center relative overflow-hidden">
+                            ${isCurrent ? '<div class="absolute top-0 w-full bg-yellow-400 text-black text-[10px] font-bold py-0.5 tracking-wider uppercase">Active</div>' : ''}
+                            <div class="text-4xl mb-2 mt-2 drop-shadow-md">${s.emoji}</div>
+                            <h4 class="font-bold text-white text-sm ${s.color}">${s.name}</h4>
+                            <div class="text-[10px] font-mono text-slate-400 mt-1">${s.rarity}</div>
+                            <div class="mt-2 text-xs bg-slate-900 w-full py-1 rounded text-green-400 font-mono">x${s.baseMultiplier} Mult</div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="bg-slate-900/50 rounded-xl border-2 border-slate-800 p-4 flex flex-col items-center text-center opacity-50 grayscale">
+                            <div class="text-3xl mb-2 text-slate-700 mt-2"><i class="fas fa-question"></i></div>
+                            <h4 class="font-bold text-slate-500 text-sm">???</h4>
+                            <div class="text-[10px] font-mono text-slate-600 mt-1">Locked</div>
+                        </div>
+                    `;
+                }
+            });
+            container.innerHTML = html;
+        }
+
+        function renderStats() {
+            const container = document.getElementById('statsContainer');
+            
+            const stats = [
+                { label: "Total Earned", val: formatMoney(state.totalMoneyEarned), icon: "fa-dollar-sign", color: "text-green-400" },
+                { label: "Rebirths", val: state.rebirths, icon: "fa-sync-alt", color: "text-purple-400" },
+                { label: "Enemies Beaten", val: state.stats.enemiesDefeated, icon: "fa-skull", color: "text-red-400" },
+                { label: "Highest Streak", val: state.stats.highestStreak, icon: "fa-fire", color: "text-orange-400" }
+            ];
+            
+            let html = '';
+            stats.forEach(s => {
+                html += `
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center border border-slate-600">
+                            <i class="fas ${s.icon} ${s.color}"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">${s.label}</div>
+                            <div class="text-xl text-white font-mono">${s.val}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        
+        function updateUI() {
+            document.getElementById('moneyDisplay').innerText = formatMoney(state.money);
+            document.getElementById('mpsDisplay').innerText = `+${formatMoney(getIncomePerSecond())}`;
+            document.getElementById('rebirthDisplay').innerText = state.rebirths;
+            
+            const curSupe = SUPES[state.supeIndex];
+            document.getElementById('currentSupeName').innerText = curSupe.name;
+            document.getElementById('currentSupeName').className = `font-bold ${curSupe.color}`;
+            document.getElementById('currentSupeEmoji').innerText = curSupe.emoji;
+
+            // Only re-render tycoon if we are on it to save DOM updates
+            if(document.getElementById('panel-tycoon').classList.contains('active')) {
+                renderTycoon();
+            }
+        }
+
+        function renderAll() {
+            renderTycoon();
+            renderPowers();
+            renderRoster();
+            renderStats();
+            updateUI();
+        }
+
+        // Main Game Loop
+        let lastTime = Date.now();
+        function gameLoop() {
+            const now = Date.now();
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            // 1. Income
+            const income = getIncomePerSecond();
+            if (income > 0) {
+                const gain = income * dt;
+                state.money += gain;
+                state.totalMoneyEarned += gain;
+                updateUI();
+            }
+
+            // 2. Battle Cooldowns UI Update
+            if(battleState.active) {
+                let needsRender = false;
+                SUPES[state.supeIndex].powers.forEach(p => {
+                    const cdEl = document.getElementById(`cd_${p.id}`);
+                    const btnEl = document.getElementById(`btn_pow_${p.id}`);
+                    if(cdEl && btnEl) {
+                        const cdUntil = battleState.cooldowns[p.id] || 0;
+                        if(cdUntil > now) {
+                            const left = Math.ceil((cdUntil - now) / 100) / 10;
+                            cdEl.innerText = left.toFixed(1);
+                            if(cdEl.classList.contains('hidden')) {
+                                cdEl.classList.remove('hidden');
+                                btnEl.disabled = true;
+                            }
+                        } else {
+                            if(!cdEl.classList.contains('hidden')) {
+                                cdEl.classList.add('hidden');
+                                btnEl.disabled = false;
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Autosave every ~5 seconds (roughly handled via counter)
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Setup
+        window.onload = function() {
+            loadGame();
+            renderAll();
+            
+            // Start Loop
+            lastTime = Date.now();
+            requestAnimationFrame(gameLoop);
+            
+            // Dedicated Auto-saver
+            setInterval(saveGame, 5000);
+            
+            // Random floating "+$X" visual effect on Header Money based on income
+            setInterval(() => {
+                const ips = getIncomePerSecond();
+                if(ips > 0) {
+                    const moneyEl = document.getElementById('moneyDisplay');
+                    const rect = moneyEl.getBoundingClientRect();
+                    createFloatingText(`+${formatMoney(ips/2)}`, rect.left + Math.random()*20, rect.top + 10, '#4ade80');
+                }
+            }, 500);
+        };
+    </script>
+</body>
+</html>

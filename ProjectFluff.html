@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Fluff: Rosewood Survival</title>
+    <style>
+        :root {
+            --ui-bg: rgba(20, 20, 20, 0.95);
+            --text-color: #e0e0e0;
+            --accent: #a53b3b;
+            --hp-color: #c92a2a;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--text-color);
+            user-select: none;
+        }
+
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; }
+
+        /* --- UI Overlay --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: none; 
+        }
+
+        .hud-panel {
+            position: absolute;
+            background: var(--ui-bg);
+            border: 2px solid #444;
+            padding: 10px;
+            pointer-events: auto;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Stats Panel */
+        #stats-panel { top: 20px; left: 20px; width: 220px; }
+        .stat-row { margin-bottom: 8px; }
+        .stat-label { font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 2px;}
+        .bar-container { width: 100%; height: 10px; background: #333; border: 1px solid #555; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.2s; }
+        #hp-bar { background: var(--hp-color); }
+        #hunger-bar { background: #d97706; }
+        #thirst-bar { background: #2563eb; }
+        #boredom-bar { background: #888; }
+        
+        .med-status {
+            font-size: 10px; color: #ff5555; font-weight: bold; margin-top: 2px; display: none;
+        }
+
+        #weapon-panel { top: 20px; right: 20px; text-align: right; }
+        #current-weapon { font-size: 1.5rem; font-weight: bold; color: #fff; }
+        #ammo-count { font-size: 1.2rem; color: #aaa; margin-top: 5px; }
+
+        /* Inventory */
+        .inv-panel-base { bottom: 20px; width: 280px; max-height: 400px; display: flex; flex-direction: column; }
+        #inventory-panel { right: 20px; transition: transform 0.2s; }
+        #container-panel { right: 310px; bottom: 20px; display: none; }
+
+        .panel-header {
+            font-weight: bold; border-bottom: 1px solid #555; padding-bottom: 5px; margin-bottom: 5px;
+            background: #333; padding: 5px; text-align: center; display: flex; justify-content: space-between; align-items: center;
+        }
+        .inv-list { overflow-y: auto; flex-grow: 1; min-height: 50px; }
+        .item-slot {
+            background: #2a2a2a; padding: 6px; margin-bottom: 4px; font-size: 11px;
+            cursor: pointer; border: 1px solid #444; display: flex; justify-content: space-between; align-items: center;
+        }
+        .item-slot:hover { background: #3a3a3a; border-color: #888; }
+        .item-mass { color: #888; font-size: 9px; margin-right: 5px; }
+        .item-btn { margin-left: 5px; padding: 2px 4px; border: 1px solid #555; background: #222; color: #ccc; }
+        .item-btn:hover { background: #444; color: #fff; }
+
+        /* Build Menu */
+        #build-panel {
+            top: 50%; left: 20px; transform: translateY(-50%);
+            display: none; width: 200px;
+        }
+        .build-opt {
+            padding: 10px; background: #333; margin-bottom: 5px; cursor: pointer; border: 1px solid #555;
+            font-size: 12px;
+        }
+        .build-opt:hover { background: #444; border-color: #fff; }
+        .build-req { font-size: 10px; color: #aaa; display: block; margin-top: 3px; }
+
+        #map-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80vh; height: 80vh; background: #1a1a1a; border: 4px solid #444;
+            display: none; pointer-events: auto; z-index: 50;
+        }
+        #map-canvas { width: 100%; height: 100%; background: #222; }
+        #map-title { position: absolute; top: 10px; left: 10px; font-size: 24px; font-weight: bold; color: white; text-shadow: 2px 2px 0 #000; pointer-events: none;}
+
+        #char-creation-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; z-index: 200; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; pointer-events: auto;
+        }
+        .char-section { margin: 10px; background: #222; padding: 15px; border: 1px solid #444; width: 500px; max-height: 80vh; overflow-y: auto;}
+        .trait-opt { display: flex; justify-content: space-between; margin: 5px 0; cursor: pointer; padding: 5px; border-bottom: 1px solid #333;}
+        .trait-opt:hover { background: #333; }
+        .trait-cost { font-weight: bold; }
+        .positive { color: #e74c3c; } 
+        .negative { color: #2ecc71; }
+        
+        #points-display { font-size: 1.5rem; margin: 10px; font-weight: bold; }
+        
+        #interaction-tooltip {
+            position: absolute; display: none;
+            background: rgba(0,0,0,0.85); color: white; padding: 8px 12px;
+            border-radius: 4px; font-size: 14px; pointer-events: none;
+            transform: translate(-50%, -150%); border: 1px solid #666;
+        }
+        #message-overlay {
+            position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%);
+            color: #ff5555; font-size: 24px; font-weight: bold;
+            text-shadow: 2px 2px 0 #000; opacity: 0; transition: opacity 0.5s;
+        }
+
+        #game-over-screen, #pause-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: auto; z-index: 100;
+        }
+        
+        button.main-btn {
+            background: #a53b3b; color: white; border: 2px solid #551111;
+            padding: 10px 30px; font-size: 1.2rem; cursor: pointer; margin-top: 10px; width: 100%;
+        }
+        button.main-btn:disabled { background: #444; border-color: #333; cursor: not-allowed; }
+        button.main-btn:hover:not(:disabled) { background: #c92a2a; }
+        h1 { color: #a53b3b; margin-bottom: 10px; }
+        
+        .skill-notify {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(46, 204, 113, 0.9); color: #fff; padding: 10px 20px;
+            border-radius: 20px; font-weight: bold; opacity: 0; transition: opacity 1s;
+        }
+    </style>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<!-- Character Creation -->
+<div id="char-creation-screen">
+    <h1>PROJECT FLUFF</h1>
+    <div class="char-section">
+        <h3>Appearance</h3>
+        <label>Shirt Color: <input type="color" id="shirt-color" value="#3498db"></label>
+    </div>
+    <div class="char-section">
+        <h3>Occupation</h3>
+        <div id="occ-list"></div>
+    </div>
+    <div class="char-section">
+        <h3>Traits <span id="points-display">Points: 2</span></h3>
+        <div id="trait-list"></div>
+    </div>
+    <button id="start-btn" class="main-btn" onclick="startGame()">ENTER ROSEWOOD</button>
+</div>
+
+<div id="game-container">
+    <div id="ui-layer">
+        <div id="stats-panel" class="hud-panel">
+            <div class="stat-row">
+                <div class="stat-label"><span>HEALTH</span> <span id="hp-text">100</span></div>
+                <div class="bar-container"><div id="hp-bar" class="bar-fill"></div></div>
+            </div>
+            <div id="bleeding-status" class="med-status">BLEEDING</div>
+            <div id="infected-status" class="med-status">INFECTED</div>
+            <div class="stat-row">
+                <div class="stat-label"><span>HUNGER</span> <span id="hunger-text">0</span></div>
+                <div class="bar-container"><div id="hunger-bar" class="bar-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat-label"><span>THIRST</span> <span id="thirst-text">0</span></div>
+                <div class="bar-container"><div id="thirst-bar" class="bar-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat-label"><span>BOREDOM</span> <span id="boredom-text">0</span></div>
+                <div class="bar-container"><div id="boredom-bar" class="bar-fill" style="width: 0%"></div></div>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #888; border-top: 1px solid #444; padding-top: 5px;">
+                Day <span id="day-count">1</span> | <span id="time-display">12:00 PM</span>
+            </div>
+            <div id="skills-list" style="margin-top: 10px; font-size: 10px; color: #aaa;"></div>
+        </div>
+
+        <div id="weapon-panel" class="hud-panel">
+            <div id="current-weapon">Baseball Bat</div>
+            <div id="ammo-count">Melee</div>
+        </div>
+
+        <!-- Build Menu -->
+        <div id="build-panel" class="hud-panel">
+            <div style="font-weight:bold;margin-bottom:5px;text-align:center;">BUILD MODE</div>
+            <div class="build-opt" onclick="setBuildMode('wall')">
+                [1] Wood Wall
+                <span class="build-req">2 Planks, 1 Nail, Hammer</span>
+            </div>
+            <div class="build-opt" onclick="setBuildMode('plot')">
+                [2] Farm Plot
+                <span class="build-req">Trowel</span>
+            </div>
+        </div>
+
+        <div id="container-panel" class="hud-panel inv-panel-base">
+            <div class="panel-header">
+                <span id="container-title">CRATE</span>
+                <button onclick="closeContainer()" style="font-size:10px; cursor:pointer;">X</button>
+            </div>
+            <div id="container-list" class="inv-list"></div>
+        </div>
+
+        <div id="inventory-panel" class="hud-panel inv-panel-base">
+            <div class="panel-header">
+                <span id="inventory-title">BACKPACK</span>
+                <button id="inv-toggle-btn" onclick="toggleInventory()">_</button>
+            </div>
+            <div id="inventory-list" class="inv-list">
+                <div class="item-slot">Empty...</div>
+            </div>
+        </div>
+
+        <div id="interaction-tooltip">Press E</div>
+        <div id="message-overlay">Inventory Full</div>
+        <div id="skill-notify" class="skill-notify">Level Up!</div>
+    </div>
+    
+    <div id="map-overlay">
+        <div id="map-title">Rosewood Map</div>
+        <canvas id="map-canvas" width="800" height="800"></canvas>
+    </div>
+
+    <div id="pause-screen">
+        <h1>PAUSED</h1>
+        <p>Press P to Resume</p>
+    </div>
+
+    <div id="game-over-screen">
+        <h1>YOU DIED</h1>
+        <p style="color: #aaa; margin-top: 10px;">You survived <span id="days-survived">0</span> days.</p>
+        <button class="main-btn" onclick="location.reload()">RESPAWN</button>
+    </div>
+</div>
+
+<script>
+// --- Configuration ---
+const CONFIG = {
+    basePlayerSpeed: 2.2, 
+    zombieSpeed: 0.8,
+    dayLength: 24000, 
+    mapWidth: 4000,
+    mapHeight: 4000
+};
+
+// --- Game State ---
+let gameState = {
+    running: false,
+    paused: false,
+    day: 1,
+    time: 12000,
+    keys: {},
+    mouseWorld: new THREE.Vector3(),
+    mapOpen: false,
+    openContainer: null,
+    buildMode: false,
+    buildType: null
+};
+
+// --- Three.js Setup ---
+let scene, camera, renderer, raycaster;
+let groundPlane, sunLight, ambientLight;
+let mouse = new THREE.Vector2();
+
+// --- Globals ---
+let player;
+let zombies = [];
+let walls = []; // Physics
+let playerStructures = []; 
+let buildings = []; 
+let lootContainers = [];
+let farmPlots = []; 
+let cars = [];
+let ghostMesh = null;
+let gasPumps = []; // Coordinates of pumps
+
+// --- Sound System ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const Sound = {
+    playTone: (freq, type, duration, vol=0.1) => {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    },
+    shoot: (type) => {
+        if(type === 'shotgun') {
+            Sound.playTone(100, 'sawtooth', 0.4, 0.4);
+            setTimeout(() => Sound.playTone(80, 'square', 0.3, 0.3), 50);
+        } else if(type === 'rifle') {
+            Sound.playTone(600, 'square', 0.1, 0.3);
+            setTimeout(() => Sound.playTone(100, 'sawtooth', 0.3, 0.3), 20);
+        } else { // pistol
+            Sound.playTone(400, 'triangle', 0.1, 0.2);
+            setTimeout(() => Sound.playTone(150, 'sawtooth', 0.1, 0.2), 10);
+        }
+    },
+    hit: () => Sound.playTone(100, 'square', 0.1, 0.1),
+    reload: () => {
+        Sound.playTone(800, 'sine', 0.05, 0.05);
+        setTimeout(() => Sound.playTone(900, 'sine', 0.05, 0.05), 200);
+    },
+    carStart: () => {
+        Sound.playTone(50, 'sawtooth', 0.5, 0.1);
+        setTimeout(() => Sound.playTone(60, 'sawtooth', 0.8, 0.1), 300);
+    }
+};
+
+// --- Database & Traits ---
+const OCCUPATIONS = [
+    { id: 'unemployed', name: 'Unemployed', points: 8, desc: 'Lots of free time.' },
+    { id: 'fire', name: 'Fire Officer', points: 0, desc: 'Axe Man (Swing Speed), Strong.' },
+    { id: 'police', name: 'Police Officer', points: -4, desc: 'Aiming +1, Reloading +1.' },
+    { id: 'burglar', name: 'Burglar', points: -6, desc: 'Can hotwire cars.' },
+    { id: 'farmer', name: 'Farmer', points: -2, desc: 'Farming +2.' }
+];
+
+const TRAITS_DB = [
+    { id: 'strong', name: 'Strong', cost: -6, desc: '+5kg Carry' },
+    { id: 'jogger', name: 'Jogger', cost: -4, desc: 'Faster Run' },
+    { id: 'eagle', name: 'Eagle Eye', cost: -2, desc: 'Better Zoom' },
+    { id: 'weak', name: 'Weak', cost: 4, desc: '-5kg Carry' },
+    { id: 'asthmatic', name: 'Asthmatic', cost: 4, desc: 'Slower Run' },
+    { id: 'illiterate', name: 'Illiterate', cost: 2, desc: 'Cannot Read' }
+];
+
+// --- Loot Tables ---
+function getRandomItem(table) {
+    const totalWeight = table.reduce((sum, item) => sum + item.weight, 0);
+    let random = Math.random() * totalWeight;
+    for (const item of table) {
+        if (random < item.weight) return { ...item }; // Clone
+        random -= item.weight;
+    }
+    return { ...table[0] };
+}
+
+const basicLoot = [
+    { name: "Canned Beans", type: "food", val: 25, weight: 80, mass: 0.8 },
+    { name: "Water Bottle", type: "drink", val: 30, weight: 80, mass: 1.0 },
+    { name: "Bandage", type: "heal", val: 20, weight: 50, mass: 0.1 },
+    { name: "Gas Can", type: "fuel", val: 50, weight: 10, mass: 2.0 }, // Empty or full handled by usage? lets say full
+    { name: "Nails", type: "mat", weight: 30, mass: 0.1 },
+    { name: "Plank", type: "mat", weight: 10, mass: 1.5 }
+];
+
+const weaponLoot = [
+    { name: "9mm Ammo Box", type: "ammo", val: 15, weight: 40, mass: 0.4 }, 
+    { name: "Shotgun Shells", type: "ammo", val: 12, weight: 30, mass: 0.6 },
+    { name: ".44 Magnum Rounds", type: "ammo", val: 12, weight: 20, mass: 0.5 },
+    { name: ".308 Rounds", type: "ammo", val: 10, weight: 20, mass: 0.4 },
+    { name: "M9 Pistol", type: "weapon", val: 0, damage: 40, range: 400, isGun: true, ammoType:"9mm", magSize: 15, weight: 15, mass: 1.5 },
+    { name: "Magnum", type: "weapon", val: 0, damage: 120, range: 500, isGun: true, ammoType:".44", magSize: 6, weight: 5, mass: 2.0 },
+    { name: "JS-2000 Shotgun", type: "weapon", val: 0, damage: 200, range: 250, isGun: true, ammoType:"shells", magSize: 6, weight: 5, mass: 3.5 },
+    { name: "MSR788 Rifle", type: "weapon", val: 0, damage: 150, range: 800, isGun: true, ammoType:".308", magSize: 3, weight: 5, mass: 4.0 },
+    { name: "Fire Axe", type: "weapon", val: 0, damage: 70, range: 70, isGun: false, weight: 10, mass: 3.0 }
+];
+
+// --- Character Setup UI ---
+let charPoints = 0;
+let selectedTraits = new Set();
+let selectedOcc = 'unemployed';
+
+function initCharScreen() {
+    const occList = document.getElementById('occ-list');
+    OCCUPATIONS.forEach(o => {
+        const div = document.createElement('div');
+        div.className = 'trait-opt';
+        div.innerHTML = `<span>${o.name} <span style="font-size:10px;color:#888">${o.desc}</span></span> <span class="trait-cost">${o.points}</span>`;
+        div.onclick = () => selectOccupation(o, div);
+        if(o.id === 'unemployed') selectOccupation(o, div); // default
+        occList.appendChild(div);
+    });
+
+    const list = document.getElementById('trait-list');
+    TRAITS_DB.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'trait-opt';
+        const costClass = t.cost < 0 ? 'positive' : 'negative';
+        const costSign = t.cost > 0 ? '+' : '';
+        div.innerHTML = `<span>${t.name} <span style="font-size:10px;color:#888">(${t.desc})</span></span> <span class="trait-cost ${costClass}">${costSign}${t.cost}</span>`;
+        div.onclick = () => toggleTrait(t, div);
+        list.appendChild(div);
+    });
+}
+
+function selectOccupation(occ, div) {
+    selectedOcc = occ.id;
+    // visual selection logic omitted for brevity, essentially highlight div
+    document.querySelectorAll('#occ-list .trait-opt').forEach(d => d.style.background = 'transparent');
+    div.style.background = '#444';
+    recalcPoints();
+}
+
+function toggleTrait(trait, div) {
+    if (selectedTraits.has(trait.id)) {
+        selectedTraits.delete(trait.id);
+        div.style.background = 'transparent';
+    } else {
+        selectedTraits.add(trait.id);
+        div.style.background = '#333';
+    }
+    recalcPoints();
+}
+
+function recalcPoints() {
+    let pts = 0;
+    const occ = OCCUPATIONS.find(o => o.id === selectedOcc);
+    if(occ) pts += occ.points;
+    selectedTraits.forEach(tid => {
+        const t = TRAITS_DB.find(tr => tr.id === tid);
+        if(t) pts += t.cost;
+    });
+    charPoints = pts;
+    const el = document.getElementById('points-display');
+    const btn = document.getElementById('start-btn');
+    el.innerText = `Points: ${charPoints}`;
+    el.style.color = charPoints >= 0 ? '#fff' : '#c92a2a';
+    btn.disabled = charPoints < 0;
+}
+
+// --- Classes ---
+
+class HumanoidMesh extends THREE.Group {
+    constructor(color) {
+        super();
+        const mat = new THREE.MeshLambertMaterial({ color: color });
+        const skinMat = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+        
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(10, 16, 6), mat);
+        torso.position.y = 12; this.add(torso);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 8), skinMat);
+        head.position.y = 24; this.add(head);
+        const armGeo = new THREE.BoxGeometry(4, 14, 4);
+        const leftArm = new THREE.Mesh(armGeo, mat);
+        leftArm.position.set(-8, 12, 0); this.add(leftArm);
+        const rightArm = new THREE.Mesh(armGeo, mat);
+        rightArm.position.set(8, 12, 0); this.add(rightArm);
+        this.rightArm = rightArm;
+        const legGeo = new THREE.BoxGeometry(4, 12, 4);
+        const legMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+        const leftLeg = new THREE.Mesh(legGeo, legMat);
+        leftLeg.position.set(-3, 6, 0); this.add(leftLeg);
+        const rightLeg = new THREE.Mesh(legGeo, legMat);
+        rightLeg.position.set(3, 6, 0); this.add(rightLeg);
+        this.castShadow = true; this.traverse(c => { c.castShadow = true; c.receiveShadow = true; });
+    }
+}
+
+class Car {
+    constructor(x, z, hasKey, fuel) {
+        this.x = x; this.z = z;
+        this.angle = 0; this.speed = 0; this.maxSpeed = 4.5;
+        this.occupied = false;
+        this.id = Math.random().toString(36).substr(2, 9); // Unique ID for key
+        this.hasKeyInIgnition = hasKey; // Does it have a key?
+        this.fuel = fuel; // 0 to 100
+        
+        this.mesh = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(30, 15, 60), new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff }));
+        body.position.y = 10;
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(25, 10, 30), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+        roof.position.y = 22; roof.position.z = -5;
+        this.mesh.add(body); this.mesh.add(roof);
+        this.mesh.position.set(x, 0, z); this.mesh.castShadow = true; scene.add(this.mesh);
+        walls.push({x: x-15, z: z-30, w: 30, d: 60, dynamic: true, ref: this});
+    }
+
+    update() {
+        if (this.occupied && this.fuel > 0) {
+            if (gameState.keys['w']) this.speed += 0.1;
+            if (gameState.keys['s']) this.speed -= 0.1;
+            if (Math.abs(this.speed) > 0.5) {
+                const turnSpeed = 0.04 * (this.speed > 0 ? 1 : -1);
+                if (gameState.keys['a']) this.angle += turnSpeed;
+                if (gameState.keys['d']) this.angle -= turnSpeed;
+            }
+            // Consume fuel
+            if(Math.abs(this.speed) > 0.1) this.fuel -= 0.01;
+            if(player) { player.x = this.x; player.z = this.z; }
+        } else {
+            this.speed *= 0.9;
+        }
+
+        this.speed = Math.max(-2, Math.min(this.maxSpeed, this.speed));
+        const nextX = this.x - Math.sin(this.angle) * this.speed;
+        const nextZ = this.z - Math.cos(this.angle) * this.speed;
+
+        if (!checkWallCollision(nextX, nextZ, 20)) { this.x = nextX; this.z = nextZ; } else { this.speed = 0; }
+
+        if (Math.abs(this.speed) > 2) {
+            zombies.forEach(z => {
+                if(z.dead) return;
+                if(Math.hypot(z.x - this.x, z.z - this.z) < 25) { z.takeDamage(100); createBlood(z.x, z.z); }
+            });
+        }
+        this.mesh.position.set(this.x, 0, this.z);
+        this.mesh.rotation.y = this.angle;
+    }
+}
+
+class Player {
+    constructor(x, z, color, traits, occupation) {
+        this.x = x; this.z = z; this.radius = 8;
+        this.hp = 100; this.maxHp = 100; 
+        this.hunger = 0; this.thirst = 0; this.boredom = 0;
+        this.inventory = []; this.traits = traits; this.occupation = occupation;
+        this.skills = { carpentry: 0, aiming: 0, shooting: 0 };
+        this.medical = { bleeding: false, infected: false };
+        
+        // Occupation Bonuses
+        if(occupation === 'fire') { this.skills.carpentry = 1; traits.add('strong'); }
+        if(occupation === 'police') { this.skills.aiming = 1; this.skills.shooting = 1; }
+        if(occupation === 'farmer') { this.skills.carpentry = 1; }
+        
+        // Trait Stats
+        this.maxWeight = 15.0; this.speedMulti = 1.0;
+        if (traits.has('strong')) this.maxWeight += 5.0;
+        if (traits.has('weak')) this.maxWeight -= 5.0;
+        if (traits.has('jogger')) this.speedMulti = 1.2;
+        if (traits.has('asthmatic')) this.speedMulti = 0.8;
+
+        this.ammo = { "9mm": 0, "shells": 0, ".44": 0, ".308": 0 };
+        this.weapon = { name: "Baseball Bat", damage: 30, range: 60, cooldown: 0, maxCooldown: 35, isGun: false };
+        if(occupation === 'fire') this.weapon = { name: "Fire Axe", damage: 70, range: 70, isGun: false, cooldown: 0, maxCooldown: 40 };
+
+        this.inCar = null;
+        this.mesh = new HumanoidMesh(color); 
+        this.mesh.position.set(x, 0, z); scene.add(this.mesh);
+        this.flashlight = new THREE.SpotLight(0xffffee, 0, 500, Math.PI/5, 0.5, 1);
+        this.flashlight.position.set(0, 25, 5); this.flashlight.target.position.set(0, 20, 100);
+        this.mesh.add(this.flashlight); this.mesh.add(this.flashlight.target);
+    }
+
+    getInventoryWeight() { return this.inventory.reduce((sum, item) => sum + (item.mass || 0), 0); }
+    
+    update() {
+        if (this.hp <= 0) return;
+        if (this.inCar) { this.inCar.update(); this.mesh.visible = false; return; } else { this.mesh.visible = true; }
+
+        this.hunger += 0.002; this.thirst += 0.005; this.boredom += 0.005;
+        if(this.boredom > 100) this.boredom = 100;
+        if (this.hunger >= 100 || this.thirst >= 100) this.hp -= 0.05;
+        
+        // Medical Ticks
+        if (this.medical.bleeding) this.hp -= 0.05;
+        if (this.medical.infected) this.hp -= 0.01; // Slow death
+
+        if (this.hp <= 0) { this.hp = 0; gameOver(); }
+
+        let dx = 0, dz = 0;
+        if (gameState.keys['w']) dz = -1; if (gameState.keys['s']) dz = 1;
+        if (gameState.keys['a']) dx = -1; if (gameState.keys['d']) dx = 1;
+        if (dx !== 0 && dz !== 0) { const len = Math.sqrt(dx*dx + dz*dz); dx /= len; dz /= len; }
+        
+        const currentSpeed = CONFIG.basePlayerSpeed * this.speedMulti;
+        const nextX = this.x + dx * currentSpeed;
+        const nextZ = this.z + dz * currentSpeed;
+        if (!checkWallCollision(nextX, this.z, this.radius)) this.x = nextX;
+        if (!checkWallCollision(this.x, nextZ, this.radius)) this.z = nextZ;
+        
+        this.mesh.position.x = this.x; this.mesh.position.z = this.z;
+        const angle = Math.atan2(gameState.mouseWorld.z - this.z, gameState.mouseWorld.x - this.x);
+        this.mesh.rotation.y = -angle + Math.PI/2;
+        if (this.weapon.cooldown > 0) this.weapon.cooldown--;
+        checkBuildingEntry(this.x, this.z);
+    }
+
+    attack() {
+        if (this.inCar || this.weapon.cooldown > 0) return;
+        if(gameState.buildMode) { buildAction(); return; }
+
+        if (this.weapon.isGun) {
+            if (this.weapon.loadedAmmo <= 0) {
+                // Click empty
+                return;
+            }
+            
+            this.weapon.loadedAmmo--;
+            this.weapon.cooldown = this.weapon.maxCooldown;
+            updateWeaponUI();
+            Sound.shoot(this.weapon.name.includes('Shotgun') ? 'shotgun' : this.weapon.name.includes('Rifle') ? 'rifle' : 'pistol');
+            
+            this.mesh.children[0].material.emissive.setHex(0xffff00);
+            setTimeout(() => this.mesh.children[0].material.emissive.setHex(0x000000), 50);
+
+            const aimAngle = Math.atan2(gameState.mouseWorld.z - this.z, gameState.mouseWorld.x - this.x);
+            let hitZombie = null; let bestDist = this.weapon.range + (this.skills.aiming * 20);
+            const deviation = 0.2 - (this.skills.aiming * 0.03);
+            zombies.forEach(z => {
+                if (z.dead) return;
+                const dist = Math.hypot(z.x - this.x, z.z - this.z);
+                if (dist < bestDist) {
+                    const angleToZ = Math.atan2(z.z - this.z, z.x - this.x);
+                    let diff = angleToZ - aimAngle;
+                    while (diff > Math.PI) diff -= Math.PI*2; while (diff < -Math.PI) diff += Math.PI*2;
+                    if (Math.abs(diff) < deviation) { bestDist = dist; hitZombie = z; }
+                }
+            });
+            if (hitZombie) { 
+                hitZombie.takeDamage(this.weapon.damage + (this.skills.shooting * 10)); 
+                createBlood(hitZombie.x, hitZombie.z); 
+                Sound.hit();
+            }
+        } else {
+            this.weapon.cooldown = this.weapon.maxCooldown;
+            this.mesh.rightArm.rotation.x = -Math.PI/2;
+            setTimeout(() => { if(this.mesh) this.mesh.rightArm.rotation.x = 0; }, 150);
+            const aimAngle = Math.atan2(gameState.mouseWorld.z - this.z, gameState.mouseWorld.x - this.x);
+            zombies.forEach(z => {
+                if (z.dead) return;
+                const dist = Math.hypot(z.x - this.x, z.z - this.z);
+                if (dist < this.weapon.range + this.radius) {
+                    const angleToZ = Math.atan2(z.z - this.z, z.x - this.x);
+                    let diff = angleToZ - aimAngle;
+                    while (diff > Math.PI) diff -= Math.PI*2; while (diff < -Math.PI) diff += Math.PI*2;
+                    if (Math.abs(diff) < 0.8) {
+                        z.takeDamage(this.weapon.damage);
+                        z.x += Math.cos(aimAngle) * 15; z.z += Math.sin(aimAngle) * 15;
+                        createBlood(z.x, z.z);
+                        Sound.hit();
+                    }
+                }
+            });
+        }
+    }
+
+    reload() {
+        if (!this.weapon.isGun) return;
+        const type = this.weapon.ammoType;
+        const pool = this.ammo[type];
+        const current = this.weapon.loadedAmmo || 0;
+        const max = this.weapon.magSize || 0;
+        const needed = max - current;
+        
+        if (needed > 0 && pool > 0) {
+            const amount = Math.min(needed, pool);
+            this.ammo[type] -= amount;
+            this.weapon.loadedAmmo = (this.weapon.loadedAmmo || 0) + amount;
+            updateWeaponUI();
+            Sound.reload();
+            showOverlayMessage("Reloaded");
+        } else if (pool <= 0) {
+            showOverlayMessage("No Ammo!");
+        }
+    }
+}
+
+class Zombie {
+    constructor(x, z) {
+        this.x = x; this.z = z; this.radius = 8; this.hp = 60; this.state = 'idle';
+        this.angle = Math.random() * Math.PI * 2;
+        this.mesh = new HumanoidMesh(0x2ecc71); 
+        this.mesh.position.set(x, 0, z); scene.add(this.mesh);
+    }
+    takeDamage(amt) {
+        if (this.dead || !this.mesh) return;
+        this.hp -= amt;
+        this.mesh.children.forEach(c => c.material.color.setHex(0x880000));
+        setTimeout(() => { if(!this.dead && this.mesh) this.mesh.children.forEach(c => c.material.color.setHex(0x2ecc71)); }, 100);
+        if (this.hp <= 0) { this.dead = true; scene.remove(this.mesh); this.mesh = null; }
+    }
+    update() {
+        if (this.dead || !player) return;
+        const dist = Math.hypot(player.x - this.x, player.z - this.z);
+        if (dist < 400 && !player.inCar) this.state = 'chase'; else if (dist > 600) this.state = 'idle';
+        let speed = this.state === 'chase' ? CONFIG.zombieSpeed : 0.5;
+        if (this.state === 'chase') {
+            this.angle = Math.atan2(player.z - this.z, player.x - this.x);
+            if (dist < 15) {
+                // Zombie Attack
+                // Chance to bleed/infect
+                if(Math.random() < 0.01) {
+                    if(Math.random() < 0.25) { player.medical.bleeding = true; showOverlayMessage("BLEEDING!"); }
+                    if(Math.random() < 0.05) { player.medical.infected = true; showOverlayMessage("INFECTED!"); }
+                    player.hp -= 5;
+                    updateUI();
+                }
+            }
+        } else { if (Math.random() < 0.02) this.angle += (Math.random()-0.5); }
+        
+        const nextX = this.x + Math.cos(this.angle) * speed;
+        const nextZ = this.z + Math.sin(this.angle) * speed;
+        if (!checkWallCollision(nextX, this.z, this.radius)) this.x = nextX;
+        if (!checkWallCollision(this.x, nextZ, this.radius)) this.z = nextZ;
+        this.mesh.position.x = this.x; this.mesh.position.z = this.z;
+        this.mesh.rotation.y = -this.angle + Math.PI/2;
+        const armsRot = this.state === 'chase' ? -Math.PI/2 : 0;
+        this.mesh.children[2].rotation.x = armsRot; this.mesh.children[3].rotation.x = armsRot; 
+    }
+}
+
+class LootBox {
+    constructor(x, z, table) {
+        this.x = x; this.z = z; this.w = 20; this.d = 20; this.table = table;
+        this.items = []; this.maxWeight = 20.0; this.looted = false;
+        const geo = new THREE.BoxGeometry(20, 15, 20);
+        const mat = new THREE.MeshLambertMaterial({ color: 0x8d6e63 });
+        this.mesh = new THREE.Mesh(geo, mat);
+        this.mesh.position.set(x, 7.5, z); scene.add(this.mesh);
+        
+        // Random loot generation
+        const count = Math.floor(Math.random() * 3) + 1; 
+        for(let i=0; i<count; i++) {
+            const item = getRandomItem(this.table);
+            this.items.push(item);
+            // Small chance for Car Key in any loot box
+            if(Math.random() < 0.05 && cars.length > 0) {
+                const randomCar = cars[Math.floor(Math.random() * cars.length)];
+                this.items.push({ name: "Car Key", type: "key", id: randomCar.id, weight: 1, mass: 0.1 });
+            }
+        }
+    }
+    getWeight() { return this.items.reduce((sum, i) => sum + (i.mass || 0), 0); }
+}
+
+// --- World Gen ---
+function createBuilding(x, z, w, d, color, name) {
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w+4, 6, d+4), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+    roof.position.set(x + w/2, 53, z + d/2); roof.castShadow = true; scene.add(roof);
+    buildings.push({ x, z, w, d, roofMesh: roof });
+    
+    // Driveway logic: If near main road x=850, create grey plane
+    if (x > 850 && x < 2000) {
+        const driveGeo = new THREE.PlaneGeometry(x - 850, 60);
+        const drive = new THREE.Mesh(driveGeo, new THREE.MeshLambertMaterial({color: 0x444}));
+        drive.rotation.x = -Math.PI/2;
+        drive.position.set(850 + (x-850)/2, 0.3, z + d/2);
+        scene.add(drive);
+    }
+
+    const wallCol = new THREE.MeshLambertMaterial({ color: color });
+    const addWall = (wx, wz, ww, wd) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(ww, 50, wd), wallCol);
+        m.position.set(wx + ww/2, 25, wz + wd/2); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+        walls.push({x: wx, z: wz, w: ww, d: wd});
+    };
+    addWall(x, z, w, 5); addWall(x, z + d - 5, w, 5); addWall(x, z, 5, d); 
+    addWall(x + w - 5, z, 5, d/2 - 20); addWall(x + w - 5, z + d/2 + 20, 5, d/2 - 20 - 5);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(w-2, 1, d-2), new THREE.MeshLambertMaterial({color: 0x555555}));
+    floor.position.set(x+w/2, 0.5, z+d/2); scene.add(floor);
+    
+    // Loot
+    const lootCount = Math.floor(w * d / 15000) + 2;
+    let lootTable = basicLoot;
+    if(name === "Police Station") lootTable = weaponLoot;
+    
+    for(let i=0; i<lootCount; i++) lootContainers.push(new LootBox(x+20+Math.random()*(w-40), z+20+Math.random()*(d-40), lootTable));
+
+    if(name === "Gas Station") {
+        gasPumps.push({x: x-40, z: z+d/2, range: 40});
+        // Visual pump
+        const pump = new THREE.Mesh(new THREE.BoxGeometry(20, 40, 20), new THREE.MeshLambertMaterial({color: 0xff0000}));
+        pump.position.set(x-40, 20, z+d/2);
+        scene.add(pump);
+    }
+}
+
+function generateRosewood() {
+    createBuilding(300, 2500, 500, 300, 0x8b0000, "Fire Station"); 
+    createBuilding(300, 1800, 400, 300, 0x708090, "Police Station");
+    createBuilding(1000, 2000, 300, 400, 0xc2b280, "Supermarket");
+    createBuilding(1000, 1500, 300, 300, 0xd4a017, "Bookstore"); 
+    createBuilding(1000, 1100, 300, 200, 0xffffff, "Medical");
+    createBuilding(1800, 2800, 400, 300, 0x27ae60, "Farm Store"); // Improved location
+    createBuilding(800, 3500, 300, 200, 0x555555, "Gas Station"); // Near road
+
+    const houseColors = [0xdeb887, 0xf5f5dc, 0xffebcd];
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 5; j++) {
+            const col = houseColors[Math.floor(Math.random()*houseColors.length)];
+            createBuilding(1600 + i*400, 500 + j*450, 200, 200, col, "House");
+        }
+    }
+    const roadMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const roadV = new THREE.Mesh(new THREE.PlaneGeometry(400, 3800), roadMat);
+    roadV.rotation.x = -Math.PI/2; roadV.position.set(850, 0.2, 2000); scene.add(roadV);
+    const roadH1 = new THREE.Mesh(new THREE.PlaneGeometry(3000, 200), roadMat);
+    roadH1.rotation.x = -Math.PI/2; roadH1.position.set(2000, 0.2, 2900); scene.add(roadH1);
+    
+    // 5 Random cars
+    for(let i=0; i<5; i++) {
+        cars.push(new Car(900, 500 + Math.random()*2500, false, Math.random()*20));
+    }
+    
+    // Trees
+    const treeMat = new THREE.MeshLambertMaterial({ color: 0x006400 });
+    const treeGeo = new THREE.CylinderGeometry(5, 15, 60, 6);
+    for(let i=0; i<150; i++) {
+        const tx = Math.random() * CONFIG.mapWidth, tz = Math.random() * CONFIG.mapHeight;
+        if (tx > 200 && tx < 3200 && tz > 900 && tz < 3200) continue;
+        const t = new THREE.Mesh(treeGeo, treeMat);
+        t.position.set(tx, 30, tz); scene.add(t);
+        walls.push({x: tx-5, z: tz-5, w: 10, d: 10});
+    }
+}
+
+function createBlood(x, z) {
+    const geo = new THREE.CircleGeometry(5 + Math.random()*5, 6);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x880000 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2; mesh.position.set(x, 0.3, z); scene.add(mesh);
+}
+function checkBuildingEntry(px, pz) {
+    buildings.forEach(b => {
+        const inside = (px > b.x+5 && px < b.x + b.w-5 && pz > b.z+5 && pz < b.z + b.d-5);
+        b.roofMesh.visible = !inside;
+    });
+}
+function checkWallCollision(x, z, r) {
+    for (let w of walls) {
+        if(w.dynamic) continue;
+        let cx = Math.max(w.x, Math.min(x, w.x + w.w));
+        let cz = Math.max(w.z, Math.min(z, w.z + w.d));
+        if (((x-cx)*(x-cx) + (z-cz)*(z-cz)) < r*r) return true;
+    }
+    return false;
+}
+
+// --- Interaction ---
+
+function toggleInventory() {
+    const list = document.getElementById('inventory-list');
+    list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+function closeContainer() {
+    gameState.openContainer = null;
+    document.getElementById('container-panel').style.display = 'none';
+}
+
+function tryInteract() {
+    if (!player) return;
+
+    // 0. Gas Station
+    let nearPump = false;
+    gasPumps.forEach(p => { if(Math.hypot(p.x - player.x, p.z - player.z) < p.range) nearPump = true; });
+    if(nearPump) {
+        const can = player.inventory.find(i => i.name === 'Gas Can');
+        if(can) { showOverlayMessage("Refilled Gas Can"); return; } // Simplified refill logic
+    }
+
+    // 1. Car
+    if (player.inCar) {
+        const car = player.inCar; car.occupied = false; player.inCar = null;
+        player.x = car.x + 30; player.z = car.z;
+        Sound.carStart();
+        return;
+    }
+
+    let closestCar = null;
+    cars.forEach(c => { if (Math.hypot(c.x - player.x, c.z - player.z) < 30) closestCar = c; });
+    if (closestCar) { 
+        if(closestCar.fuel <= 0) { showOverlayMessage("Out of Gas"); return; }
+        // Check Keys
+        const hasKey = player.inventory.some(i => i.type === 'key' && i.id === closestCar.id);
+        if(!hasKey && player.occupation !== 'burglar' && !closestCar.hasKeyInIgnition) {
+            showOverlayMessage("Locked - Need Key"); return;
+        }
+        player.inCar = closestCar; closestCar.occupied = true; 
+        Sound.carStart();
+        return; 
+    }
+    
+    // 2. Container
+    let closest = null; let minD = 50;
+    lootContainers.forEach(c => {
+        const d = Math.hypot(c.x - player.x, c.z - player.z);
+        if(d < minD) { closest = c; minD = d; }
+    });
+    if(closest) {
+        gameState.openContainer = closest;
+        document.getElementById('container-panel').style.display = 'flex';
+        updateContainerUI(); updateInventoryUI();
+    } else { closeContainer(); }
+}
+
+function transferItem(fromList, toList, index, maxWeight, isPlayerTarget) {
+    const item = fromList[index];
+    const itemWeight = item.mass || 0;
+    let currentWeight = toList.reduce((sum, i) => sum + (i.mass || 0), 0);
+    if (currentWeight + itemWeight > maxWeight) {
+        showOverlayMessage(isPlayerTarget ? "Backpack Full" : "Container Full");
+        return;
+    }
+    toList.push(item);
+    fromList.splice(index, 1);
+    updateInventoryUI(); updateContainerUI();
+}
+
+function useItem(index) {
+    if(!player) return;
+    const item = player.inventory[index];
+    
+    // Refuel Car
+    if(item.name === 'Gas Can') {
+        let closestCar = null;
+        cars.forEach(c => { if (Math.hypot(c.x - player.x, c.z - player.z) < 40) closestCar = c; });
+        if(closestCar) {
+            closestCar.fuel = 100;
+            showOverlayMessage("Car Refueled");
+            // Don't consume can, just pretend it empties (simplification)
+            return;
+        }
+    }
+
+    if(item.type === 'weapon') {
+        player.equip(item);
+        // Init ammo loaded count if new
+        if(item.isGun && item.loadedAmmo === undefined) item.loadedAmmo = 0;
+    }
+    if(item.name === "Bandage") { player.medical.bleeding = false; showOverlayMessage("Bleeding Stopped"); }
+    
+    if (['food', 'drink', 'heal', 'ammo'].includes(item.type) || item.name === "Bandage") {
+        player.inventory.splice(index, 1);
+    }
+    updateInventoryUI();
+}
+
+// --- UI & Rendering ---
+
+function updateInventoryUI() {
+    if(!player) return;
+    const list = document.getElementById('inventory-list'); list.innerHTML = '';
+    const curW = player.getInventoryWeight().toFixed(1);
+    document.getElementById('inventory-title').innerText = `BACKPACK (${curW}/${player.maxWeight}kg)`;
+    player.inventory.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'item-slot';
+        let btns = `<button class="item-btn" onclick="event.stopPropagation(); useItem(${idx})">USE</button>`;
+        if (gameState.openContainer) btns += `<button class="item-btn" onclick="event.stopPropagation(); transferItem(player.inventory, gameState.openContainer.items, ${idx}, gameState.openContainer.maxWeight, false)">></button>`;
+        div.innerHTML = `<span>${item.name} <span class="item-mass">${item.mass}kg</span></span> <div>${btns}</div>`;
+        list.appendChild(div);
+    });
+    if(player.weapon) {
+        document.getElementById('current-weapon').innerText = player.weapon.name;
+        if(player.weapon.isGun) {
+             document.getElementById('ammo-count').innerText = `${player.weapon.loadedAmmo} / ${player.ammo[player.weapon.ammoType]}`;
+        } else {
+             document.getElementById('ammo-count').innerText = "Melee";
+        }
+    }
+}
+
+function updateContainerUI() {
+    const list = document.getElementById('container-list'); list.innerHTML = '';
+    const c = gameState.openContainer;
+    if(!c) return;
+    const curW = c.getWeight().toFixed(1);
+    document.getElementById('container-title').innerText = `CRATE (${curW}/${c.maxWeight}kg)`;
+    c.items.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.className = 'item-slot';
+        const btn = `<button class="item-btn" onclick="event.stopPropagation(); transferItem(gameState.openContainer.items, player.inventory, ${idx}, player.maxWeight, true)"><</button>`;
+        div.innerHTML = `<span>${item.name} <span class="item-mass">${item.mass}kg</span></span> <div>${btn}</div>`;
+        list.appendChild(div);
+    });
+}
+
+function updateUI() {
+    if(!player) return;
+    document.getElementById('hp-bar').style.width = player.hp + "%";
+    document.getElementById('hunger-bar').style.width = player.hunger + "%";
+    document.getElementById('thirst-bar').style.width = player.thirst + "%";
+    document.getElementById('boredom-bar').style.width = player.boredom + "%";
+    
+    // Med Status
+    document.getElementById('bleeding-status').style.display = player.medical.bleeding ? 'block' : 'none';
+    document.getElementById('infected-status').style.display = player.medical.infected ? 'block' : 'none';
+
+    // Tooltip
+    const tt = document.getElementById('interaction-tooltip');
+    let showTT = false; let label = "";
+    if(!player.inCar) {
+        lootContainers.forEach(c => { if (!c.looted && Math.hypot(c.x - player.x, c.z - player.z) < 50) { showTT = true; label = "Press E to Loot"; } });
+        cars.forEach(c => { if (Math.hypot(c.x - player.x, c.z - player.z) < 30) { showTT = true; label = "Press E to Drive"; } });
+        gasPumps.forEach(p => { if (Math.hypot(p.x - player.x, p.z - player.z) < p.range) { showTT = true; label = "Press E to Refuel Can"; } });
+    } else { showTT = true; label = "Press E to Exit"; }
+    
+    if (showTT) {
+        tt.style.display = 'block'; tt.innerText = label;
+        const pPos = new THREE.Vector3(player.x, 40, player.z).project(camera);
+        tt.style.left = (pPos.x * .5 + .5) * window.innerWidth + 'px';
+        tt.style.top = (pPos.y * -.5 + .5) * window.innerHeight + 'px';
+    } else { tt.style.display = 'none'; }
+}
+
+function showOverlayMessage(msg) {
+    const el = document.getElementById('message-overlay');
+    el.innerText = msg; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 1500);
+}
+
+function updateWeaponUI() {
+    if(!player) return;
+    const w = player.weapon;
+    const nameEl = document.getElementById('current-weapon');
+    const ammoEl = document.getElementById('ammo-count');
+    if (nameEl) nameEl.innerText = w.name;
+    if (ammoEl) {
+        if (w.isGun) {
+            ammoEl.innerText = `${w.loadedAmmo !== undefined ? w.loadedAmmo : 0} / ${player.ammo[w.ammoType]}`;
+        } else {
+            ammoEl.innerText = "Melee";
+        }
+    }
+}
+
+function toggleMap() {
+    gameState.mapOpen = !gameState.mapOpen;
+    document.getElementById('map-overlay').style.display = gameState.mapOpen ? 'block' : 'none';
+    if(gameState.mapOpen) {
+        const canvas = document.getElementById('map-canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = "#111"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const sx = canvas.width / CONFIG.mapWidth, sy = canvas.height / CONFIG.mapHeight;
+        buildings.forEach(b => {
+            ctx.fillStyle = "#555";
+            if(b.name === "Fire Station") ctx.fillStyle = "#8b0000";
+            if(b.name === "Police Station") ctx.fillStyle = "#506070";
+            ctx.fillRect(b.x * sx, b.z * sy, b.w * sx, b.d * sy);
+        });
+        if (player) { ctx.fillStyle = "#00aaff"; ctx.beginPath(); ctx.arc(player.x * sx, player.z * sy, 4, 0, Math.PI*2); ctx.fill(); }
+    }
+}
+
+// --- Main Loop ---
+function startGame() {
+    if (!scene) { alert("Loading..."); return; }
+    if (charPoints < 0) { alert("Negative Points!"); return; }
+    document.getElementById('char-creation-screen').style.display = 'none';
+    document.getElementById('ui-layer').style.display = 'block';
+    
+    // Random Spawn
+    const spawnX = 1500 + Math.random() * 500;
+    const spawnZ = 1000 + Math.random() * 500;
+    player = new Player(spawnX, spawnZ, document.getElementById('shirt-color').value, selectedTraits, selectedOcc); 
+    gameState.running = true;
+    animate();
+}
+
+function init() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 5000);
+    camera.position.set(0, 800, 600);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('game-container').appendChild(renderer.domElement);
+
+    ambientLight = new THREE.AmbientLight(0xffffff, 0.4); scene.add(ambientLight);
+    sunLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    sunLight.position.set(1000, 1500, 500); sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048; sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.left = -2000; sunLight.shadow.camera.right = 2000;
+    sunLight.shadow.camera.top = 2000; sunLight.shadow.camera.bottom = -2000;
+    scene.add(sunLight);
+
+    groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(CONFIG.mapWidth, CONFIG.mapHeight), new THREE.MeshLambertMaterial({ color: 0x2e3b28 }));
+    groundPlane.rotation.x = -Math.PI / 2; groundPlane.position.set(CONFIG.mapWidth/2, 0, CONFIG.mapHeight/2);
+    groundPlane.receiveShadow = true; scene.add(groundPlane);
+
+    raycaster = new THREE.Raycaster();
+    generateRosewood();
+
+    for(let i=0; i<80; i++) {
+        let zx, zz, safe=false;
+        while(!safe) {
+            zx = Math.random() * CONFIG.mapWidth; zz = Math.random() * CONFIG.mapHeight;
+            if(!checkWallCollision(zx, zz, 20)) safe = true;
+        }
+        zombies.push(new Zombie(zx, zz));
+    }
+    
+    initCharScreen();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    window.addEventListener('keydown', e => {
+        const k = e.key.toLowerCase(); gameState.keys[k] = true;
+        if (k === 'p') {
+            gameState.paused = !gameState.paused;
+            document.getElementById('pause-screen').style.display = gameState.paused ? 'flex' : 'none';
+        }
+        if (gameState.running && !gameState.paused) {
+            if (k === 'e') tryInteract();
+            if (k === 'm') toggleMap();
+            if (k === 'i') toggleInventory();
+            if (k === 'r') if(player) player.reload();
+        }
+    });
+    window.addEventListener('keyup', e => gameState.keys[e.key.toLowerCase()] = false);
+    window.addEventListener('mousemove', e => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+    window.addEventListener('mousedown', () => { if(gameState.running && !gameState.paused && player) player.attack(); });
+}
+
+function updateDayNight() {
+    if(gameState.paused || !sunLight) return;
+    gameState.time += 1.5;
+    if (gameState.time >= 24000) { gameState.time = 0; gameState.day++; }
+    
+    const isDay = (gameState.time > 6000 && gameState.time < 19000);
+    if (isDay) {
+        if(scene) scene.background = new THREE.Color(0x87CEEB);
+        sunLight.intensity = 0.8; ambientLight.intensity = 0.5;
+        if(player && player.flashlight) player.flashlight.intensity = 0;
+    } else {
+        if(scene) scene.background = new THREE.Color(0x050510);
+        sunLight.intensity = 0.05; ambientLight.intensity = 0.1;
+        if(player && player.flashlight) player.flashlight.intensity = 1.0;
+    }
+}
+
+function animate() {
+    if (!gameState.running) return;
+    requestAnimationFrame(animate);
+    
+    if(gameState.paused) return;
+
+    if(player) player.update();
+    cars.forEach(c => c.update());
+    zombies.forEach(z => z.update());
+    updateDayNight();
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(groundPlane);
+    if (intersects.length > 0) gameState.mouseWorld.copy(intersects[0].point);
+
+    if (player) {
+        const targetX = player.inCar ? player.inCar.x : player.x;
+        const targetZ = player.inCar ? player.inCar.z : player.z;
+        camera.position.x += (targetX - camera.position.x) * 0.1;
+        camera.position.z += (targetZ + 400 - camera.position.z) * 0.1; 
+        camera.lookAt(camera.position.x, 0, camera.position.z - 500);
+        updateUI();
+    }
+    renderer.render(scene, camera);
+}
+
+function gameOver() {
+    gameState.running = false;
+    document.getElementById('game-over-screen').style.display = 'flex';
+    document.getElementById('days-survived').innerText = gameState.day;
+}
+
+window.onload = init;
+
+</script>
+</body>
+</html>

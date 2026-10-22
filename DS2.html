@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driving Simulator 2</title>
+    <style>
+        :root {
+            --primary: #00ffcc;
+            --bg: rgba(10, 15, 25, 0.95);
+            --panel: rgba(20, 25, 40, 0.85);
+            --text: #e0f7fa;
+        }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #000; color: var(--text); user-select: none;
+        }
+        #game-canvas { display: block; width: 100%; height: 100%; }
+        
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+        }
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; pointer-events: auto;
+            z-index: 100; transition: opacity 0.3s;
+        }
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+        
+        h1 { font-size: 4rem; margin-bottom: 5px; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; text-shadow: 0 0 20px rgba(0, 255, 204, 0.5); }
+        h2 { font-size: 2rem; margin-bottom: 20px; color: #fff; }
+        .subtitle { font-size: 1.2rem; margin-bottom: 40px; opacity: 0.8; color: #88ccff; }
+        
+        button {
+            background: rgba(0,0,0,0.5); border: 2px solid var(--primary); color: var(--text);
+            padding: 15px 40px; font-size: 1.5rem; margin: 10px; cursor: pointer;
+            border-radius: 8px; transition: all 0.2s; text-transform: uppercase; font-weight: bold;
+            pointer-events: auto; backdrop-filter: blur(4px);
+        }
+        button:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary); transform: scale(1.05); }
+        button:active { transform: scale(0.95); }
+        button:disabled { border-color: #555; color: #777; cursor: not-allowed; background: transparent; box-shadow: none; transform: none; }
+        
+        #hud { z-index: 10; padding: 20px; pointer-events: none; }
+        .hud-panel { background: var(--panel); padding: 15px 25px; border-radius: 12px; backdrop-filter: blur(10px); border: 1px solid rgba(0,255,204,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        #speedometer { position: absolute; bottom: 30px; right: 30px; text-align: right; min-width: 150px;}
+        #speed-value { font-size: 4rem; font-weight: bold; color: var(--primary); font-family: 'Courier New', monospace; line-height: 1; }
+        #speed-unit { font-size: 1.2rem; opacity: 0.7; letter-spacing: 2px; }
+        
+        #top-left-hud { position: absolute; top: 30px; left: 30px; }
+        .stat { font-size: 1.4rem; margin-bottom: 8px; font-family: monospace; display: flex; justify-content: space-between; gap: 20px; }
+        .stat-label { color: #88ccff; text-transform: uppercase; font-size: 1rem; align-self: flex-end; padding-bottom: 2px;}
+        .stat-value { color: #fff; font-weight: bold; }
+        .money-text { color: #55ff55; }
+        
+        #minimap-container { position: absolute; bottom: 30px; left: 30px; width: 220px; height: 220px; background: rgba(0,0,0,0.7); border: 3px solid var(--panel); border-radius: 50%; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        #minimap { width: 100%; height: 100%; }
+        
+        #crash-alert {
+            position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+            color: #ff3333; font-size: 5rem; font-weight: 900; text-shadow: 0 0 30px #ff0000;
+            opacity: 0; transition: opacity 0.1s; pointer-events: none; z-index: 50; text-transform: uppercase; font-style: italic;
+        }
+
+        #garage-menu .container {
+            display: flex; width: 95%; max-width: 1400px; height: 85%; background: var(--panel); border-radius: 20px; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.9); border: 1px solid #334;
+        }
+        .garage-left { flex: 1; padding: 30px; overflow-y: auto; border-right: 2px solid #223; }
+        .garage-right { flex: 1.5; position: relative; background: radial-gradient(circle at center, #2a3545 0%, #0a0f1a 100%); }
+        
+        .car-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .car-card {
+            background: rgba(255,255,255,0.05); border: 1px solid #445; border-radius: 10px; padding: 15px; cursor: pointer; transition: all 0.2s; pointer-events: auto; text-align: center;
+        }
+        .car-card:hover { background: rgba(255,255,255,0.1); border-color: #667; }
+        .car-card.selected { border-color: var(--primary); background: rgba(0, 255, 204, 0.1); box-shadow: inset 0 0 15px rgba(0,255,204,0.2); }
+        .car-card .name { font-weight: bold; font-size: 1.1rem; margin-bottom: 5px; color: #fff;}
+        .car-card .type { font-size: 0.8rem; color: #aaa; text-transform: uppercase; margin-bottom: 10px; }
+        .car-card .price { color: #55ff55; font-family: monospace; font-size: 1.2rem; }
+        .plane-tag { background: #ff3366; color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 5px;}
+        
+        .upgrade-section { margin-top: 25px; pointer-events: auto; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; }
+        .upgrade-row { display: flex; align-items: center; margin-bottom: 12px; }
+        .upgrade-label { width: 100px; font-weight: bold; font-size: 0.9rem; color: #aaa;}
+        .upgrade-bars { flex: 1; display: flex; gap: 4px; }
+        .bar { height: 12px; flex: 1; background: #223; border-radius: 2px; }
+        .bar.filled { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+        .btn-upgrade { padding: 6px 12px; font-size: 0.9rem; margin: 0 0 0 15px; min-width: 80px; }
+
+        .color-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px; }
+        .color-swatch { width: 35px; height: 35px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .color-swatch:hover { transform: translateY(-2px); }
+        .color-swatch.active { border-color: #fff; box-shadow: 0 0 12px #fff; }
+
+        .garage-overlay-hud { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: center; gap: 20px; }
+        #btn-select-car { background: var(--primary); color: #000; }
+        
+        #msg-box { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); color: white; padding: 15px 30px; border-radius: 30px; border: 1px solid var(--primary); z-index: 1000; transition: opacity 0.3s, top 0.3s; opacity: 0; pointer-events: none; font-weight: bold; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        
+        .controls-info { margin-top: 30px; text-align: left; background: rgba(0,0,0,0.6); padding: 25px; border-radius: 15px; border-left: 4px solid var(--primary); }
+        .controls-info p { margin: 8px 0; font-size: 1.1rem; }
+        .key { display: inline-block; background: #333; padding: 2px 8px; border-radius: 4px; font-family: monospace; color: #fff; border-bottom: 2px solid #111; margin: 0 4px; }
+        
+        /* Floating Earn Text */
+        .earn-popup {
+            position: absolute; color: #55ff55; font-family: monospace; font-size: 1.5rem; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 2px 4px #000; animation: floatUp 1s ease-out forwards;
+        }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen">
+        <h1>Driving Simulator 2</h1>
+        <div class="subtitle">Fixed World • 20 Vehicles • Earn by Driving</div>
+        <button onclick="startGame()">Drive Now</button>
+        <button onclick="showGarage()">Showroom / Garage</button>
+        <div class="controls-info">
+            <h3 style="margin-top:0; color: var(--primary);">Controls:</h3>
+            <p><span class="key">W</span> <span class="key">A</span> <span class="key">S</span> <span class="key">D</span> : Drive & Steer</p>
+            <p><span class="key">Space</span> : Handbrake (Cars) / Wheel Brake (Planes)</p>
+            <p><span class="key">Shift</span> : Nitro Boost (Cars) / Engine Throttle (Planes)</p>
+            <p><span class="key">&uarr;</span> <span class="key">&darr;</span> : Pitch Up/Down (When flying planes)</p>
+            <p><span class="key">C</span> : Toggle Camera View</p>
+            <p><span class="key">ESC</span> : Pause Game</p>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="screen hidden">
+        <h1>Paused</h1>
+        <button onclick="resumeGame()">Resume</button>
+        <button onclick="showGarage()">Garage</button>
+        <button onclick="quitToMain()">Main Menu</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="ui-layer hidden">
+        <div id="top-left-hud" class="hud-panel">
+            <div class="stat"><span class="stat-label">Location</span><span id="zone-name">City</span></div>
+            <div class="stat"><span class="stat-label">Bank</span><span class="stat-value money-text">$<span id="currency-display">0</span></span></div>
+        </div>
+        
+        <div id="minimap-container">
+            <canvas id="minimap" width="220" height="220"></canvas>
+        </div>
+
+        <div id="speedometer" class="hud-panel">
+            <div id="speed-value">0</div>
+            <div id="speed-unit">MPH</div>
+            <div id="boost-bar" style="height: 6px; width: 100%; background: #222; margin-top: 10px; border-radius: 3px; overflow: hidden; border: 1px solid #444;">
+                <div id="boost-fill" style="height: 100%; width: 100%; background: linear-gradient(90deg, #0055ff, #00ffff); box-shadow: 0 0 10px #00ffff;"></div>
+            </div>
+        </div>
+        
+        <div id="crash-alert">CRASH!</div>
+    </div>
+
+    <!-- Garage Menu -->
+    <div id="garage-menu" class="screen hidden">
+        <div class="container">
+            <div class="garage-left">
+                <h2 style="margin-top:0;">Vehicle Showroom</h2>
+                <div class="stat" style="margin-bottom: 20px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;">
+                    <span class="stat-label">Available Funds</span>
+                    <span class="stat-value money-text">$<span id="garage-currency">0</span></span>
+                </div>
+                
+                <div id="car-list" class="car-grid"></div>
+                
+                <div class="upgrade-section">
+                    <h3 style="margin-top:0; margin-bottom:10px;">Performance Upgrades</h3>
+                    <div id="upgrades-container"></div>
+                </div>
+
+                <div class="upgrade-section">
+                    <h3 style="margin-top:0; margin-bottom:10px;">Paint Shop</h3>
+                    <div class="color-picker" id="color-picker"></div>
+                </div>
+            </div>
+            <div class="garage-right" id="garage-3d-container">
+                <div class="garage-overlay-hud">
+                    <button onclick="buyCurrentCar()" id="btn-buy-car">Purchase</button>
+                    <button onclick="selectCurrentCar()" id="btn-select-car">Drive This Vehicle</button>
+                </div>
+                <button onclick="exitGarage()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,0,0,0.2); border-color: #ff3333;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="msg-box">System Message</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, clock;
+        let garageScene, garageCamera;
+        let isGameRunning = false, isPaused = false, inGarage = false;
+        
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false, up: false, down: false, left: false, right: false };
+        let currentCameraView = 0; // 0: Chase, 1: Cockpit, 2: Top-down
+        let cheatBuffer = "";
+        
+        let playerMesh = null;
+        let colliders = []; // Static world objects
+        let spawnPoints = []; // Safe locations to drop the player
+        
+        const MAP_SIZE = 3000;
+        
+        // Define 20 distinct vehicle types (18 cars, 2 planes) built from primitives
+        const VEHICLE_ROSTER = [
+            // Starter / Low End
+            { id: 0, name: "Civic Sedan", type: "sedan", cost: 0, speed: 120, accel: 1.5, handling: 1.4, w: 1.8, h: 1.4, l: 4.5, color: 0xcccccc, unlocked: true },
+            { id: 1, name: "City Hatch", type: "hatch", cost: 2500, speed: 125, accel: 1.6, handling: 1.6, w: 1.7, h: 1.5, l: 3.9, color: 0xcc3333, unlocked: false },
+            { id: 2, name: "Old Timer", type: "classic", cost: 4000, speed: 110, accel: 1.2, handling: 1.1, w: 1.8, h: 1.4, l: 4.8, color: 0x8b4513, unlocked: false },
+            { id: 3, name: "Rusty Pickup", type: "truck", cost: 5500, speed: 125, accel: 1.3, handling: 1.0, w: 2.1, h: 1.9, l: 5.2, color: 0x445544, unlocked: false },
+            // Mid Range
+            { id: 4, name: "V6 Coupe", type: "coupe", cost: 12000, speed: 130, accel: 1.2, handling: 1.3, w: 1.9, h: 1.3, l: 4.6, color: 0x3366cc, unlocked: false },
+            { id: 5, name: "Sport Wagon", type: "wagon", cost: 15000, speed: 125, accel: 1.1, handling: 1.2, w: 1.9, h: 1.5, l: 4.9, color: 0x228b22, unlocked: false },
+            { id: 6, name: "Offroad SUV", type: "suv", cost: 18000, speed: 115, accel: 1.0, handling: 0.9, w: 2.2, h: 2.1, l: 5.0, color: 0xffaa00, unlocked: false },
+            { id: 7, name: "Detroit Muscle", type: "muscle", cost: 24000, speed: 150, accel: 1.6, handling: 0.7, w: 2.0, h: 1.3, l: 5.1, color: 0x111111, unlocked: false },
+            { id: 8, name: "Tuner Drift", type: "tuner", cost: 30000, speed: 145, accel: 1.5, handling: 1.8, w: 1.8, h: 1.2, l: 4.4, color: 0xff33cc, unlocked: false },
+            // High End
+            { id: 9, name: "Executive Limo", type: "limo", cost: 45000, speed: 135, accel: 1.0, handling: 0.6, w: 2.0, h: 1.5, l: 7.0, color: 0xffffff, unlocked: false },
+            { id: 10, name: "Rally Pro", type: "rally", cost: 60000, speed: 160, accel: 2.2, handling: 1.7, w: 1.9, h: 1.4, l: 4.3, color: 0x0055ff, unlocked: false },
+            { id: 11, name: "Track Toy", type: "track", cost: 85000, speed: 170, accel: 2.5, handling: 2.0, w: 2.0, h: 1.0, l: 4.2, color: 0x00ff00, unlocked: false },
+            { id: 12, name: "V10 Spyder", type: "super", cost: 120000, speed: 190, accel: 2.8, handling: 1.6, w: 2.1, h: 1.1, l: 4.6, color: 0xffff00, unlocked: false },
+            { id: 13, name: "Electric GT", type: "electric", cost: 150000, speed: 180, accel: 3.5, handling: 1.4, w: 2.0, h: 1.3, l: 4.8, color: 0xcccccc, unlocked: false },
+            // Hyper / Extreme
+            { id: 14, name: "Apex Hypercar", type: "hyper", cost: 300000, speed: 220, accel: 3.2, handling: 1.8, w: 2.1, h: 1.0, l: 4.7, color: 0xff0033, unlocked: false },
+            { id: 15, name: "Speed Demon", type: "hyper", cost: 500000, speed: 240, accel: 3.8, handling: 1.5, w: 2.2, h: 0.9, l: 4.9, color: 0x5500ff, unlocked: false },
+            { id: 16, name: "F1 Monoposto", type: "f1", cost: 850000, speed: 250, accel: 4.5, handling: 2.5, w: 2.0, h: 0.8, l: 5.0, color: 0xcc0000, unlocked: false },
+            { id: 17, name: "Concept X", type: "concept", cost: 1200000, speed: 270, accel: 4.0, handling: 2.2, w: 2.2, h: 1.0, l: 4.8, color: 0x00ffff, unlocked: false },
+            // Airplanes
+            { id: 18, name: "Cessna Prop", type: "plane", cost: 2500000, speed: 220, accel: 3.0, handling: 1.0, w: 2.0, h: 2.0, l: 6.5, wingSpan: 10, color: 0xffffff, unlocked: false, isPlane: true },
+            { id: 19, name: "F-18 Hornet", type: "jet", cost: 7500000, speed: 450, accel: 5.0, handling: 1.5, w: 2.0, h: 1.8, l: 9.0, wingSpan: 7, color: 0x777788, unlocked: false, isPlane: true }
+        ];
+
+        let playerState = {
+            currency: 0,
+            activeVehicleId: 0,
+            vehicles: {}, // { id: { upgrades: [engine, handling, brakes], color: hex } }
+            pos: new THREE.Vector3(),
+            velocity: new THREE.Vector3(),
+            speed: 0, heading: 0, pitch: 0,
+            boost: 100,
+            distanceDriven: 0
+        };
+
+        // Init player inventory
+        VEHICLE_ROSTER.forEach(v => {
+            if (v.unlocked) playerState.vehicles[v.id] = { upgrades: [0, 0, 0], color: v.color };
+        });
+
+        const COLORS = [0xcccccc, 0x111111, 0xffffff, 0xcc3333, 0x3366cc, 0x228b22, 0xffaa00, 0xff33cc, 0xffff00, 0x00ff00, 0x5500ff, 0x00ffff, 0x8b4513, 0xff0033];
+        let viewingGarageVehicleId = 0;
+        let garageVehicleMesh = null;
+
+        function init() {
+            const container = document.getElementById('game-container');
+            
+            // Main Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); 
+            scene.fog = new THREE.FogExp2(0x87CEEB, 0.001); // Soft distance fog
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 4000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+            
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const dirLight = new THREE.DirectionalLight(0xffffe0, 0.8);
+            dirLight.position.set(1000, 1500, 500);
+            dirLight.castShadow = true;
+            const d = 1000;
+            dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
+            dirLight.shadow.camera.near = 100; dirLight.shadow.camera.far = 3000;
+            dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Garage Setup
+            garageScene = new THREE.Scene();
+            garageScene.background = new THREE.Color(0x1a1a25);
+            garageCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+            garageCamera.position.set(7, 3, 7);
+            garageCamera.lookAt(0, 0, 0);
+            
+            garageScene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const gSpot = new THREE.SpotLight(0xffffff, 1.2);
+            gSpot.position.set(0, 10, 0); gSpot.angle = Math.PI/3; gSpot.penumbra = 0.5;
+            garageScene.add(gSpot);
+            
+            // Showroom floor
+            const gFloor = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.2, 32), new THREE.MeshStandardMaterial({color: 0x333344, metalness: 0.5, roughness: 0.2}));
+            gFloor.position.y = -0.1;
+            garageScene.add(gFloor);
+            
+            // Back wall glow
+            const glow = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), new THREE.MeshBasicMaterial({color: 0x00ffcc, transparent: true, opacity: 0.1}));
+            glow.position.set(0, 5, -8);
+            garageScene.add(glow);
+
+            clock = new THREE.Clock();
+
+            buildStaticWorld();
+            initGarageUI();
+
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            
+            requestAnimationFrame(animate);
+        }
+
+        const mats = {
+            grass: new THREE.MeshStandardMaterial({ color: 0x3b5e2b, roughness: 1.0 }),
+            asphalt: new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 }),
+            concrete: new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 }),
+            buildingDark: new THREE.MeshStandardMaterial({ color: 0x2c2f33, roughness: 0.6 }),
+            buildingLight: new THREE.MeshStandardMaterial({ color: 0x99aab5, roughness: 0.7 }),
+            glassBlue: new THREE.MeshStandardMaterial({ color: 0x4a90e2, roughness: 0.1, metalness: 0.8 }),
+            glassDark: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.9 }),
+            wood: new THREE.MeshStandardMaterial({ color: 0x5c4033 }),
+            leaves: new THREE.MeshStandardMaterial({ color: 0x228b22, flatShading: true }),
+            whiteLine: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+            yellowLine: new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+        };
+
+        // Helper to construct cars out of primitive blocks based on type
+        function createVehicleMesh(vehDef, specificColor = null) {
+            const group = new THREE.Group();
+            const color = specificColor !== null ? specificColor : vehDef.color;
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.3 });
+            const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const chromeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.2, metalness: 0.9 });
+            const lightMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+            const tailMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+
+            const { w, h, l, type, isPlane } = vehDef;
+            const groundClearance = isPlane ? 0.6 : 0.3;
+
+            if (!isPlane) {
+                // Common Car Chassis
+                const chassis = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.4, l), bodyMat);
+                chassis.position.y = groundClearance + h * 0.2;
+                chassis.castShadow = true;
+                group.add(chassis);
+
+                // Cabins based on type
+                let cabinGeom, cabinPos = {x:0, y: groundClearance + h*0.4 + h*0.2, z: 0};
+                if (type === 'sedan' || type === 'muscle' || type === 'classic') {
+                    cabinGeom = new THREE.BoxGeometry(w * 0.8, h * 0.4, l * 0.5);
+                    cabinPos.z = -l * 0.05;
+                } else if (type === 'hatch' || type === 'wagon' || type === 'suv') {
+                    cabinGeom = new THREE.BoxGeometry(w * 0.9, h * 0.4, l * 0.6);
+                    cabinPos.z = l * 0.1;
+                } else if (type === 'truck') {
+                    cabinGeom = new THREE.BoxGeometry(w * 0.9, h * 0.4, l * 0.35);
+                    cabinPos.z = -l * 0.15;
+                    // Truck bed walls
+                    const bedL = new THREE.Mesh(new THREE.BoxGeometry(0.1, h*0.3, l*0.4), bodyMat);
+                    bedL.position.set(w/2 - 0.05, groundClearance + h*0.55, l*0.3); group.add(bedL);
+                    const bedR = bedL.clone(); bedR.position.x = -w/2 + 0.05; group.add(bedR);
+                    const bedB = new THREE.Mesh(new THREE.BoxGeometry(w, h*0.3, 0.1), bodyMat);
+                    bedB.position.set(0, groundClearance + h*0.55, l/2 - 0.05); group.add(bedB);
+                } else if (type === 'coupe' || type === 'tuner' || type === 'super' || type === 'hyper') {
+                    cabinGeom = new THREE.BoxGeometry(w * 0.7, h * 0.3, l * 0.4);
+                    cabinPos.z = 0;
+                } else if (type === 'f1') {
+                    chassis.scale.set(1, 0.5, 1); // flatter chassis
+                    cabinGeom = new THREE.BoxGeometry(w*0.4, h*0.3, l*0.2); // Just a tiny cockpit bump
+                    cabinPos.z = l*0.1;
+                } else {
+                    cabinGeom = new THREE.BoxGeometry(w * 0.8, h * 0.4, l * 0.5); // default
+                }
+                
+                if(cabinGeom) {
+                    const cabin = new THREE.Mesh(cabinGeom, mats.glassDark);
+                    cabin.position.set(cabinPos.x, cabinPos.y, cabinPos.z);
+                    group.add(cabin);
+                }
+
+                // Spoilers
+                if (['tuner', 'track', 'super', 'hyper', 'f1'].includes(type)) {
+                    const spW = type === 'f1' ? w*1.2 : w*0.9;
+                    const spoiler = new THREE.Mesh(new THREE.BoxGeometry(spW, 0.05, 0.4), type === 'f1' ? bodyMat : blackMat);
+                    spoiler.position.set(0, groundClearance + h*0.6, l/2 - 0.2);
+                    const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.1), blackMat);
+                    s1.position.set(w*0.3, groundClearance + h*0.45, l/2 - 0.2);
+                    const s2 = s1.clone(); s2.position.x = -w*0.3;
+                    group.add(spoiler); group.add(s1); group.add(s2);
+                    
+                    if(type === 'f1') {
+                         const fWing = new THREE.Mesh(new THREE.BoxGeometry(w*1.1, 0.05, 0.3), bodyMat);
+                         fWing.position.set(0, groundClearance+0.1, -l/2 + 0.1);
+                         group.add(fWing);
+                    }
+                }
+
+                // Wheels
+                const wr = type === 'suv' || type === 'truck' ? 0.45 : 0.35;
+                const ww = 0.3;
+                const wheelGeom = new THREE.CylinderGeometry(wr, wr, ww, 16);
+                wheelGeom.rotateZ(Math.PI / 2);
+                const wx = w/2;
+                const wz = l/2 - wr - 0.2;
+                const wheelOffsets = [ [-wx, wr, -wz], [wx, wr, -wz], [-wx, wr, wz], [wx, wr, wz] ];
+                wheelOffsets.forEach(pos => {
+                    const wheel = new THREE.Mesh(wheelGeom, blackMat);
+                    wheel.position.set(...pos);
+                    // Add rim
+                    const rim = new THREE.Mesh(new THREE.CylinderGeometry(wr*0.6, wr*0.6, ww+0.02, 8), chromeMat);
+                    rim.rotation.z = Math.PI/2;
+                    rim.position.set(...pos);
+                    group.add(wheel); group.add(rim);
+                });
+
+                // Lights
+                const hl = new THREE.Mesh(new THREE.BoxGeometry(w*0.8, 0.15, 0.1), lightMat);
+                hl.position.set(0, groundClearance + h*0.3, -l/2 - 0.02); group.add(hl);
+                const tl = new THREE.Mesh(new THREE.BoxGeometry(w*0.8, 0.15, 0.1), tailMat);
+                tl.position.set(0, groundClearance + h*0.3, l/2 + 0.02); group.add(tl);
+
+            } else {
+                // Airplane Construction
+                const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(w*0.4, w*0.3, l, 16), bodyMat);
+                fuselage.rotation.x = Math.PI/2;
+                fuselage.position.y = groundClearance + h/2;
+                group.add(fuselage);
+                
+                // Wings
+                const wingSpan = vehDef.wingSpan || 10;
+                const wing = new THREE.Mesh(new THREE.BoxGeometry(wingSpan, 0.1, l*0.3), bodyMat);
+                wing.position.set(0, groundClearance + h/2, -l*0.1);
+                // Swept wings for jet
+                if(type==='jet') {
+                    const geom = wing.geometry;
+                    const pos = geom.attributes.position;
+                    for(let i=0; i<pos.count; i++) {
+                        if(Math.abs(pos.getX(i)) > 1) pos.setZ(i, pos.getZ(i) + 1.5); // Sweep back
+                    }
+                    geom.computeVertexNormals();
+                }
+                group.add(wing);
+
+                // Tail
+                const vTail = new THREE.Mesh(new THREE.BoxGeometry(0.1, h*0.8, l*0.2), bodyMat);
+                vTail.position.set(0, groundClearance + h, l/2 - 0.5);
+                
+                const hTail = new THREE.Mesh(new THREE.BoxGeometry(wingSpan*0.4, 0.1, l*0.15), bodyMat);
+                hTail.position.set(0, groundClearance + h/2 + 0.2, l/2 - 0.5);
+                group.add(vTail); group.add(hTail);
+                
+                // Jet specific tail
+                if(type === 'jet') {
+                    const vTail2 = vTail.clone();
+                    vTail.position.x = 0.5; vTail.rotation.z = -0.2;
+                    vTail2.position.x = -0.5; vTail2.rotation.z = 0.2;
+                    group.add(vTail2);
+                }
+
+                // Cockpit
+                const cockpit = new THREE.Mesh(new THREE.BoxGeometry(w*0.5, h*0.4, l*0.3), mats.glassBlue);
+                cockpit.position.set(0, groundClearance + h*0.8, -l*0.2);
+                group.add(cockpit);
+
+                // Propulsion
+                if (type === 'plane') {
+                    // Propeller
+                    const propBase = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.4), chromeMat);
+                    propBase.rotation.x = Math.PI/2;
+                    propBase.position.set(0, groundClearance + h/2, -l/2 - 0.2);
+                    
+                    const propBlade = new THREE.Mesh(new THREE.BoxGeometry(w*1.5, 0.1, 0.1), blackMat);
+                    propBlade.position.set(0, groundClearance + h/2, -l/2 - 0.3);
+                    group.add(propBase); group.add(propBlade);
+                    group.propeller = propBlade; // Ref for animation
+                } else if (type === 'jet') {
+                    const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.3,0.5), blackMat);
+                    exhaust.rotation.x = Math.PI/2;
+                    exhaust.position.set(0, groundClearance + h/2, l/2 + 0.2);
+                    group.add(exhaust);
+                }
+
+                // Landing Gear (simple boxes)
+                const gearMat = blackMat;
+                const gFront = new THREE.Mesh(new THREE.BoxGeometry(0.2, groundClearance, 0.2), gearMat);
+                gFront.position.set(0, groundClearance/2, -l*0.3);
+                const gL = new THREE.Mesh(new THREE.BoxGeometry(0.2, groundClearance, 0.2), gearMat);
+                gL.position.set(-w, groundClearance/2, l*0.1);
+                const gR = gL.clone(); gR.position.x = w;
+                group.add(gFront); group.add(gL); group.add(gR);
+            }
+
+            return group;
+        }
+
+        function buildStaticWorld() {
+            // Base Ground
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), mats.grass);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.1;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Bounds colliders
+            const wallH = 100, half = MAP_SIZE/2;
+            addCollider(0, half, wallH, MAP_SIZE, wallH, 10); // N
+            addCollider(0, -half, wallH, MAP_SIZE, wallH, 10); // S
+            addCollider(-half, 0, wallH, 10, wallH, MAP_SIZE); // W
+            addCollider(half, 0, wallH, 10, wallH, MAP_SIZE); // E
+
+            // --- ZONE 1: CITY CENTER (Centered around 0,0) ---
+            const citySize = 800;
+            const cityBase = new THREE.Mesh(new THREE.PlaneGeometry(citySize, citySize), mats.concrete);
+            cityBase.rotation.x = -Math.PI / 2;
+            scene.add(cityBase);
+
+            const roadW = 40;
+            const blockSize = 150;
+            const blocksPerSide = 4;
+            const offset = -(blocksPerSide * (blockSize + roadW)) / 2 + blockSize/2 + roadW;
+
+            // Generate City Grid
+            for(let ix=0; ix<blocksPerSide; ix++) {
+                for(let iz=0; iz<blocksPerSide; iz++) {
+                    const cx = offset + ix * (blockSize + roadW);
+                    const cz = offset + iz * (blockSize + roadW);
+                    
+                    // Don't put buildings in the absolute center block (central plaza/spawn)
+                    if(ix === 1 && iz === 1 || ix === 2 && iz === 1) {
+                         continue; 
+                    }
+
+                    // Create block base
+                    const block = new THREE.Mesh(new THREE.PlaneGeometry(blockSize, blockSize), mats.asphalt);
+                    block.rotation.x = -Math.PI/2; block.position.set(cx, 0.05, cz);
+                    scene.add(block);
+
+                    // Add 1-4 buildings per block
+                    const numB = 1 + Math.floor(Math.random() * 3);
+                    for(let b=0; b<numB; b++) {
+                        const bw = 30 + Math.random()*50;
+                        const bl = 30 + Math.random()*50;
+                        const bh = 20 + Math.random()*150; // Highrises
+                        const mat = Math.random() > 0.5 ? mats.buildingDark : mats.glassBlue;
+                        const bldg = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bl), mat);
+                        
+                        // Local offset within block
+                        const lx = (Math.random() - 0.5) * (blockSize - bw);
+                        const lz = (Math.random() - 0.5) * (blockSize - bl);
+                        
+                        bldg.position.set(cx + lx, bh/2, cz + lz);
+                        bldg.castShadow = true; bldg.receiveShadow = true;
+                        scene.add(bldg);
+                        addCollider(bldg.position.x, bldg.position.z, bh, bw, bh, bl);
+                    }
+                }
+            }
+
+            // Central Plaza (Flattened to fix spawning inside a giant box)
+            const pMesh = new THREE.Mesh(new THREE.PlaneGeometry(blockSize*2, blockSize), mats.concrete);
+            pMesh.rotation.x = -Math.PI/2;
+            pMesh.position.set(0, 0.04, offset + 1*(blockSize+roadW));
+            scene.add(pMesh); 
+
+            // Roads (Vertical & Horizontal stripes over concrete)
+            for(let i=0; i<=blocksPerSide; i++) {
+                const p = offset - blockSize/2 - roadW/2 + i*(blockSize+roadW);
+                // V road
+                const vRoad = new THREE.Mesh(new THREE.PlaneGeometry(roadW, citySize), mats.asphalt);
+                vRoad.rotation.x = -Math.PI/2; vRoad.position.set(p, 0.02, 0); scene.add(vRoad);
+                // H road (Slightly higher to prevent z-fighting with V road)
+                const hRoad = new THREE.Mesh(new THREE.PlaneGeometry(citySize, roadW), mats.asphalt);
+                hRoad.rotation.x = -Math.PI/2; hRoad.position.set(0, 0.03, p); scene.add(hRoad);
+            }
+
+            // --- ZONE 2: DRAG STRIP (North) ---
+            const dragW = 60; const dragL = 1200;
+            const dragZ = -citySize/2 - dragL/2;
+            const dragStrip = new THREE.Mesh(new THREE.PlaneGeometry(dragW, dragL), mats.asphalt);
+            dragStrip.rotation.x = -Math.PI/2; dragStrip.position.set(0, 0.05, dragZ);
+            scene.add(dragStrip);
+            
+            // Connecting road to city
+            const connN = new THREE.Mesh(new THREE.PlaneGeometry(roadW, 100), mats.asphalt);
+            connN.rotation.x = -Math.PI/2; connN.position.set(0, 0.03, -citySize/2);
+            scene.add(connN);
+            
+            // Drag Start Line
+            const startLine = new THREE.Mesh(new THREE.PlaneGeometry(dragW, 5), mats.whiteLine);
+            startLine.rotation.x = -Math.PI/2; startLine.position.set(0, 0.1, dragZ + dragL/2 - 100);
+            scene.add(startLine);
+            
+            // Stands/Fences
+            for(let i=0; i<10; i++) {
+                const z = dragZ + dragL/2 - 200 - i*80;
+                const standL = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 40), mats.wood);
+                standL.position.set(-dragW/2 - 20, 5, z); scene.add(standL); addCollider(standL.position.x, standL.position.z, 10, 20, 10, 40);
+                const standR = standL.clone(); standR.position.x = dragW/2 + 20; scene.add(standR); addCollider(standR.position.x, standR.position.z, 10, 20, 10, 40);
+            }
+
+            // --- ZONE 3: PERIMETER HIGHWAY ---
+            // Large rounded rectangle around the map
+            const hwR = MAP_SIZE * 0.4;
+            const hwT = new THREE.Mesh(new THREE.RingGeometry(hwR - roadW/2, hwR + roadW/2, 64), mats.asphalt);
+            hwT.rotation.x = -Math.PI/2; hwT.position.set(0, 0.04, 0);
+            hwT.scale.set(1.1, 0.9, 1); // Oval shape
+            scene.add(hwT);
+            
+            // Connect highway to city (East/West)
+            const connE = new THREE.Mesh(new THREE.PlaneGeometry(hwR*1.1 - citySize/2, roadW), mats.asphalt);
+            connE.rotation.x = -Math.PI/2; connE.position.set(citySize/2 + (hwR*1.1 - citySize/2)/2, 0.03, 0);
+            scene.add(connE);
+            const connW = connE.clone(); connW.position.x = -connE.position.x; scene.add(connW);
+
+            // --- ZONE 4: COUNTRY SIDE (South East / South West) ---
+            // Add rolling hills (visual mostly, don't want to mess up physics too much)
+            const hillGeom = new THREE.SphereGeometry(150, 16, 16);
+            hillGeom.scale(1, 0.2, 1);
+            
+            // SouthEast hills & trees
+            for(let i=0; i<5; i++) {
+                const hx = 300 + Math.random()*500;
+                const hz = 300 + Math.random()*500;
+                const hill = new THREE.Mesh(hillGeom, mats.grass);
+                hill.position.set(hx, -10, hz);
+                scene.add(hill);
+            }
+            
+            // Trees scattered
+            const trunkGeom = new THREE.CylinderGeometry(1, 1, 6);
+            const leafGeom = new THREE.ConeGeometry(5, 12, 5);
+            for(let i=0; i<300; i++) {
+                let tx = (Math.random() - 0.5) * MAP_SIZE;
+                let tz = (Math.random() - 0.5) * MAP_SIZE;
+                
+                // Keep out of city, drag strip, and near center lines
+                if (Math.abs(tx) < citySize/2 + 50 && Math.abs(tz) < citySize/2 + 50) continue;
+                if (Math.abs(tx) < dragW && tz < 0) continue;
+                // keep away from highway ring (approx)
+                let dist = Math.sqrt((tx/1.1)*(tx/1.1) + (tz/0.9)*(tz/0.9));
+                if (Math.abs(dist - hwR) < 60) continue;
+
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(trunkGeom, mats.wood); trunk.position.y = 3; trunk.castShadow=true;
+                const leaves = new THREE.Mesh(leafGeom, mats.leaves); leaves.position.y = 10; leaves.castShadow=true;
+                tree.add(trunk); tree.add(leaves);
+                tree.position.set(tx, 0, tz);
+                scene.add(tree);
+                
+                // Add sphere collider for tree trunk
+                colliders.push({ type: 'sphere', x: tx, z: tz, radius: 2 });
+            }
+
+            // Country Winding Road (South)
+            // Simulating a curve using small plane segments
+            const curvePoints = [];
+            for(let t=0; t<=Math.PI; t+=0.1) {
+                curvePoints.push(new THREE.Vector2(Math.cos(t)*400, citySize/2 + 100 + Math.sin(t)*300));
+            }
+            const shape = new THREE.Shape();
+            shape.moveTo(-roadW/2, 0); shape.lineTo(roadW/2, 0); shape.lineTo(roadW/2, 0.1); shape.lineTo(-roadW/2, 0.1);
+            const extrudeSettings = { steps: 50, bevelEnabled: false, extrudePath: new THREE.CatmullRomCurve3(curvePoints.map(p=>new THREE.Vector3(p.x,0,p.y))) };
+            const windingRoad = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, extrudeSettings), mats.asphalt);
+            windingRoad.position.y = 0.05;
+            scene.add(windingRoad);
+            
+            // Connect winding road ends
+            const connS1 = new THREE.Mesh(new THREE.PlaneGeometry(roadW, 100), mats.asphalt);
+            connS1.rotation.x = -Math.PI/2; connS1.position.set(400, 0.03, citySize/2 + 50); scene.add(connS1);
+            const connS2 = connS1.clone(); connS2.position.x = -400; scene.add(connS2);
+
+            // Safe explicit spawn point precisely on an intersection
+            spawnPoints = [new THREE.Vector3(20, 0.5, 20)];
+            
+            // Set initial player pos
+            playerState.pos.copy(spawnPoints[0]);
+        }
+
+        function addCollider(x, z, h, sx, sy, sz) {
+            colliders.push({
+                type: 'box',
+                minX: x - sx/2, maxX: x + sx/2,
+                minZ: z - sz/2, maxZ: z + sz/2
+            });
+        }
+
+        function spawnPlayer() {
+            if (playerMesh) scene.remove(playerMesh);
+            const vehDef = VEHICLE_ROSTER[playerState.activeVehicleId];
+            const pData = playerState.vehicles[playerState.activeVehicleId];
+            
+            playerMesh = createVehicleMesh(vehDef, pData.color);
+            playerMesh.position.copy(playerState.pos);
+            scene.add(playerMesh);
+            
+            // Reset physical state
+            playerState.speed = 0;
+            playerState.velocity.set(0,0,0);
+            playerState.pitch = 0;
+            // Face North
+            playerState.heading = Math.PI; 
+            updateMeshTransform();
+        }
+
+        function onKeyDown(e) {
+            if(e.key && e.key.length === 1) {
+                cheatBuffer += e.key.toLowerCase();
+                if(cheatBuffer.length > 10) cheatBuffer = cheatBuffer.slice(-10);
+                if(cheatBuffer.endsWith('money')) {
+                    playerState.currency += 10000000;
+                    displayMessage('CHEAT ACTIVATED: +$10,000,000', true);
+                    if(inGarage) updateGarageUI();
+                    else updateHUD();
+                    cheatBuffer = "";
+                }
+            }
+
+            if (isPaused || inGarage) return;
+            switch(e.key.toLowerCase()) {
+                case 'w': keys.w = true; break;
+                case 'a': keys.a = true; break;
+                case 's': keys.s = true; break;
+                case 'd': keys.d = true; break;
+                case ' ': keys.space = true; break;
+                case 'shift': keys.shift = true; break;
+                case 'arrowup': keys.up = true; break;
+                case 'arrowdown': keys.down = true; break;
+                case 'arrowleft': keys.left = true; break;
+                case 'arrowright': keys.right = true; break;
+                case 'c': currentCameraView = (currentCameraView + 1) % 3; break;
+                case 'escape': togglePause(); break;
+            }
+        }
+        function onKeyUp(e) {
+            switch(e.key.toLowerCase()) {
+                case 'w': keys.w = false; break;
+                case 'a': keys.a = false; break;
+                case 's': keys.s = false; break;
+                case 'd': keys.d = false; break;
+                case ' ': keys.space = false; break;
+                case 'shift': keys.shift = false; break;
+                case 'arrowup': keys.up = false; break;
+                case 'arrowdown': keys.down = false; break;
+                case 'arrowleft': keys.left = false; break;
+                case 'arrowright': keys.right = false; break;
+            }
+        }
+
+        function startGame() {
+            document.getElementById('main-menu').classList.add('hidden');
+            if(!playerMesh) spawnPlayer();
+            isGameRunning = true;
+            isPaused = false;
+        }
+
+        function togglePause() {
+            if(!isGameRunning) return;
+            isPaused = !isPaused;
+            if(isPaused) document.getElementById('pause-menu').classList.remove('hidden');
+            else document.getElementById('pause-menu').classList.add('hidden');
+        }
+
+        function resumeGame() { togglePause(); }
+        
+        function quitToMain() {
+            isPaused = false; isGameRunning = false;
+            document.getElementById('pause-menu').classList.add('hidden');
+            document.getElementById('main-menu').classList.remove('hidden');
+            // Reset to safe spawn
+            playerState.pos.copy(spawnPoints[0]);
+            spawnPlayer();
+        }
+
+        function displayMessage(text, isGood = true) {
+            const m = document.getElementById('msg-box');
+            m.innerText = text;
+            m.style.borderColor = isGood ? 'var(--primary)' : '#ff3333';
+            m.style.color = isGood ? '#fff' : '#ffaa00';
+            m.style.opacity = 1; m.style.top = '40px';
+            setTimeout(() => { m.style.opacity = 0; m.style.top = '20px'; }, 3000);
+        }
+
+        function createEarnFloat(amount) {
+            const p = document.createElement('div');
+            p.className = 'earn-popup';
+            p.innerText = `+$${amount}`;
+            // Position randomly near top-left HUD
+            p.style.left = (30 + Math.random()*50) + 'px';
+            p.style.top = (120 + Math.random()*20) + 'px';
+            document.body.appendChild(p);
+            setTimeout(()=>p.remove(), 1000);
+        }
+
+        function showGarage() {
+            if(isGameRunning && !isPaused) togglePause();
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('pause-menu').classList.add('hidden');
+            document.getElementById('garage-menu').classList.remove('hidden');
+            inGarage = true;
+            viewingGarageVehicleId = playerState.activeVehicleId;
+            updateGarageUI();
+            updateGarage3DView();
+            
+            const rect = document.getElementById('garage-3d-container').getBoundingClientRect();
+            garageCamera.aspect = rect.width / rect.height;
+            garageCamera.updateProjectionMatrix();
+        }
+
+        function exitGarage() {
+            document.getElementById('garage-menu').classList.add('hidden');
+            inGarage = false;
+            if(isGameRunning) togglePause();
+            else document.getElementById('main-menu').classList.remove('hidden');
+            
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if(isGameRunning) spawnPlayer(); // Apply changes instantly
+        }
+
+        function initGarageUI() {
+            const list = document.getElementById('car-list');
+            list.innerHTML = '';
+            VEHICLE_ROSTER.forEach((v, i) => {
+                const item = document.createElement('div');
+                item.className = 'car-card';
+                item.id = `car-card-${v.id}`;
+                item.innerHTML = `
+                    <div class="name">${v.name}</div>
+                    <div class="type">${v.isPlane ? '<span class="plane-tag">AIRCRAFT</span>' : v.type}</div>
+                    <div class="price">${playerState.vehicles[v.id] ? 'OWNED' : '$'+v.cost.toLocaleString()}</div>
+                `;
+                item.onclick = () => { viewingGarageVehicleId = v.id; updateGarageUI(); updateGarage3DView(); };
+                list.appendChild(item);
+            });
+
+            const cp = document.getElementById('color-picker');
+            cp.innerHTML = '';
+            COLORS.forEach((c) => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = '#' + c.toString(16).padStart(6, '0');
+                swatch.onclick = () => applyPaint(c);
+                cp.appendChild(swatch);
+            });
+        }
+
+        function updateGarageUI() {
+            document.getElementById('garage-currency').innerText = Math.floor(playerState.currency).toLocaleString();
+            
+            document.querySelectorAll('.car-card').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`car-card-${viewingGarageVehicleId}`).classList.add('selected');
+
+            const veh = VEHICLE_ROSTER[viewingGarageVehicleId];
+            const pData = playerState.vehicles[viewingGarageVehicleId];
+            const isOwned = !!pData;
+
+            const btnBuy = document.getElementById('btn-buy-car');
+            const btnSelect = document.getElementById('btn-select-car');
+
+            if(isOwned) {
+                btnBuy.style.display = 'none';
+                btnSelect.style.display = 'block';
+                btnSelect.innerText = playerState.activeVehicleId === veh.id ? 'CURRENTLY DRIVING' : 'DRIVE THIS VEHICLE';
+                btnSelect.disabled = playerState.activeVehicleId === veh.id;
+            } else {
+                btnBuy.style.display = 'block';
+                btnSelect.style.display = 'none';
+                btnBuy.innerText = `Buy for $${veh.cost.toLocaleString()}`;
+                btnBuy.disabled = playerState.currency < veh.cost;
+            }
+
+            // Upgrades Setup
+            const upgContainer = document.getElementById('upgrades-container');
+            upgContainer.innerHTML = '';
+            if(isOwned) {
+                const labels = ['Engine', 'Handling', 'Brakes'];
+                // Base cost scales with car cost. Min 500.
+                const baseCost = Math.max(500, veh.cost * 0.1); 
+                
+                labels.forEach((label, idx) => {
+                    const level = pData.upgrades[idx];
+                    const cost = Math.floor(baseCost * Math.pow(1.5, level));
+                    const maxed = level >= 5; // 5 levels max
+                    
+                    let barsHTML = '';
+                    for(let i=0; i<5; i++) barsHTML += `<div class="bar ${i < level ? 'filled' : ''}"></div>`;
+                    
+                    upgContainer.innerHTML += `
+                        <div class="upgrade-row">
+                            <div class="upgrade-label">${label}</div>
+                            <div class="upgrade-bars">${barsHTML}</div>
+                            <button class="btn-upgrade" ${maxed || playerState.currency < cost ? 'disabled' : ''} 
+                                    onclick="buyUpgrade(${idx}, ${cost})">
+                                ${maxed ? 'MAX' : '$'+cost.toLocaleString()}
+                            </button>
+                        </div>
+                    `;
+                });
+            } else {
+                upgContainer.innerHTML = '<p style="color:#777; text-align:center; font-style:italic;">Purchase vehicle to unlock upgrades.</p>';
+            }
+        }
+
+        function buyCurrentCar() {
+            const veh = VEHICLE_ROSTER[viewingGarageVehicleId];
+            if(playerState.currency >= veh.cost && !playerState.vehicles[veh.id]) {
+                playerState.currency -= veh.cost;
+                playerState.vehicles[veh.id] = { upgrades: [0,0,0], color: veh.color };
+                displayMessage(`Successfully purchased ${veh.name}!`);
+                initGarageUI(); // Refresh list to show 'OWNED'
+                updateGarageUI();
+            }
+        }
+
+        function selectCurrentCar() {
+            if(playerState.vehicles[viewingGarageVehicleId]) {
+                playerState.activeVehicleId = viewingGarageVehicleId;
+                updateGarageUI();
+                displayMessage(`Now driving ${VEHICLE_ROSTER[playerState.activeVehicleId].name}`);
+            }
+        }
+
+        function buyUpgrade(typeIdx, cost) {
+            if(playerState.currency >= cost) {
+                playerState.currency -= cost;
+                playerState.vehicles[viewingGarageVehicleId].upgrades[typeIdx]++;
+                updateGarageUI();
+            }
+        }
+
+        function applyPaint(hexColor) {
+            if(playerState.vehicles[viewingGarageVehicleId]) {
+                playerState.vehicles[viewingGarageVehicleId].color = hexColor;
+                updateGarage3DView();
+            }
+        }
+
+        function updateGarage3DView() {
+            if(garageVehicleMesh) garageScene.remove(garageVehicleMesh);
+            const vehDef = VEHICLE_ROSTER[viewingGarageVehicleId];
+            const pData = playerState.vehicles[viewingGarageVehicleId];
+            const color = pData ? pData.color : vehDef.color;
+            
+            garageVehicleMesh = createVehicleMesh(vehDef, color);
+            // Center it nicely
+            garageVehicleMesh.position.set(0,0,0);
+            garageScene.add(garageVehicleMesh);
+        }
+
+        function checkCollision(pos, radius = 1.0) {
+            // World bounds
+            const half = MAP_SIZE/2;
+            if (pos.x < -half || pos.x > half || pos.z < -half || pos.z > half) return true;
+
+            // Static colliders
+            for(let i=0; i<colliders.length; i++) {
+                let c = colliders[i];
+                if(c.type === 'box') {
+                    if (pos.x > c.minX - radius && pos.x < c.maxX + radius &&
+                        pos.z > c.minZ - radius && pos.z < c.maxZ + radius) {
+                        return true; // Simple point in AABB
+                    }
+                } else if (c.type === 'sphere') {
+                    let dx = pos.x - c.x; let dz = pos.z - c.z;
+                    if ((dx*dx + dz*dz) < (radius + c.radius)*(radius + c.radius)) return true;
+                }
+            }
+            return false;
+        }
+
+        function updatePlayer(dt) {
+            const vehDef = VEHICLE_ROSTER[playerState.activeVehicleId];
+            const pData = playerState.vehicles[playerState.activeVehicleId];
+            
+            // Apply Upgrades (Engine, Handling, Brakes)
+            const uEng = pData.upgrades[0] * 0.15;
+            const uHnd = pData.upgrades[1] * 0.15;
+            const uBrk = pData.upgrades[2] * 0.20;
+
+            const maxSpeed = (vehDef.speed * (1 + uEng)) * 0.8; 
+            const accel = (vehDef.accel * (1 + uEng)) * 55;     
+            const handling = vehDef.handling * (1 + uHnd);
+            const braking = 80 + (50 * uBrk);                   
+            
+            let friction = 0.98; // Ground friction
+            let drag = 0.99;     // Air drag
+
+            // Control Mapping
+            let gas = keys.w || (!vehDef.isPlane && keys.up);
+            let brake = keys.s || (!vehDef.isPlane && keys.down);
+            let left = keys.a || (!vehDef.isPlane && keys.left);
+            let right = keys.d || (!vehDef.isPlane && keys.right);
+            let pitchUp = vehDef.isPlane && keys.down; // Pull down arrow to nose up
+            let pitchDown = vehDef.isPlane && keys.up;
+
+            // Inputs
+            if (gas) {
+                playerState.speed += accel * dt;
+                if (keys.shift && !vehDef.isPlane && playerState.boost > 0) {
+                    playerState.speed += accel * 1.5 * dt; // Nitro
+                    playerState.boost -= 25 * dt;
+                }
+                if (vehDef.isPlane && keys.shift) {
+                    playerState.speed += accel * 0.5 * dt; // Plane Afterburner
+                }
+            }
+            if (brake) {
+                if(playerState.speed > 0) playerState.speed -= braking * dt;
+                else if (!vehDef.isPlane) playerState.speed -= (accel * 0.5) * dt; // Reverse
+            }
+            
+            if (keys.space && !vehDef.isPlane) {
+                friction = 0.90; // Handbrake
+            } else if (keys.space && vehDef.isPlane) {
+                playerState.speed -= braking * 0.5 * dt; // Wheel brake
+            }
+
+            // Apply friction/drag based on state
+            if(playerState.pos.y <= 0) playerState.speed *= friction;
+            else playerState.speed *= drag;
+            
+            // Speed caps
+            if (playerState.speed > maxSpeed) playerState.speed = maxSpeed;
+            if (playerState.speed < -maxSpeed/3) playerState.speed = -maxSpeed/3;
+            if (vehDef.isPlane && playerState.speed < 0) playerState.speed = 0; // Planes don't reverse well
+
+            // Steering (Speed sensitive)
+            let speedFactor = Math.abs(playerState.speed) / maxSpeed;
+            if (speedFactor < 0.05 && Math.abs(playerState.speed) < 5) speedFactor = 0.05; 
+            
+            let turnMult = 1.0;
+            if(!vehDef.isPlane) {
+                turnMult = Math.max(0.4, 1.0 - (speedFactor * 0.6)); 
+                if (keys.space) turnMult *= 2.5; // Drift turn
+            } else if (playerState.pos.y > 0) {
+                turnMult = 0.6; // Smoother turning in air
+            }
+
+            let steerDir = playerState.speed < 0 ? -1 : 1;
+            
+            if (Math.abs(playerState.speed) > 1 || vehDef.isPlane) { 
+                if (left) playerState.heading += 2.5 * handling * turnMult * dt * steerDir;
+                if (right) playerState.heading -= 2.5 * handling * turnMult * dt * steerDir;
+            }
+
+            // Flight Controls
+            if (vehDef.isPlane) {
+                if (playerState.speed > 50) { // Takeoff speed threshold lowered for easier lift-off
+                    if (pitchUp) playerState.pitch += 1.8 * dt; // Nose up
+                    if (pitchDown) playerState.pitch -= 1.8 * dt; // Nose down
+                }
+                
+                // Limit pitch
+                playerState.pitch = Math.max(-Math.PI/3, Math.min(Math.PI/3, playerState.pitch));
+                
+                if (playerState.pos.y > 0) {
+                    // Airborne Physics
+                    let currentGravity = 30;
+                    if (playerState.speed > 120) currentGravity = 0; // High speed cancels gravity
+                    else if (playerState.speed > 60) currentGravity = 30 * (1 - (playerState.speed-60)/60);
+
+                    playerState.velocity.y -= currentGravity * dt; 
+                    // Forward speed + pitch creates lift/dive
+                    playerState.velocity.y += Math.sin(playerState.pitch) * playerState.speed * 2.0 * dt;
+                    playerState.velocity.y *= 0.98; // Vertical damping
+                } else {
+                    // On ground
+                    playerState.pos.y = 0;
+                    playerState.velocity.y = 0;
+                    if (playerState.pitch > 0 && playerState.speed > 70) {
+                        // Take off bump (lowered threshold)
+                        playerState.velocity.y = 15 + Math.sin(playerState.pitch) * playerState.speed * 0.5;
+                        playerState.pos.y = 0.1;
+                    }
+                }
+            } else {
+                playerState.pos.y = 0; 
+                playerState.pitch = 0;
+                playerState.velocity.y = 0;
+            }
+
+            // Calculate movement vectors
+            let groundSpeed = vehDef.isPlane && playerState.pos.y > 0 ? playerState.speed * Math.cos(playerState.pitch) : playerState.speed;
+            
+            let driftAngle = playerState.heading;
+            if(!vehDef.isPlane && keys.space && Math.abs(playerState.speed) > 40) {
+                driftAngle = playerState.heading + (left ? -0.3 : (right ? 0.3 : 0));
+            }
+
+            // FIX: Negative sin/cos so that moving forward aligns with the -Z facing of the models
+            let vx = -Math.sin(driftAngle) * groundSpeed;
+            let vz = -Math.cos(driftAngle) * groundSpeed;
+
+            let nextPos = playerState.pos.clone();
+            nextPos.x += vx * dt;
+            nextPos.z += vz * dt;
+            if (vehDef.isPlane) nextPos.y += playerState.velocity.y * dt;
+
+            // Collision 
+            if (nextPos.y < vehDef.h * 1.5) {
+                if (checkCollision(nextPos, Math.max(vehDef.w, vehDef.l) / 2)) {
+                    showCrash();
+                    playerState.speed = -playerState.speed * 0.4; 
+                    playerState.heading += (Math.random()-0.5) * 0.5;
+                    playerState.pitch = 0;
+                } else {
+                    playerState.pos.copy(nextPos);
+                }
+            } else {
+                playerState.pos.copy(nextPos); 
+            }
+
+            if (playerState.pos.y < 0) {
+                playerState.pos.y = 0;
+                if(playerState.velocity.y < -40) showCrash(); // Crash landing
+            }
+
+            updateMeshTransform();
+
+            // Propeller spin
+            if (vehDef.isPlane && playerMesh.propeller) {
+                playerMesh.propeller.rotation.z += playerState.speed * dt * 0.8;
+            }
+
+            // Boost Regen
+            if (!keys.shift && playerState.boost < 100) playerState.boost += 8 * dt;
+
+            // Earnings Logic
+            let distanceMoved = Math.sqrt(vx*vx + vz*vz) * dt;
+            if (Math.abs(playerState.speed) > 5) { 
+                playerState.distanceDriven += distanceMoved;
+                if(playerState.distanceDriven > 50) {
+                    playerState.distanceDriven = 0;
+                    let amount = Math.floor(15 * (1 + (Math.abs(playerState.speed)/60))); 
+                    playerState.currency += amount;
+                    createEarnFloat(amount);
+                }
+            }
+        }
+
+        function updateMeshTransform() {
+            playerMesh.position.copy(playerState.pos);
+            const qH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), playerState.heading);
+            const qP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), playerState.pitch);
+            let roll = 0;
+            if(VEHICLE_ROSTER[playerState.activeVehicleId].isPlane && playerState.pos.y > 0) {
+                if(keys.a || keys.left) roll = 0.5;
+                if(keys.d || keys.right) roll = -0.5;
+            }
+            const qR = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), roll);
+            
+            playerMesh.quaternion.copy(qH).multiply(qP).multiply(qR);
+        }
+
+        function updateCamera() {
+            if(!playerMesh) return;
+            const vehDef = VEHICLE_ROSTER[playerState.activeVehicleId];
+            
+            if (currentCameraView === 0) {
+                // Chase: Position behind the car (+Z)
+                const offset = new THREE.Vector3(0, vehDef.h + 2, vehDef.l * 1.5 + 5);
+                offset.applyQuaternion(playerMesh.quaternion);
+                const targetPos = playerMesh.position.clone().add(offset);
+                camera.position.lerp(targetPos, 0.15);
+                
+                // Look ahead of the car (-Z)
+                const lookTarget = playerMesh.position.clone().add(new THREE.Vector3(0, vehDef.h, -vehDef.l*2).applyQuaternion(playerMesh.quaternion));
+                camera.lookAt(lookTarget);
+            } 
+            else if (currentCameraView === 1) {
+                // Cockpit: Position slightly front of center
+                const offset = new THREE.Vector3(0, vehDef.h * 0.8, -vehDef.l * 0.2);
+                offset.applyQuaternion(playerMesh.quaternion);
+                camera.position.copy(playerMesh.position.clone().add(offset));
+                
+                // Look ahead
+                const lookTarget = playerMesh.position.clone().add(new THREE.Vector3(0, vehDef.h*0.8, -vehDef.l*3).applyQuaternion(playerMesh.quaternion));
+                camera.lookAt(lookTarget);
+            }
+            else {
+                // Top Down
+                camera.position.set(playerState.pos.x, 200, playerState.pos.z);
+                camera.lookAt(playerState.pos);
+                camera.rotation.z = -playerState.heading;
+            }
+        }
+
+        function getZoneName(x, z) {
+            const absX = Math.abs(x), absZ = Math.abs(z);
+            if (absX < 400 && absZ < 400) return "Downtown City";
+            if (absX < 100 && z < -400) return "Drag Strip";
+            const dist = Math.sqrt((x/1.1)*(x/1.1) + (z/0.9)*(z/0.9));
+            if (Math.abs(dist - MAP_SIZE*0.4) < 100) return "Outer Highway";
+            if (z > 400) return "Southern Countryside";
+            return "Outskirts";
+        }
+
+        function updateHUD() {
+            // Speedometer (1 Three unit ~ 1.5 mph for feel)
+            const speedMph = Math.floor(Math.abs(playerState.speed) * 1.5); 
+            document.getElementById('speed-value').innerText = speedMph;
+            
+            document.getElementById('boost-fill').style.width = Math.max(0, playerState.boost) + '%';
+            document.getElementById('currency-display').innerText = Math.floor(playerState.currency).toLocaleString();
+            document.getElementById('zone-name').innerText = getZoneName(playerState.pos.x, playerState.pos.z);
+            
+            const hud = document.getElementById('hud');
+            if (isGameRunning && !isPaused && !inGarage) hud.classList.remove('hidden');
+            else hud.classList.add('hidden');
+
+            updateMinimap();
+        }
+
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // Map Scale focusing around center
+            const scale = w / MAP_SIZE;
+            const cx = w/2, cy = h/2;
+            
+            // Background
+            ctx.fillStyle = '#112'; ctx.fillRect(0,0,w,h);
+
+            // Draw Highway Oval
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, (MAP_SIZE*0.4*1.1)*scale, (MAP_SIZE*0.4*0.9)*scale, 0, 0, 2*Math.PI);
+            ctx.strokeStyle = '#444'; ctx.lineWidth = 4; ctx.stroke();
+
+            // Draw City Block area
+            ctx.fillStyle = '#333';
+            ctx.fillRect(cx - (400*scale), cy - (400*scale), 800*scale, 800*scale);
+
+            // Draw Drag Strip
+            ctx.fillStyle = '#222';
+            ctx.fillRect(cx - (30*scale), cy - (1000*scale), 60*scale, 600*scale);
+
+            // Player Dot
+            let px = cx + (playerState.pos.x * scale);
+            let pz = cy + (playerState.pos.z * scale);
+            
+            ctx.fillStyle = '#00ffcc';
+            ctx.beginPath(); ctx.arc(px, pz, 5, 0, 2*Math.PI); ctx.fill();
+            
+            // Direction Vector (fixed for -Z forward)
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(px, pz);
+            ctx.lineTo(px - Math.sin(playerState.heading)*12, pz - Math.cos(playerState.heading)*12);
+            ctx.stroke();
+        }
+
+        function showCrash() {
+            const alert = document.getElementById('crash-alert');
+            alert.style.opacity = 1;
+            alert.style.transform = `translateX(-50%) scale(${1 + Math.random()*0.3}) rotate(${(Math.random()-0.5)*10}deg)`;
+            setTimeout(() => { alert.style.opacity = 0; }, 400);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1); // Cap dt to prevent huge physics jumps
+
+            if (inGarage) {
+                if (garageVehicleMesh) garageVehicleMesh.rotation.y += 0.3 * dt;
+                
+                const rect = document.getElementById('garage-3d-container').getBoundingClientRect();
+                renderer.setViewport(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
+                renderer.setScissor(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
+                renderer.setScissorTest(true);
+                renderer.render(garageScene, garageCamera);
+                renderer.setScissorTest(false);
+                return;
+            }
+
+            if (!isGameRunning || isPaused) {
+                // Menu background panning
+                if (!isGameRunning) {
+                    camera.position.x = Math.sin(Date.now() * 0.0002) * 800;
+                    camera.position.y = 200;
+                    camera.position.z = Math.cos(Date.now() * 0.0002) * 800;
+                    camera.lookAt(0, 0, 0);
+                    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                    renderer.render(scene, camera);
+                }
+                return;
+            }
+
+            updatePlayer(dt);
+            updateCamera();
+            updateHUD();
+
+            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if(inGarage) {
+                const rect = document.getElementById('garage-3d-container').getBoundingClientRect();
+                garageCamera.aspect = rect.width / rect.height;
+                garageCamera.updateProjectionMatrix();
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

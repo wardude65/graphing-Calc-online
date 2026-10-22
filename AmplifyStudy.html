@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- DISGUISED TITLE -->
+    <title>Amplify</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #fef3c7;
+            user-select: none;
+            overflow: hidden;
+            touch-action: manipulation;
+            transition: background 0.5s ease;
+        }
+
+        /* --- Area Backgrounds --- */
+        .bg-forest { background-image: radial-gradient(#bbf7d0 15%, #f0fdf4 16%); background-size: 60px 60px; }
+        .bg-lava { background: #450a0a; background-image: radial-gradient(#ef4444 20%, transparent 20%); background-size: 40px 40px; animation: lavaPulse 5s infinite alternate; }
+        .bg-water { background: #0c4a6e; background-image: repeating-linear-gradient(45deg, #0c4a6e 0, #0c4a6e 20px, #0284c7 20px, #0284c7 40px); animation: waterFlow 60s linear infinite; }
+        .bg-desert { background-color: #fff7ed; background-image: radial-gradient(#fb923c 15%, transparent 16%); background-size: 60px 60px; }
+        .bg-candy { background-color: #fdf2f8; background-image: radial-gradient(#f472b6 10%, transparent 11%), radial-gradient(#c084fc 10%, transparent 11%); background-size: 50px 50px; background-position: 0 0, 25px 25px; }
+        .bg-ice { background-color: #ecfeff; background-image: linear-gradient(135deg, #cffafe 25%, transparent 25%), linear-gradient(225deg, #cffafe 25%, transparent 25%); background-size: 40px 40px; }
+        .bg-futuristic { background-color: #020617; background-image: linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px); background-size: 40px 40px; box-shadow: inset 0 0 100px #22d3ee; }
+        .bg-beach { background: linear-gradient(to bottom, #60a5fa 50%, #fde047 50%); background-size: 100% 100px; }
+        .bg-city { background-color: #e5e7eb; background-image: linear-gradient(#9ca3af 2px, transparent 2px), linear-gradient(90deg, #9ca3af 2px, transparent 2px); background-size: 100px 100px; }
+        .bg-fall { background-color: #fffbeb; background-image: radial-gradient(#d97706 15%, transparent 16%), radial-gradient(#b45309 15%, transparent 16%); background-size: 60px 60px; background-position: 0 0, 30px 30px; }
+        .bg-fastfood { background-color: #fef2f2; background-image: repeating-linear-gradient(45deg, #ef4444 0, #ef4444 10px, #fef2f2 10px, #fef2f2 20px); }
+        .bg-meme { background: repeating-conic-gradient(#ef4444 0% 10%, #eab308 10% 20%, #22c55e 20% 30%, #3b82f6 30% 40%, #a855f7 40% 50%); opacity: 0.8; }
+        .bg-space { background-color: #000; background-image: radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px); background-size: 550px 550px, 350px 350px, 250px 250px; background-position: 0 0, 40px 60px, 130px 270px; }
+        .bg-jurassic { background-color: #14532d; background-image: radial-gradient(#15803d 20%, transparent 20%), radial-gradient(#166534 20%, transparent 20%); background-size: 80px 80px; background-position: 0 0, 40px 40px; }
+        .bg-backrooms { background-color: #fef08a; background-image: repeating-linear-gradient(90deg, #fde047 0, #fde047 20px, #facc15 20px, #facc15 40px); opacity: 0.9; }
+        .bg-gym { background-color: #374151; background-image: radial-gradient(#6b7280 10%, transparent 10%); background-size: 20px 20px; }
+        .bg-gamer { background-color: #000; background-image: linear-gradient(90deg, rgba(255,0,0,.1), rgba(0,255,0,.1), rgba(0,0,255,.1)); animation: rgbBg 5s linear infinite; }
+        .bg-heaven { background: linear-gradient(to bottom, #bae6fd, #f0f9ff); }
+
+        @keyframes lavaPulse { 0% { filter: brightness(1); } 100% { filter: brightness(1.2); } }
+        @keyframes waterFlow { 0% { background-position: 0 0; } 100% { background-position: 500px 500px; } }
+        @keyframes rgbBg { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+
+        .pibble-main { transition: transform 0.05s; cursor: pointer; z-index: 20; }
+        .pibble-main:active { transform: scale(0.9); }
+        .clicked { animation: bounce 0.15s; }
+        @keyframes bounce { 50% { transform: scale(0.95); } }
+
+        .floater { position: absolute; pointer-events: none; animation: floatUp 1s forwards; font-weight: bold; z-index: 50; display: flex; align-items: center; gap: 4px; text-shadow: 2px 2px 0 #000; color: white; }
+        @keyframes floatUp { to { opacity: 0; transform: translateY(-100px) scale(1.5); } }
+
+        .orbit-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; pointer-events: none; z-index: 10; }
+        @media(max-width:768px){ .orbit-container{width:220px;height:220px;} }
+        .orbiting-pet { position: absolute; top: 0; left: 50%; width: 50px; height: 50px; margin-left: -25px; transform-origin: 50% 150px; animation: orbit 10s linear infinite; }
+        @media(max-width:768px){ .orbiting-pet{transform-origin:50% 110px;} }
+        .orbiting-pet img { width: 100%; height: 100%; object-fit: contain; animation: counter-orbit 10s linear infinite; }
+        @keyframes orbit { to { transform: rotate(360deg); } }
+        @keyframes counter-orbit { to { transform: rotate(-360deg); } }
+
+        .modal { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 60; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+
+        .rarity-common { color: #9ca3af; }
+        .rarity-rare { color: #60a5fa; }
+        .rarity-epic { color: #c084fc; }
+        .rarity-legendary { color: #facc15; text-shadow: 0 0 10px #fef08a; }
+        .rarity-mythical { color: #f87171; text-shadow: 0 0 10px #fecaca; }
+        .rarity-godly { color: #22d3ee; text-shadow: 0 0 10px #a5f3fc; animation: pulse 2s infinite; }
+        .rarity-secret { color: #fff; text-shadow: 0 0 10px #f0f; animation: pulse 0.5s infinite; }
+
+        .pet-card.selected { border-color: #ef4444 !important; background-color: #fee2e2 !important; transform: scale(0.95); }
+        .pet-card.selected::after { content: '❌'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; }
+
+        #toast-container { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast { background: white; padding: 10px 20px; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px; color: #374151; border: 2px solid #fbbf24; animation: toastSlide 0.3s; display: flex; align-items: center; gap: 8px; }
+        @keyframes toastSlide { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .auto-buy-btn.active { background-color: #ef4444 !important; color: white !important; border-color: #b91c1c !important; }
+        .auto-active-icon { animation: spin 2s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .xp-bar-container { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: rgba(0,0,0,0.2); border-radius: 5px; overflow: hidden; z-index: 40; }
+        .xp-bar-fill { height: 100%; background: linear-gradient(90deg, #fcd34d, #f59e0b); width: 0%; transition: width 0.3s; }
+        .level-badge { position: absolute; top: 60px; left: 50%; transform: translateX(-140px); background: #f59e0b; color: white; font-weight: bold; padding: 2px 8px; border-radius: 12px; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 41; white-space: nowrap; }
+
+        .poop-icon { position: absolute; font-size: 4rem; cursor: pointer; animation: poopBounce 0.5s infinite alternate; z-index: 55; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); transition: transform 0.1s; }
+        .poop-icon:active { transform: scale(0.9); }
+        @keyframes poopBounce { from { transform: translateY(0); } to { transform: translateY(-15px); } }
+
+        /* PANIC SCREEN */
+        #panic-screen { 
+            display: none; 
+            position: fixed; inset: 0; 
+            background: white; 
+            z-index: 9999; 
+            color: black; 
+            font-family: 'Times New Roman', Times, serif; 
+            padding: 40px; 
+            overflow-y: auto; 
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col text-gray-800 relative overflow-hidden bg-forest">
+
+    <!-- PANIC SCREEN -->
+    <div id="panic-screen">
+        <h1 class="text-3xl font-bold mb-4 text-center">Chapter 4: The Impact of the Industrial Revolution</h1>
+        <p class="mb-4">The Industrial Revolution, which began in Britain in the late 18th century, marked a major turning point in history. It shifted the world from an agrarian and handicraft economy to one dominated by industry and machine manufacturing. This period saw the development of new technologies such as the steam engine, the spinning jenny, and the power loom, which revolutionized the production of textiles and other goods.</p>
+        <p class="mb-4">One of the most significant impacts of the Industrial Revolution was the rise of urbanization. As factories sprang up in cities, people moved from rural areas to urban centers in search of work. This massive migration led to the rapid growth of cities like Manchester and London, but it also created challenging living conditions, including overcrowding, poor sanitation, and pollution.</p>
+        <p class="mb-4">The social structure of society also underwent a profound transformation. A new industrial middle class emerged, comprised of factory owners, entrepreneurs, and merchants who amassed significant wealth. Meanwhile, the working class, often laboring in harsh conditions for long hours, began to organize into labor unions to advocate for better wages and working rights. This class struggle would become a defining feature of the 19th and early 20th centuries.</p>
+        <p class="mb-4">Furthermore, the Industrial Revolution had global consequences. It fueled imperialism as industrialized nations sought raw materials and new markets for their goods. This led to the colonization of vast regions in Africa and Asia, altering the geopolitical landscape of the world. The economic and technological advancements of this era laid the foundation for the modern world we live in today.</p>
+        <p class="text-sm text-gray-500 mt-8 text-center italic">(Press 'P' to return to study mode)</p>
+    </div>
+
+    <!-- GAME CONTAINER (Wrapped to hide easily) -->
+    <div id="game-container" class="w-full h-full flex flex-col">
+
+        <!-- Audio -->
+        <audio id="bgm" loop><source src="https://www.dropbox.com/scl/fi/vvon9xafx9b07jl8ciaa7/pibble-theme-song-made-with-Voicemod.mp3?rlkey=jwr2xl0urd6r0c2q62mgnpk3d&st=rrrtf7i3&dl=1" type="audio/mpeg"></audio>
+        <audio id="sfx-click-base" src="https://www.dropbox.com/scl/fi/h9voxecvwr5alqo53hpe0/wash-my-belly-yay-made-with-Voicemod.mp3?rlkey=z32mem9oc74n2oo5pywxfjfx8&st=37iimp94&dl=1"></audio>
+        <audio id="sfx-rare" src="https://www.dropbox.com/scl/fi/lwmw607dlzsepnog48q0p/wash-ma-belly-made-with-Voicemod.mp3?rlkey=tltp7tw8cj2xqzvjj170kztdk&st=b9wjyo5h&dl=1"></audio>
+        <audio id="sfx-fart" src="https://www.dropbox.com/scl/fi/dws2pwcp1lztgtihsxzzl/perfect-fart.mp3?rlkey=by0xfd9fnmj17gu4xs78kqpm4&st=mp6yzwuj&dl=1"></audio>
+
+        <!-- Layers -->
+        <div id="particles" class="absolute inset-0 pointer-events-none z-50"></div>
+        <div id="toast-container"></div>
+
+        <!-- Top Bar -->
+        <div class="w-full bg-white/90 backdrop-blur border-b border-amber-200 p-4 flex justify-between items-center z-40 shadow-sm h-16">
+            <div class="font-bold text-lg md:text-xl text-amber-800 flex items-center gap-2">
+                <span id="area-icon">🌲</span> <span id="area-name">Pibble Forest</span>
+            </div>
+            <button onclick="window.toggleMusic()" id="music-btn" class="text-xs bg-amber-100 px-2 py-1 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-200 transition">🎵 Music: Off</button>
+            <div class="font-bold text-xl md:text-2xl text-amber-600 flex items-center gap-2 bg-amber-100 px-4 py-1 rounded-full border border-amber-300">
+                <span id="score">0</span>
+                <img src="https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1" class="w-6 h-6 object-contain">
+            </div>
+        </div>
+
+        <!-- XP Bar -->
+        <div class="level-badge" id="level-badge">Lvl 1 (+10%)</div>
+        <div class="xp-bar-container">
+            <div id="xp-bar" class="xp-bar-fill"></div>
+        </div>
+
+        <!-- Main Game -->
+        <div class="flex-1 relative flex items-center justify-center">
+            <div id="orbit-ring" class="orbit-container"></div>
+            <div class="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center group z-20">
+                <div class="absolute inset-0 bg-white/50 rounded-full blur-3xl animate-pulse group-hover:bg-white/70"></div>
+                <div id="pibble-btn" class="pibble-main w-full h-full flex items-center justify-center" onclick="window.clickPibble(event)">
+                    <img src="https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1" 
+                        alt="Pibble" class="w-full h-full object-contain drop-shadow-2xl hover:brightness-105" draggable="false">
+                </div>
+            </div>
+            <div class="absolute bottom-24 font-bold text-amber-700/90 text-sm md:text-base bg-white/80 px-4 py-1 rounded-full backdrop-blur-sm shadow-lg">
+                Click Multiplier: <span id="click-mult">x1.00</span>
+            </div>
+        </div>
+
+        <!-- Bottom Menu -->
+        <div class="h-20 md:h-24 bg-white border-t border-amber-200 flex items-center justify-center gap-2 md:gap-4 px-2 z-40 shadow-lg">
+            <button onclick="window.openModal('egg-store')" class="flex flex-col items-center justify-center w-16 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition gap-1">
+                <div class="text-3xl">🥚</div><div class="text-xs font-bold text-amber-800">Shop</div>
+            </button>
+            <button onclick="window.openModal('inventory')" class="flex flex-col items-center justify-center w-16 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition gap-1 relative">
+                <div class="text-3xl">🎒</div><div class="text-xs font-bold text-amber-800">Pets</div>
+                <div id="inv-count" class="absolute top-2 right-2 bg-red-500 text-white text-[10px] rounded-full px-1.5 hidden">0</div>
+            </button>
+            <button onclick="window.openModal('travel')" class="flex flex-col items-center justify-center w-16 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition gap-1">
+                <div class="text-3xl">🗺️</div><div class="text-xs font-bold text-amber-800">Travel</div>
+            </button>
+            <button onclick="window.openModal('cloud')" class="flex flex-col items-center justify-center w-16 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition gap-1">
+                <div class="text-3xl">☁️</div><div class="text-xs font-bold text-amber-800">Cloud</div>
+            </button>
+            <button onclick="window.askReset()" class="flex flex-col items-center justify-center w-12 h-full hover:bg-red-50 active:scale-95 transition gap-1 text-red-400">
+                <div class="text-xl">🗑️</div><div class="text-[9px] font-bold">Reset</div>
+            </button>
+        </div>
+
+        <!-- Modals (All wrapped in game-container so they hide on panic) -->
+        <div id="modal-confirm" class="modal z-[80]">
+            <div class="bg-white w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl border-4 border-amber-200">
+                <div class="text-4xl mb-2">❓</div>
+                <h2 id="confirm-text" class="text-xl font-bold text-gray-800 mb-6">Confirm?</h2>
+                <div class="flex gap-4"><button onclick="window.closeModal('confirm')" class="flex-1 bg-gray-200 hover:bg-gray-300 font-bold py-2 rounded-xl">Cancel</button><button id="confirm-yes-btn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-xl">Yes</button></div>
+            </div>
+        </div>
+
+        <div id="modal-egg-store" class="modal"><div class="bg-white w-full max-w-lg rounded-2xl p-4 m-4 shadow-2xl border-4 border-amber-200 relative flex flex-col h-[80vh]">
+            <button onclick="window.closeModal('egg-store')" class="absolute top-2 right-2 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-amber-800 mb-2 border-b pb-2">🥚 Egg Store</h2>
+            <p class="text-xs text-gray-500 mb-2">Area: <span id="store-area-name" class="font-bold">--</span></p>
+            <div id="egg-list" class="flex-1 overflow-y-auto space-y-3 p-1"></div>
+        </div></div>
+
+        <div id="modal-inventory" class="modal"><div class="bg-white w-full max-w-3xl h-[85vh] rounded-2xl p-4 m-4 shadow-2xl border-4 border-amber-200 relative flex flex-col">
+            <button onclick="window.closeModal('inventory')" class="absolute top-2 right-2 text-2xl">&times;</button>
+            <div class="flex justify-between items-end border-b pb-2 mb-2">
+                <div><h2 class="text-2xl font-bold text-amber-800">🎒 Pets</h2><span class="text-xs text-gray-500">Equipped: <span id="equipped-count">0</span>/5</span></div>
+                <div class="flex gap-2">
+                    <button onclick="window.equipBest()" class="bg-blue-500 text-white px-3 py-1 rounded shadow text-xs font-bold">⚡ Best</button>
+                    <button id="multi-delete-btn" onclick="window.toggleMultiDelete()" class="bg-gray-200 px-3 py-1 rounded shadow text-xs font-bold">🗑️ Delete</button>
+                    <button id="confirm-delete-btn" onclick="window.askDelete()" class="hidden bg-red-500 text-white px-3 py-1 rounded shadow text-xs font-bold animate-pulse">Confirm</button>
+                </div>
+            </div>
+            <div id="inventory-grid" class="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1"></div>
+        </div></div>
+
+        <div id="modal-travel" class="modal"><div class="bg-white w-full max-w-md rounded-2xl p-4 m-4 shadow-2xl border-4 border-amber-200 relative h-[80vh] flex flex-col">
+            <button onclick="window.closeModal('travel')" class="absolute top-2 right-2 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-amber-800 mb-4 border-b pb-2">🗺️ Travel</h2>
+            <div id="travel-list" class="flex-1 overflow-y-auto space-y-2 p-1"></div>
+        </div></div>
+
+        <div id="modal-cloud" class="modal"><div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border-4 border-amber-200 relative flex flex-col h-[70vh]">
+            <button onclick="window.closeModal('cloud')" class="absolute top-2 right-2 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-amber-800 mb-4 border-b pb-2">☁️ Cloud & Levels</h2>
+            
+            <div class="mb-4">
+                <label class="text-xs font-bold text-gray-500 block mb-1">Display Name</label>
+                <div class="flex gap-2">
+                    <input type="text" id="username-input" class="flex-1 p-2 border rounded" placeholder="Enter name" maxlength="15">
+                    <button onclick="window.saveName()" class="bg-amber-500 text-white font-bold px-4 rounded shadow">Set</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <button onclick="window.syncSave()" class="bg-green-500 text-white font-bold py-3 rounded shadow">Save</button>
+                <button onclick="window.loadSave()" class="bg-blue-500 text-white font-bold py-3 rounded shadow">Load</button>
+            </div>
+            <h3 class="font-bold text-amber-700 mb-2">🏆 Level Leaderboard</h3>
+            <div id="leaderboard-list" class="flex-1 bg-amber-50 rounded border overflow-y-auto p-2 text-sm">Loading...</div>
+        </div></div>
+
+        <div id="modal-admin" class="modal z-[90]"><div class="bg-gray-900 w-full max-w-md rounded-2xl p-6 shadow-2xl border-4 border-gray-700 relative text-white">
+            <button onclick="window.closeModal('admin')" class="absolute top-2 right-2 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-green-400 mb-4">💻 Admin Panel</h2>
+            <div id="admin-login">
+                <input type="password" id="admin-pass" placeholder="Password" class="w-full p-2 rounded bg-gray-800 border border-gray-600 mb-2">
+                <button onclick="window.checkAdmin()" class="w-full bg-green-600 py-2 rounded font-bold">Login</button>
+            </div>
+            <div id="admin-controls" class="hidden space-y-2">
+                <button onclick="window.adminAddMoney()" class="w-full bg-blue-600 py-2 rounded font-bold">+100Qi Pibbles</button>
+                <button onclick="window.adminUnlockAll()" class="w-full bg-purple-600 py-2 rounded font-bold">Unlock All Worlds</button>
+                <button onclick="window.adminGiveAll()" class="w-full bg-yellow-600 py-2 rounded font-bold">Give All Pets</button>
+                <button onclick="window.toggleAdminLuck()" id="btn-luck" class="w-full bg-pink-600 py-2 rounded font-bold">Luck: Normal</button>
+                <button onclick="window.adminLevelUp()" class="w-full bg-orange-600 py-2 rounded font-bold">+10 Levels</button>
+                <button onclick="window.adminForcePoop()" class="w-full bg-amber-800 py-2 rounded font-bold">💩 Force Poop</button>
+                <button onclick="window.askReset()" class="w-full bg-red-600 py-2 rounded font-bold">Wipe Save</button>
+            </div>
+        </div></div>
+
+        <div id="modal-setup" class="modal z-[100]"><div class="bg-white w-full max-w-2xl rounded-2xl p-6 border-4 border-red-500 relative flex flex-col">
+            <button onclick="window.closeModal('setup')" class="absolute top-4 right-4 text-2xl">&times;</button>
+            <h2 class="text-2xl font-bold text-red-600 mb-4">⚠️ Database Locked</h2>
+            <p class="mb-2">To fix Cloud Save, enable Test Mode in Firebase Console:</p>
+            <pre class="bg-gray-800 text-green-400 p-3 rounded text-xs font-mono mb-4">allow read, write: if true;</pre>
+            <button onclick="location.reload()" class="w-full bg-red-500 text-white font-bold py-3 rounded">Refresh</button>
+        </div></div>
+
+        <div id="hatch-overlay" class="fixed inset-0 bg-black/90 z-[70] hidden flex-col items-center justify-center text-white"><div id="hatch-egg" class="text-9xl animate-bounce cursor-pointer mb-8">🥚</div><div class="text-2xl font-bold animate-pulse text-amber-300">Hatching...</div></div>
+    
+    </div> <!-- End Game Container -->
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- ASSETS ---
+        const I = {
+            PIBBLE: "https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1",
+            SWING: "https://www.dropbox.com/scl/fi/s6f4hge7p0jydmhu3o8nt/5UtnH4J6bAhKrPqFkhSpb1lW5J5ghJmAtgLSAdi0J9U.webp?rlkey=c75ps17cq0qirmyaq4184w0kd&st=d8xyu7vm&raw=1",
+            BEAR: "https://www.dropbox.com/scl/fi/lp8sty0a059uxp30enipw/Screenshot-2025-11-23-213538.png?rlkey=s45dxgtiymajs012c664kwth7&st=sikccue7&raw=1",
+            FROG: "https://www.dropbox.com/scl/fi/enlbb7knaler8qt1qhxo7/Frog-Pibble.jfif?rlkey=jgproft8ccpc6uyqu34fwr1g1&st=8xi6mwxp&raw=1",
+            ALIEN: "https://www.dropbox.com/scl/fi/4x13whcqa2v3mec9x0qev/AlienPibble.webp?rlkey=ck3h400vy56vlt04j01yqonx4&st=vmqjhrri&raw=1",
+            FRY: "https://www.dropbox.com/scl/fi/7mrgozgdyi0ez325j5wtz/Screenshot-2025-11-23-214401.png?rlkey=3l5w7sevvw943npqevq3idawd&st=csamx6dm&raw=1",
+            PUMPKIN: "https://www.dropbox.com/scl/fi/uq9t3ll907dt51f4b0iv7/Screenshot-2025-11-23-214058.png?rlkey=t4x0y6oalnxla1vfh4golujai&st=52pb3t26&raw=1",
+            CARTI: "https://www.dropbox.com/scl/fi/8b3gd5o0hj0ib4uto4hsx/Screenshot-2025-11-23-214442.png?rlkey=6wesf1goww69h9xci9c9lgnuw&st=3nuwxefm&raw=1",
+            TARGET: "https://www.dropbox.com/scl/fi/zm7lzdkstptg90ajhfj52/Screenshot-2025-11-23-220426.png?rlkey=g6uw11dyj8gto1tttpxndqpi3&st=v3twapkk&raw=1",
+            SAVE: "https://www.dropbox.com/scl/fi/5s528frsmulk8dqg6g99g/Screenshot-2025-11-23-220434.png?rlkey=d16510b29sb1mzm8fb743voy9&st=38452i28&raw=1",
+            FLOPPA: "https://www.dropbox.com/scl/fi/6eqisepsgst9z5rvtc23r/Pet_floppa.webp?rlkey=v2y3g46husabjc4zbq8lml0u3&st=eopbi1sd&raw=1",
+            UNDERWATER: "https://www.dropbox.com/scl/fi/j5h3krggeldgz3zv20y4g/water.jpg?rlkey=0dlu29ikmcds4n8si9a6w73op&st=3ijnh1fx&raw=1",
+            SCARY: "https://www.dropbox.com/scl/fi/fw6ke1z4092u1sq3ymch4/Screenshot-2025-11-23-222453.png?rlkey=ikm3dw9ak3ey27te7jzcyrlw1&st=5w87w44l&raw=1",
+            FLYING: "https://www.dropbox.com/scl/fi/shz36dk1aqc0bkgraeynk/Screenshot-2025-11-23-222759.png?rlkey=6ru7cjmvgc6ckdc1e979eolpo&st=vhku8owh&raw=1",
+            ANGRY: "https://www.dropbox.com/scl/fi/8h8c1dujqsn60irwa7av2/Screenshot-2025-11-23-222749.png?rlkey=f4a4dca339vabph6iggy3kci4&st=vdlnkri0&raw=1",
+            GENERAL: "https://www.dropbox.com/scl/fi/gn1e8dmcouabk7zu30xqy/Screenshot-2025-11-25-154541.png?rlkey=89lgfl12snxhp3prrtwo2qvl6&st=5xa0toos&raw=1",
+            ELGATO: "https://www.dropbox.com/scl/fi/jiayqimtfl8daezwta9x2/El-Gato.jfif?rlkey=stmgp06mkzhzphb9zlqfkqz95&st=82psnzc3&raw=1",
+            BURNING: "https://www.dropbox.com/scl/fi/8paq273bvxb40txy7emn0/pibble-pibble-dog.gif?rlkey=ew63tl5awibi0addrch4wgmb5&st=1rqnu4ee&raw=1",
+            FROZEN: "https://www.dropbox.com/scl/fi/d5oy4vpoqhtqmpahzvzj1/clear-ice-cube-stockcake.jpg?rlkey=9fgbws9jc19tbs8fb38180uu7&st=fjomtsjk&raw=1",
+            SNOWMAN: "https://www.dropbox.com/scl/fi/uzvtb5y90u7nzcxgeaj0m/Screenshot-2025-11-25-155629.png?rlkey=q6l8aeetpm7pmvoddgjhjnynv&st=fgo5oeob&raw=1",
+            CUBE: "https://www.dropbox.com/scl/fi/utd81lzievt9agjlxvhl8/1x1x1x1_model.webp?rlkey=whzyj5ism6xg2v9ir1q3ucf5x&st=7n1e5iau&raw=1",
+            BALLERINA: "https://www.dropbox.com/scl/fi/8zmuz8k8hu9o56af487wo/Screenshot-2025-11-25-160223.png?rlkey=dm5m7vn5e9t8seljcxd9h6z6v&st=ru34w1q1&raw=1",
+            TUNG: "https://www.dropbox.com/scl/fi/1nsl01gc7xyk9heu15mct/Tung_Tung_Tung_Sahur.webp?rlkey=iqxjy3fqluj859lf7mgph718h&st=wjdha1qo&raw=1",
+            COOL: "https://www.dropbox.com/scl/fi/dhxwok1owby13sy3t6o38/Screenshot-2025-11-25-160452.png?rlkey=zj0rzl8yhtn0i4yz51snwk7tk&st=ce6j6a1d&raw=1",
+            SANDY: "https://www.dropbox.com/scl/fi/ibsccfls1zs7k8m3l8shy/Screenshot-2025-11-25-160459.png?rlkey=f00q1mob34obqy3bs4tca7k9p&st=woxcp4t9&raw=1",
+            WORKER: "https://www.dropbox.com/scl/fi/g1bugrrojj5d9hijd9gxn/Screenshot-2025-11-25-160911.png?rlkey=989iavlykikvpmu6xluo5vcdf&st=a08cr7b9&raw=1",
+            STATUE: "https://www.dropbox.com/scl/fi/tmwcg6cvcbzgnn2aurc3c/Screenshot-2025-11-25-160929.png?rlkey=2xk8hlc6b2xyyclmil6w5nsen&st=qg11k7n1&raw=1",
+            PATRIOT: "https://www.dropbox.com/scl/fi/m9oe6u4zcsvswi9siec9u/Patriot-Pibble.png?rlkey=t3m9iyvsusqcc37a61mv1tqu0&st=1dl1c9nl&raw=1",
+            LEAVES: "https://www.dropbox.com/scl/fi/gnfiu0djax16ojo4kmibt/Screenshot-2025-11-25-161554.png?rlkey=hwyzm6rcfjj0gvbvkuzvkpqpz&st=u3ph2kqk&raw=1",
+            PIE: "https://www.dropbox.com/scl/fi/k8ymbukmbrbosj25thh4s/Screenshot-2025-11-25-161535.png?rlkey=7xncricvf7k14w1zqdph12at9&st=e0kxdzh3&raw=1",
+            TURKEY: "https://www.dropbox.com/scl/fi/afvdnin6yxd77vstivvr6/Screenshot-2025-11-25-161628.png?rlkey=y3lkkwe7wdah8lysfelj6lyh0&st=e123aiap&raw=1",
+            BURGER: "https://www.dropbox.com/scl/fi/7wa9kc2h7ty3gflmzzrl5/Screenshot-2025-11-25-162154.png?rlkey=t0k5yw45ts86rl3ddry5ozmrw&st=iritpnqm&raw=1",
+            HOTDOG: "https://www.dropbox.com/scl/fi/jxkokvy10i7qby54w72or/Screenshot-2025-11-25-162138.png?rlkey=8ghqgpzxbtfko71yk4r5yeyuu&st=e5vcf149&raw=1",
+            TACO: "https://www.dropbox.com/scl/fi/86zclwf90w2ilw8dgk6ch/Screenshot-2025-11-25-162340.png?rlkey=ocbqyzc326ng283sle3ogz63f&st=0xqxwzao&raw=1",
+            NUGGET: "https://www.dropbox.com/scl/fi/l7xqa0ooixkkoah8clqjn/nugget-pib.png?rlkey=vdhukvma6hxpct47d3l5agbxv&st=jmzjjkx3&raw=1",
+            NYAN: "https://www.dropbox.com/scl/fi/6cakqy1etnzs6pbuorvpo/Screenshot-2025-11-25-163109.png?rlkey=ny71q322m2au49gaf3snxbjsp&st=erqxcuwx&raw=1",
+            LOS: "https://www.dropbox.com/scl/fi/vq8frwbhnse5zpz6g26tj/Screenshot-2025-11-25-163117.png?rlkey=5gnpynjuy3zqqzktcao7tv3gw&st=2rxv7ch8&raw=1",
+            P67: "https://www.dropbox.com/scl/fi/lpfkhzsv9g2orr7lhj1lk/Screenshot-2025-11-25-163124.png?rlkey=gmy41sij7ur6hv740qy9wg18s&st=yoac4meg&raw=1",
+            ASTRO: "https://www.dropbox.com/scl/fi/6pzzhpqrkyvowxov8rgu7/Screenshot-2025-11-25-163242.png?rlkey=r1vr6yppaltnz9egh26k86eai&st=aidjdiu1&raw=1",
+            UFO: "https://www.dropbox.com/scl/fi/iivakihzbam05ie0zmdje/Screenshot-2025-11-25-163247.png?rlkey=dw0jkdc3q6oybxio8c9diqwnq&st=73g57i8s&raw=1",
+            DEVOURER: "https://www.dropbox.com/scl/fi/hpqrreyzjnu0mhn3s4kuc/Screenshot-2025-11-25-163256.png?rlkey=lbn3rmi00gjd0spnksm2ery46&st=n3bpqal2&raw=1",
+            CAVE: "https://www.dropbox.com/scl/fi/391egq2c6n7omsmde48zc/Gemini_Generated_Image_bie9r4bie9r4bie9.png?rlkey=dcdl4mepi1ajpacyrrhfiykzq&st=xnl1lud4&raw=1",
+            DINO: "https://www.dropbox.com/scl/fi/5kfastoghc5881tpqb6c0/Gemini_Generated_Image_4xf7aj4xf7aj4xf7.png?rlkey=vwsv4fdx55uzoc84ozd9lhv7z&st=s4xf15nf&raw=1",
+            METEOR: "https://www.dropbox.com/scl/fi/ehd9siqypdojxvj36gdke/Gemini_Generated_Image_17oric17oric17or.png?rlkey=htzssuufqipd3i2shg37jrtk0&st=hi9q4fqn&raw=1",
+            HAZMAT: "https://www.dropbox.com/scl/fi/zb5qas48uwayj6s6oc2ad/Screenshot-2025-11-26-141952.png?rlkey=3msh41c6xhrw0e61jot9iy8dx&st=wjwg02c3&raw=1",
+            ENTITY: "https://www.dropbox.com/scl/fi/uqnqs2ywkc5lel75bselv/Screenshot-2025-11-26-142043.png?rlkey=2lbkg3q0dgj4wvolyn5u7h1qs&st=30ttw39n&raw=1",
+            GLITCH: "https://www.dropbox.com/scl/fi/r074rnj3rnxd39zna98hl/Screenshot-2025-11-26-142139.png?rlkey=44x5tcpom2koarhnz4ydb8fr6&st=in7b8ks5&raw=1",
+            WEIGHT: "https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1",
+            PROTEIN: "https://www.dropbox.com/scl/fi/99g2gewtyil4ixqxvdhn4/Screenshot-2025-11-26-142659.png?rlkey=zi9y0pwfg47nivajofh9bjpdy&st=z5pnpzmw&raw=1",
+            GIGA: "https://www.dropbox.com/scl/fi/936f0rhy9b0pqimvk6k76/Screenshot-2025-11-26-142841.png?rlkey=28ff3aw3va6gt8l08v2sj5jdr&st=1eo5552s&raw=1",
+            HEADSET: "https://www.dropbox.com/scl/fi/2yqnxgj067c47lza4bc7k/Screenshot-2025-11-26-143008.png?rlkey=5juiced7zufcpq0wn2vorklsv&st=dr7upyup&raw=1",
+            KEYBOARD: "https://www.dropbox.com/scl/fi/glwx11gimqscwfmpxy9rn/Screenshot-2025-11-26-143228.png?rlkey=67x0g93zzsxv2d3dan71t47b1&st=yoy7pw6z&raw=1",
+            GRASS: "https://www.dropbox.com/scl/fi/5p2z13eqi4jumvg4bj429/Screenshot-2025-11-26-143337.png?rlkey=5h2agixqp75m6m3z9f88mg48h&st=888zw6v6&raw=1",
+            GHOST: "https://www.dropbox.com/scl/fi/s1y5865gycwgqsy5zs1c5/Screenshot-2025-11-26-143515.png?rlkey=3mtg147zr56jlkc0lgq9khb43&st=ag201iny&raw=1",
+            ANGEL: "https://www.dropbox.com/scl/fi/ek8goso4pp1jumr2jkgei/Screenshot-2025-11-26-143613.png?rlkey=pvl5bjzlfzy2dcc9g4b25p8i9&st=ppc2g9gj&raw=1",
+            BIBLICAL: "https://www.dropbox.com/scl/fi/dgzfds3pf2yxxo0pb0c7x/Screenshot-2025-11-26-143735.png?rlkey=1l1ob42if1zejlv6o2fnmresa&st=vibdneun&raw=1"
+        };
+
+        // --- GAME STATE ---
+        let game = { pibbles: 0, currentArea: 'forest', unlockedAreas: ['forest'], pets: [], equipped: [], luck: 1, level: 1, xp: 0, maxXp: 100, username: "Player" };
+        let isDeleteMode = false, selectedForDelete = [], musicPlaying = false, currentUser = null, autoHatch = false, autoHatchInterval = null;
+
+        // --- FIREBASE ---
+        const app = initializeApp({apiKey:"AIzaSyCg4qoatQoGKVEkaYUeTkdgAwN5fJH1cAc",authDomain:"pibble-clicker.firebaseapp.com",projectId:"pibble-clicker",storageBucket:"pibble-clicker.firebasestorage.app",messagingSenderId:"222881804808",appId:"1:222881804808:web:2a7118d351c90190c097bd",measurementId:"G-5K0Y6SY2MD"});
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        signInAnonymously(auth).catch(e=>console.log(e));
+        onAuthStateChanged(auth, u=>{ currentUser=u; if(u) fetchLeaderboard(); });
+
+        // --- DATA CONFIGS ---
+        const AREAS = {
+            'forest': { name: "Pibble Forest", icon: "🌲", className: "bg-forest", cost: 0, eggs: ['starter', 'advanced', 'food'] },
+            'lava': { name: "Lava Pit", icon: "🌋", className: "bg-lava", cost: 50000, eggs: ['lava'] },
+            'water': { name: "Water World", icon: "🌊", className: "bg-water", cost: 250000, eggs: ['water'] },
+            'desert': { name: "Desert Dunes", icon: "🌵", className: "bg-desert", cost: 1000000, eggs: ['desert'] },
+            'candy': { name: "Candy Kingdom", icon: "🍭", className: "bg-candy", cost: 5000000, eggs: ['candy'] },
+            'ice': { name: "Ice Plains", icon: "❄️", className: "bg-ice", cost: 25000000, eggs: ['ice'] },
+            'futuristic': { name: "Neon City", icon: "🤖", className: "bg-futuristic", cost: 100000000, eggs: ['futuristic'] },
+            'beach': { name: "Sunny Beach", icon: "🏖️", className: "bg-beach", cost: 500000000, eggs: ['beach'] },
+            'city': { name: "Metro Pibble", icon: "🏙️", className: "bg-city", cost: 2000000000, eggs: ['city'] },
+            'fall': { name: "Autumn Woods", icon: "🍂", className: "bg-fall", cost: 10000000000, eggs: ['fall'] },
+            'fastfood': { name: "Burger Town", icon: "🍔", className: "bg-fastfood", cost: 50000000000, eggs: ['fastfood'] },
+            'meme': { name: "Meme Verse", icon: "🐸", className: "bg-meme", cost: 250000000000, eggs: ['meme'] },
+            'space': { name: "Galactic Void", icon: "🌌", className: "bg-space", cost: 1000000000000, eggs: ['space'] },
+            'jurassic': { name: "Jurassic Jungle", icon: "🦖", className: "bg-jurassic", cost: 5000000000000, eggs: ['prehistoric'] },
+            'backrooms': { name: "The Backrooms", icon: "🚪", className: "bg-backrooms", cost: 25000000000000, eggs: ['liminal'] },
+            'gym': { name: "Pibble Gym", icon: "💪", className: "bg-gym", cost: 100000000000000, eggs: ['protein'] },
+            'gamer': { name: "Gamer Room", icon: "🎮", className: "bg-gamer", cost: 500000000000000, eggs: ['rgb'] },
+            'heaven': { name: "Heaven", icon: "☁️", className: "bg-heaven", cost: 1000000000000000, eggs: ['angelic'] }
+        };
+
+        const EGGS = {
+            'starter': { name: "Starter Egg", cost: 100, color: "bg-amber-100 border-amber-300", drops: [{id:'pibble',c:57.85},{id:'swing',c:41.32},{id:'giant',c:0.83}] },
+            'advanced': { name: "Advanced Egg", cost: 2500, color: "bg-blue-100 border-blue-300", drops: [{id:'bear',c:51.95},{id:'froggy',c:32.47},{id:'alien',c:15.58}] },
+            'food': { name: "Food Egg", cost: 15000, color: "bg-red-100 border-red-300", drops: [{id:'fry',c:58.82},{id:'pumpkin',c:35.29},{id:'carti',c:5.88}] },
+            'lava': { name: "Lava Egg", cost: 100000, color: "bg-orange-600 border-orange-800 text-white", drops: [{id:'target',c:49.50},{id:'save',c:49.50},{id:'giant_alien',c:0.99}] },
+            'water': { name: "Water Egg", cost: 500000, color: "bg-cyan-200 border-cyan-500", drops: [{id:'floppa',c:49.0},{id:'underwater',c:49.0},{id:'scary',c:2.0}] },
+            'desert': { name: "Desert Egg", cost: 2000000, color: "bg-yellow-200 border-yellow-500", drops: [{id:'flying',c:49.59},{id:'angry',c:49.59},{id:'general',c:0.83}] },
+            'candy': { name: "Candy Egg", cost: 10000000, color: "bg-pink-200 border-pink-400", drops: [{id:'tiny',c:49.62},{id:'elgato',c:49.62},{id:'burning',c:0.76}] },
+            'ice': { name: "Frozen Egg", cost: 50000000, color: "bg-blue-50 border-blue-300", drops: [{id:'frozen',c:49.02},{id:'snowman',c:49.02},{id:'cube',c:1.96}] },
+            'futuristic': { name: "Neon Egg", cost: 200000000, color: "bg-gray-900 border-cyan-400 text-cyan-400", drops: [{id:'ballerina',c:38.17},{id:'tiny_alien',c:38.17},{id:'tung',c:22.90},{id:'brainrot',c:0.76}] },
+            'beach': { name: "Beach Egg", cost: 1000000000, color: "bg-yellow-100 border-blue-400", drops: [{id:'cool',c:53.85},{id:'sandy',c:45.38},{id:'watermelon',c:0.77}] },
+            'city': { name: "City Egg", cost: 5000000000, color: "bg-gray-300 border-gray-500", drops: [{id:'worker',c:49.99},{id:'statue',c:49.99},{id:'patriot',c:0.02}] },
+            'fall': { name: "Fall Egg", cost: 25000000000, color: "bg-orange-100 border-orange-500", drops: [{id:'leaves',c:49.59},{id:'pie',c:49.59},{id:'turkey',c:0.83}] },
+            'fastfood': { name: "Fastfood Egg", cost: 100000000000, color: "bg-red-50 border-red-500", drops: [{id:'burger',c:53.85},{id:'hotdog',c:45.38},{id:'taco',c:0.77},{id:'nugget',c:0.1}] },
+            'meme': { name: "Meme Egg", cost: 500000000000, color: "bg-purple-200 border-purple-500", drops: [{id:'nyan',c:53.85},{id:'los',c:45.38},{id:'p67',c:0.77}] },
+            'space': { name: "Cosmic Egg", cost: 2000000000000, color: "bg-black border-white text-white", drops: [{id:'astro',c:53.85},{id:'ufo',c:45.38},{id:'devourer',c:0.77}] },
+            'prehistoric': { name: "Prehistoric Egg", cost: 5000000000000, color: "bg-green-800 border-green-950 text-white", drops: [{id:'cave',c:49.5},{id:'dino',c:49.5},{id:'meteor',c:1.0}] },
+            'liminal': { name: "Liminal Egg", cost: 25000000000000, color: "bg-yellow-200 border-yellow-600", drops: [{id:'hazmat',c:49.5},{id:'entity',c:49.5},{id:'glitch',c:1.0}] },
+            'protein': { name: "Protein Egg", cost: 100000000000000, color: "bg-gray-400 border-gray-700 text-white", drops: [{id:'weight',c:48.0},{id:'protein',c:48.0},{id:'giga',c:4.0}] },
+            'rgb': { name: "RGB Egg", cost: 500000000000000, color: "bg-black border-pink-500 text-green-400", drops: [{id:'headset',c:49.9},{id:'keyboard',c:49.9},{id:'grass',c:0.2}] },
+            'angelic': { name: "Angelic Egg", cost: 1000000000000000, color: "bg-white border-yellow-300 text-yellow-600", drops: [{id:'ghost',c:49.5},{id:'angel',c:49.5},{id:'biblical',c:1.0}] }
+        };
+
+        const PET_TYPES = {
+            'pibble': {name:"Pibble",mult:1.2,img:I.PIBBLE,rarity:'common'}, 'swing':{name:"Swing Pibble",mult:1.5,img:I.SWING,rarity:'rare'}, 'giant':{name:"Giant Pibble",mult:3,img:I.PIBBLE,rarity:'legendary',style:'transform:scale(1.5)'},
+            'bear':{name:"Bear Pibble",mult:5,img:I.BEAR,rarity:'common'}, 'froggy':{name:"Froggy Pibble",mult:8.5,img:I.FROG,rarity:'rare'}, 'alien':{name:"Alien Pibble",mult:15,img:I.ALIEN,rarity:'legendary'},
+            'fry':{name:"Fry Pibble",mult:25,img:I.FRY,rarity:'rare'}, 'pumpkin':{name:"Pumpkin Pibble",mult:40,img:I.PUMPKIN,rarity:'epic'}, 'carti':{name:"Pibble Carti",mult:100,img:I.CARTI,rarity:'mythical'},
+            'target':{name:"Target Pibble",mult:250,img:I.TARGET,rarity:'rare'}, 'save':{name:"Save Pibble",mult:250,img:I.SAVE,rarity:'rare'}, 'giant_alien':{name:"Giant Alien Pibble",mult:1000,img:I.ALIEN,rarity:'godly',style:'transform:scale(1.8);filter:hue-rotate(90deg)'},
+            'floppa':{name:"Floppa",mult:2000,img:I.FLOPPA,rarity:'epic'}, 'underwater':{name:"Underwater Pibble",mult:2000,img:I.UNDERWATER,rarity:'epic'}, 'scary':{name:"Scary Pibble",mult:10000,img:I.SCARY,rarity:'legendary'},
+            'flying':{name:"Flying Pibble",mult:50000,img:I.FLYING,rarity:'mythical'}, 'angry':{name:"Angry Pibble",mult:50000,img:I.ANGRY,rarity:'mythical'}, 'general':{name:"General Pibble",mult:500000,img:I.GENERAL,rarity:'godly'}, 
+            'tiny':{name:"Tiny Pibble",mult:1e6,img:I.PIBBLE,rarity:'common',style:'transform:scale(0.5)'}, 'elgato':{name:"El Gato",mult:1e6,img:I.ELGATO,rarity:'epic'}, 'burning':{name:"Burning Pibble",mult:10e6,img:I.BURNING,rarity:'legendary'},
+            'frozen':{name:"Frozen Pibble",mult:20e6,img:I.FROZEN,rarity:'epic'}, 'snowman':{name:"Snowman Pibble",mult:20e6,img:I.SNOWMAN,rarity:'epic'}, 'cube':{name:"1x1x1x1 Pibble",mult:100e6,img:I.CUBE,rarity:'godly'},
+            'ballerina':{name:"Ballerina Pibble",mult:500e6,img:I.BALLERINA,rarity:'rare'}, 'tiny_alien':{name:"Tiny Alien Pibble",mult:500e6,img:I.ALIEN,rarity:'rare',style:'transform:scale(0.5)'}, 'tung':{name:"Tung Tung Tung Sahur",mult:800e6,img:I.TUNG,rarity:'legendary'}, 'brainrot':{name:"Brainrot Pibble",mult:2e9,img:"",rarity:'mythical',style:'background:white;width:40px;height:40px;'},
+            'cool':{name:"Cool Pibble",mult:5e9,img:I.COOL,rarity:'common'}, 'sandy':{name:"Sandy Pibble",mult:8e9,img:I.SANDY,rarity:'rare'}, 'watermelon':{name:"Watermelon Pibble",mult:50e9,img:I.SANDY,rarity:'legendary',style:'filter:hue-rotate(90deg)'},
+            'worker':{name:"Worker Pibble",mult:100e9,img:I.WORKER,rarity:'common'}, 'statue':{name:"Statue of Piberty",mult:100e9,img:I.STATUE,rarity:'epic'}, 'patriot':{name:"Patriot Pibble",mult:1e12,img:I.PATRIOT,rarity:'godly'},
+            'leaves':{name:"Leaves Pibble",mult:2e12,img:I.LEAVES,rarity:'common'}, 'pie':{name:"Pie Pibble",mult:2e12,img:I.PIE,rarity:'rare'}, 'turkey':{name:"Turkey Pibble",mult:20e12,img:I.TURKEY,rarity:'legendary'},
+            'burger':{name:"Burger Pibble",mult:50e12,img:I.BURGER,rarity:'common'}, 'hotdog':{name:"Hotdog Pibble",mult:50e12,img:I.HOTDOG,rarity:'common'}, 'taco':{name:"Taco Pibble",mult:100e12,img:I.TACO,rarity:'epic'}, 'nugget':{name:"Nugget Pibble",mult:500e12,img:I.NUGGET,rarity:'godly'},
+            'nyan':{name:"Nyan Pibble",mult:1e15,img:I.NYAN,rarity:'epic'}, 'los':{name:"Los Pibbles",mult:2e15,img:I.LOS,rarity:'legendary'}, 'p67':{name:"67 Pibble",mult:10e15,img:I.P67,rarity:'godly'},
+            'astro':{name:"Astro Pibble",mult:100e15,img:I.ASTRO,rarity:'epic'}, 'ufo':{name:"UFO Pibble",mult:200e15,img:I.UFO,rarity:'legendary'}, 'devourer':{name:"Devourer Pibble",mult:1e18,img:I.DEVOURER,rarity:'secret'},
+            'cave':{name:"Caveman Pibble",mult:5e18,img:I.CAVE,rarity:'common'}, 'dino':{name:"Dino Pibble",mult:5e18,img:I.DINO,rarity:'rare'}, 'meteor':{name:"Meteor Pibble",mult:500e18,img:I.METEOR,rarity:'godly'},
+            'hazmat':{name:"Hazmat Pibble",mult:20e18,img:I.HAZMAT,rarity:'common'}, 'entity':{name:"Entity Pibble",mult:20e18,img:I.ENTITY,rarity:'epic'}, 'glitch':{name:"Glitch Pibble",mult:2e21,img:I.GLITCH,rarity:'secret'},
+            'weight':{name:"Weight Pibble",mult:100e18,img:I.WEIGHT,rarity:'common'}, 'protein':{name:"Protein Pibble",mult:100e18,img:I.PROTEIN,rarity:'epic'}, 'giga':{name:"Giga Pibble",mult:10e21,img:I.GIGA,rarity:'godly'},
+            'headset':{name:"Headset Pibble",mult:500e18,img:I.HEADSET,rarity:'common'}, 'keyboard':{name:"Keyboard Pibble",mult:500e18,img:I.KEYBOARD,rarity:'epic'}, 'grass':{name:"Touch Grass Pibble",mult:50e21,img:I.GRASS,rarity:'secret'},
+            'ghost':{name:"Ghost Pibble",mult:1e21,img:I.GHOST,rarity:'common'}, 'angel':{name:"Angel Pibble",mult:1e21,img:I.ANGEL,rarity:'legendary'}, 'biblical':{name:"Biblically Accurate Pibble",mult:100e21,img:I.BIBLICAL,rarity:'godly'}
+        };
+
+        // --- BINDINGS ---
+        window.toggleMusic=()=>{const a=document.getElementById('bgm');if(musicPlaying){a.pause();musicPlaying=0;document.getElementById('music-btn').innerText="🎵 Off"}else{a.volume=0.3;a.play().then(()=>{musicPlaying=1;document.getElementById('music-btn').innerText="🎵 On"}).catch(e=>console.log(e))}};
+        window.clickPibble=(e)=>{
+            if(!musicPlaying)window.toggleMusic();
+            let m=1;
+            game.equipped.forEach(id=>{const p=game.pets.find(x=>x.id===id);if(p)m+=(p.mult-1)});
+            
+            // Apply Level Multiplier
+            const levelBonus = 1 + (game.level * 0.1); 
+            m *= levelBonus;
+
+            game.pibbles+=Math.floor(m);
+            addXP(1); 
+            playSfx('click');animPibble();createFloater(e.clientX,e.clientY,Math.floor(m));updateUI();saveGame();
+        };
+        
+        // --- LEVEL SYSTEM ---
+        function addXP(amount) {
+            game.xp += amount;
+            if(game.xp >= game.maxXp) {
+                game.xp -= game.maxXp;
+                game.level++;
+                game.maxXp = Math.floor(100 * Math.pow(1.2, game.level)); 
+                showToast(`Level Up! Lvl ${game.level} (+${(game.level*10).toFixed(0)}% Bonus)`, "success");
+                addXP(0); 
+            }
+            updateUI();
+        }
+
+        window.saveName = () => {
+            const nameInput = document.getElementById('username-input');
+            const name = nameInput.value.trim();
+            if(name.length > 0 && name.length <= 15) {
+                game.username = name;
+                saveGame();
+                showToast(`Name set to ${name}`);
+            } else {
+                showToast("Invalid name (1-15 chars)", "error");
+            }
+        };
+
+        // --- EGG LOGIC ---
+        window.buyEgg=(k, n=1)=>{
+            const e=EGGS[k], total=e.cost*n;
+            if(game.pibbles>=total){
+                game.pibbles-=total; updateUI();
+                if(n===1) { window.closeModal('egg-store'); playHatch(k); }
+                else { hatchBatch(k, n); }
+            } else showToast("Too expensive!","error");
+        };
+        
+        window.toggleAutoBuy=(k)=>{
+            if(autoHatchInterval) {
+                clearInterval(autoHatchInterval); autoHatchInterval=null;
+                document.getElementById(`btn-auto-${k}`).classList.remove('active');
+                document.getElementById(`btn-auto-${k}`).innerHTML = 'Auto';
+            } else {
+                document.getElementById(`btn-auto-${k}`).classList.add('active');
+                document.getElementById(`btn-auto-${k}`).innerHTML = '<div class="auto-active-icon">🔄</div>';
+                autoHatchInterval = setInterval(() => {
+                    const e=EGGS[k];
+                    if(game.pibbles >= e.cost) {
+                        game.pibbles -= e.cost;
+                        const np = generatePet(k);
+                        game.pets.push(np);
+                        addXP(50); // Auto hatch gives XP
+                        updateUI();
+                        showToast(`Got ${np.name}!`);
+                        saveGame();
+                    } else {
+                        window.toggleAutoBuy(k);
+                        showToast("Out of Pibbles!");
+                    }
+                }, 500); 
+            }
+        };
+
+        window.equipBest=()=>{if(!game.pets.length)return;game.equipped=[];[...game.pets].sort((a,b)=>b.mult-a.mult).slice(0,5).forEach(p=>game.equipped.push(p.id));renderInv();renderOrbit();updateUI();saveGame();showToast("Best Equipped!")};
+        window.toggleMultiDelete=()=>{isDeleteMode=!isDeleteMode;selectedForDelete=[];updateDelBtn();renderInv()};
+        window.askDelete=()=>{if(!selectedForDelete.length)return;window.askConfirm(`Delete ${selectedForDelete.length} pets?`,()=>{game.pets=game.pets.filter(p=>!selectedForDelete.includes(p.id));selectedForDelete=[];isDeleteMode=false;updateDelBtn();saveGame();renderInv();updateUI();showToast("Deleted!")})};
+        window.travelTo=(k)=>{if(game.unlockedAreas.includes(k)){game.currentArea=k;window.closeModal('travel');updArea();updateUI();saveGame()}else{if(game.pibbles>=AREAS[k].cost){window.askConfirm(`Unlock for ${fmt(AREAS[k].cost)}?`,()=>{game.pibbles-=AREAS[k].cost;game.unlockedAreas.push(k);game.currentArea=k;window.closeModal('travel');updArea();updateUI();saveGame();showToast("Unlocked!")})}else showToast("Need more Pibbles!","error")}};
+        window.askReset=()=>{window.askConfirm("RESET EVERYTHING?",()=>{localStorage.removeItem('pibbleClicker_v6');location.reload()})};
+        
+        // --- POOP LOGIC ---
+        setInterval(() => {
+            if(Math.random() > 0.9) { // 10% chance every check
+                spawnPoop();
+            }
+        }, 30000); // Check every 30 seconds
+
+        window.adminForcePoop = () => spawnPoop();
+
+        function spawnPoop() {
+            const id = 'sfx-fart';
+            const s = document.getElementById(id).cloneNode();
+            s.volume = 0.5; s.play().catch(()=>{});
+
+            const p = document.createElement('div');
+            p.className = 'poop-icon';
+            p.innerHTML = '💩';
+            
+            // Random Pos
+            const x = Math.random() * (window.innerWidth - 100) + 50;
+            const y = Math.random() * (window.innerHeight - 100) + 50;
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            
+            p.onclick = (e) => {
+                e.stopPropagation();
+                
+                // Calculate Reward: Base (click power) * 50 * level
+                let clickPower = 1;
+                game.equipped.forEach(id=>{const pet=game.pets.find(x=>x.id===id);if(pet)clickPower+=(pet.mult-1)});
+                
+                const reward = Math.floor(clickPower * 50 * game.level);
+                game.pibbles += reward;
+                
+                // Visuals
+                createFloater(e.clientX, e.clientY, reward);
+                updateUI();
+                saveGame();
+                p.remove();
+                playSfx('click');
+            };
+            
+            document.body.appendChild(p);
+            
+            // Auto remove after 15s
+            setTimeout(() => { if(p.parentNode) p.remove(); }, 15000);
+        }
+        
+        // --- PANIC ---
+        document.addEventListener('keydown', (e) => {
+            if(e.key.toLowerCase() === 'p') {
+                const panic = document.getElementById('panic-screen');
+                const game = document.getElementById('game-container');
+                if(panic.style.display === 'block') {
+                    panic.style.display = 'none';
+                    game.style.display = 'flex';
+                    document.title = "Pibble Clicker: Multiverse";
+                } else {
+                    panic.style.display = 'block';
+                    game.style.display = 'none';
+                    document.title = "AP History Notes: Week 4";
+                }
+            }
+        });
+
+        // --- ADMIN ---
+        document.addEventListener('keydown',e=>{if(e.key==='-')document.getElementById('modal-admin').classList.add('active')});
+        window.checkAdmin=()=>{if(document.getElementById('admin-pass').value==="Pibble67"){document.getElementById('admin-login').classList.add('hidden');document.getElementById('admin-controls').classList.remove('hidden')}else showToast("Wrong Password","error")};
+        window.adminAddMoney=()=>{game.pibbles+=100e18;updateUI();showToast("Rich!")};
+        window.adminUnlockAll=()=>{game.unlockedAreas=Object.keys(AREAS);saveGame();showToast("Worlds Unlocked!")};
+        window.adminGiveAll=()=>{Object.keys(PET_TYPES).forEach(k=>{game.pets.push({id:Date.now()+Math.random(),type:k,...PET_TYPES[k]})});saveGame();showToast("Pets Added!")};
+        window.toggleAdminLuck=()=>{
+            game.luck = game.luck === 1 ? 10 : 1;
+            document.getElementById('btn-luck').innerText = game.luck > 1 ? "Luck: x10 (Active)" : "Luck: Normal";
+            showToast(`Luck set to x${game.luck}`);
+        };
+        window.adminLevelUp=()=>{
+            addXP(game.maxXp * 10);
+        }
+
+        // --- HELPERS ---
+        function playSfx(t){const id=t==='rare'?'sfx-rare':'sfx-click-base';const s=document.getElementById(id).cloneNode();s.volume=0.5;s.play().catch(()=>{})}
+        function animPibble(){const b=document.getElementById('pibble-btn');b.classList.remove('clicked');void b.offsetWidth;b.classList.add('clicked')}
+        function createFloater(x,y,n){const d=document.createElement('div');d.className='floater text-4xl';d.innerHTML=`+${fmt(n)}`;d.style.left=`${x}px`;d.style.top=`${y-50}px`;document.getElementById('particles').appendChild(d);setTimeout(()=>d.remove(),1000)}
+        
+        function updateUI(){
+            document.getElementById('score').innerText=fmt(game.pibbles);
+            let m=1;game.equipped.forEach(id=>{const p=game.pets.find(x=>x.id===id);if(p)m+=(p.mult-1)});
+            const levelBonus = 1 + (game.level * 0.1);
+            m *= levelBonus;
+            
+            document.getElementById('click-mult').innerText='x'+fmt(m);
+            
+            // XP Bar Update
+            const badge = document.getElementById('level-badge');
+            if (badge) badge.innerText = `Lvl ${game.level} (+${(game.level*10).toFixed(0)}%)`;
+            
+            const pct = Math.min(100, (game.xp / game.maxXp) * 100);
+            document.getElementById('xp-bar').style.width = `${pct}%`;
+            
+            // Username Input Placeholder
+            if(game.username && game.username !== "Player") {
+                const input = document.getElementById('username-input');
+                if(input && input.value === "") input.value = game.username;
+            }
+        }
+
+        function updArea(){const c=AREAS[game.currentArea].className;document.body.className=`h-screen w-screen flex flex-col text-gray-800 overflow-hidden ${c}`;document.getElementById('area-name').innerText=AREAS[game.currentArea].name;document.getElementById('area-icon').innerText=AREAS[game.currentArea].icon;document.getElementById('store-area-name').innerText=AREAS[game.currentArea].name}
+        function updateDelBtn(){const b=document.getElementById('multi-delete-btn');const c=document.getElementById('confirm-delete-btn');if(isDeleteMode){b.innerText='❌ Cancel';b.classList.replace('bg-gray-200','bg-red-200');c.classList.remove('hidden')}else{b.innerText='🗑️ Delete';b.classList.replace('bg-red-200','bg-gray-200');c.classList.add('hidden')}}
+        
+        function renderInv(){
+            const g=document.getElementById('inventory-grid');g.innerHTML='';
+            [...game.pets].sort((a,b)=>b.mult-a.mult).forEach(p=>{
+                const eq=game.equipped.includes(p.id), sel=selectedForDelete.includes(p.id);
+                const d=document.createElement('div');d.className=`pet-card relative rounded-lg p-2 border-2 flex flex-col items-center cursor-pointer hover:shadow-md ${eq?'border-green-500 bg-green-50':sel?'selected border-red-500 bg-red-50':'border-amber-200 bg-white'}`;
+                d.innerHTML=`${eq?'<div class="absolute top-1 left-1 w-2 h-2 bg-green-500 rounded-full"></div>':''}<img src="${p.img||''}" style="${p.style||''}" class="w-12 h-12 object-contain"><div class="text-[10px] font-bold truncate w-full text-center rarity-${p.rarity}">${p.name}</div><div class="text-[9px] text-gray-400">x${fmt(p.mult)}</div>`;
+                d.onclick=()=>{if(isDeleteMode){if(eq)return showToast("Unequip first","error");if(sel)selectedForDelete=selectedForDelete.filter(i=>i!==p.id);else selectedForDelete.push(p.id);renderInv()}else{if(eq)game.equipped=game.equipped.filter(i=>i!==p.id);else{if(game.equipped.length>=5)return showToast("Max 5!","error");game.equipped.push(p.id)}saveGame();renderInv();renderOrbit();updateUI()}};
+                g.appendChild(d);
+            });
+            document.getElementById('equipped-count').innerText=game.equipped.length;
+        }
+
+        function renderOrbit(){const c=document.getElementById('orbit-ring');c.innerHTML='';if(!game.equipped.length)return;game.equipped.forEach((id,i)=>{const p=game.pets.find(x=>x.id===id);if(!p)return;const d=document.createElement('div');d.className='orbiting-pet';d.style.animationDelay=`-${(10/game.equipped.length)*i}s`;const img=document.createElement('img');img.src=p.img||'';if(p.style)img.style=p.style;img.style.animationDelay=`-${(10/game.equipped.length)*i}s`;d.appendChild(img);c.appendChild(d)})}
+
+        function renderEggStore(){
+            const l=document.getElementById('egg-list');l.innerHTML='';const a=AREAS[game.currentArea];
+            if(!a.eggs.length)return l.innerHTML='<div class="text-gray-400 text-center">No eggs here</div>';
+            a.eggs.forEach(k=>{const e=EGGS[k];
+                const d=document.createElement('div');d.className=`p-3 rounded-xl border-2 ${e.color} bg-white/80`;
+                d.innerHTML=`<div class="flex justify-between items-center mb-2"><h3 class="font-bold">${e.name}</h3><div class="font-bold">${fmt(e.cost)}</div></div>
+                <div class="flex gap-2 mb-2">
+                    <button onclick="window.buyEgg('${k}', 1)" class="bg-green-500 text-white px-3 py-1 rounded font-bold active:scale-95 flex-1">Buy 1</button>
+                    <button onclick="window.buyEgg('${k}', 3)" class="bg-blue-500 text-white px-3 py-1 rounded font-bold active:scale-95 flex-1">Buy 3</button>
+                    <button id="btn-auto-${k}" onclick="window.toggleAutoBuy('${k}')" class="auto-buy-btn bg-purple-500 text-white px-3 py-1 rounded font-bold active:scale-95 w-12 flex items-center justify-center">Auto</button>
+                </div>
+                <div class="text-xs space-y-1">${e.drops.map(x=>`<div class="flex justify-between"><span>${PET_TYPES[x.id].name}</span><span>${x.c}%</span></div>`).join('')}</div>`;
+                l.appendChild(d);
+            })
+        }
+
+        function renderTravelList(){
+            const l=document.getElementById('travel-list');l.innerHTML='';
+            Object.keys(AREAS).forEach(k=>{const a=AREAS[k],u=game.unlockedAreas.includes(k);
+                const b=document.createElement('button');b.className=`w-full p-3 border-2 rounded-xl text-left flex justify-between items-center mb-2 ${u?'border-green-500 bg-green-50':'border-gray-300 opacity-80'}`;
+                b.innerHTML=`<div><div class="font-bold text-lg">${a.icon} ${a.name}</div><div class="text-xs font-bold ${u?'text-green-600':'text-red-500'}">${u?'Unlocked':`Cost: ${fmt(a.cost)}`}</div></div><div class="text-2xl">${u?'🚀':'🔒'}</div>`;
+                b.onclick=()=>window.travelTo(k);l.appendChild(b);
+            })
+        }
+
+        function playHatch(k){const o=document.getElementById('hatch-overlay');o.classList.remove('hidden');o.classList.add('flex');setTimeout(()=>{o.classList.add('hidden');o.classList.remove('flex');hatchBatch(k, 1)},1500)}
+        
+        function generatePet(k) {
+            const e = EGGS[k];
+            let bestDrop = null;
+            for(let i=0; i < (game.luck || 1); i++) {
+                const r = Math.random() * 100;
+                let acc = 0;
+                let currentDrop = e.drops[0];
+                for(let d of e.drops){ acc += d.c; if(r <= acc){ currentDrop = d; break; } }
+                if(!bestDrop || currentDrop.c < bestDrop.c) bestDrop = currentDrop;
+            }
+            if(bestDrop.c < 1) playSfx('rare');
+            return {id:Date.now()+Math.random(),type:bestDrop.id,...PET_TYPES[bestDrop.id]};
+        }
+
+        function hatchBatch(k, n) {
+            const newPets = [];
+            for(let i=0; i<n; i++) {
+                const np = generatePet(k);
+                newPets.push(np);
+                game.pets.push(np);
+            }
+            addXP(100 * n); // XP for hatching
+            saveGame();
+            renderInv();
+            if(n===1) { showToast(`Hatched ${newPets[0].name}!`,"success"); window.openModal('inventory'); }
+            else { showToast(`Hatched ${n} Pets! Check Inventory.`,"success"); }
+        }
+
+        let lastCloudSave = 0;
+        function saveGame() {
+            localStorage.setItem('pibbleClicker_v6', JSON.stringify(game));
+            if (currentUser) {
+                const now = Date.now();
+                if (now - lastCloudSave > 5000) {
+                    lastCloudSave = now;
+                    setDoc(doc(db, 'users', currentUser.uid), JSON.parse(JSON.stringify(game))).catch(()=>{});
+                }
+            }
+        }
+
+        function loadGame(){const s=localStorage.getItem('pibbleClicker_v6');if(s)try{const d=JSON.parse(s);game={...game,...d};if(!game.unlockedAreas)game.unlockedAreas=['forest']; if(!game.level)game.level=1; if(!game.xp)game.xp=0; if(!game.maxXp)game.maxXp=100; if(!game.username)game.username="Player"}catch(e){}}
+        
+        window.syncSave=async()=>{if(!currentUser)return showToast("Not logged in","error");await setDoc(doc(db,'users',currentUser.uid),JSON.parse(JSON.stringify(game)));await setDoc(doc(db,'leaderboard',currentUser.uid),{score:game.level,name:game.username || `Player ${currentUser.uid.slice(0,4)}`});showToast("Cloud Saved!")};
+        window.loadSave=async()=>{if(!currentUser)return showToast("Not logged in","error");const s=await getDoc(doc(db,'users',currentUser.uid));if(s.exists()){game={...game,...s.data()};updArea();updateUI();renderOrbit();showToast("Loaded!")}else showToast("No save found","error")};
+        
+        // LEADERBOARD UPDATED TO SORT BY LEVEL
+        async function fetchLeaderboard(){const q=query(collection(db,'leaderboard'),orderBy('score','desc'));const s=await getDocs(q);const l=document.getElementById('leaderboard-list');l.innerHTML='';s.docs.slice(0,10).forEach((d,i)=>{l.innerHTML+=`<div class="flex justify-between border-b p-1"><span>#${i+1} ${d.data().name}</span><span class="font-bold">Lvl ${fmt(d.data().score)}</span></div>`})}
+
+        function fmt(n){if(n>=1e33)return(n/1e33).toFixed(2)+'Dc';if(n>=1e30)return(n/1e30).toFixed(2)+'N';if(n>=1e27)return(n/1e27).toFixed(2)+'O';if(n>=1e24)return(n/1e24).toFixed(2)+'Sp';if(n>=1e21)return(n/1e21).toFixed(2)+'Sx';if(n>=1e18)return(n/1e18).toFixed(2)+'Qi';if(n>=1e15)return(n/1e15).toFixed(2)+'Q';if(n>=1e12)return(n/1e12).toFixed(2)+'T';if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(2)+'k';return Math.floor(n).toLocaleString()}
+        window.openModal=id=>{document.getElementById(`modal-${id}`).classList.add('active');if(id==='inventory')renderInv();if(id==='travel')renderTravelList();if(id==='egg-store')renderEggStore()};
+        window.closeModal=id=>document.getElementById(`modal-${id}`).classList.remove('active');
+        window.askConfirm=(t,cb)=>{document.getElementById('confirm-text').innerText=t;document.getElementById('modal-confirm').classList.add('active');document.getElementById('confirm-yes-btn').onclick=()=>{cb();window.closeModal('confirm')}};
+        window.showToast=(m,t)=>{const c=document.getElementById('toast-container'),d=document.createElement('div');d.className='toast';d.style.borderColor=t=='error'?'red':t=='success'?'green':'orange';d.innerText=m;c.appendChild(d);setTimeout(()=>d.remove(),3000)};
+
+        loadGame(); updArea(); updateUI(); renderOrbit();
+    </script>
+</body>
+</html>

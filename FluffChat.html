@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluff Chat - Global Messenger</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Expose Firebase modules globally (necessary evil for script block interaction in single HTML file)
+        window.firebase = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel
+        };
+    </script>
+    
+    <!-- Configure Tailwind for Inter Font and Christmas Styling -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* --- CHRISTMAS LIGHTS CSS (from original file) --- */
+        .christmas-lights {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            z-index: 100;
+            pointer-events: none;
+            overflow: hidden; 
+            background-color: #8b0000;
+        }
+
+        .light-string {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+        }
+
+        .light-container {
+            position: relative;
+            height: 100%;
+            width: 2%; 
+            display: flex;
+            justify-content: center;
+        }
+
+        .light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            position: absolute;
+            top: 15px; 
+            transform: rotate(5deg);
+            z-index: 101;
+            box-shadow: 0 0 10px 3px;
+            animation: twinkle 1.5s infinite alternate;
+        }
+        
+        .light::before {
+            content: '';
+            position: absolute;
+            top: -10px; 
+            left: 50%;
+            width: 2px;
+            height: 10px;
+            background-color: #3a3a3a;
+            z-index: 99;
+            transform: translateX(-50%);
+        }
+
+        .red-light { background-color: #ff3333; box-shadow: 0 0 12px #ff3333; }
+        .green-light { background-color: #33ff33; box-shadow: 0 0 12px #33ff33; }
+        .blue-light { background-color: #33ccff; box-shadow: 0 0 12px #33ccff; }
+        .gold-light { background-color: #ffaa00; box-shadow: 0 0 12px #ffaa00; }
+
+        @keyframes twinkle {
+            0% { opacity: 0.7; transform: translateY(0px) rotate(5deg); }
+            50% { opacity: 1.0; transform: translateY(1px) rotate(-5deg); }
+            100% { opacity: 0.7; transform: translateY(0px) rotate(5deg); }
+        }
+        
+        .header-shadow {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Custom chat styling */
+        .chat-window {
+            height: calc(100vh - 250px); /* Adjust height for header and input */
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        
+        /* New: DM button style */
+        .dm-button {
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .dm-button:hover {
+            color: #33ccff; /* Blue-light color */
+        }
+    </style>
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#1e293b', 
+                        'secondary': '#059669', 
+                        'dm-blue': '#33ccff', // New color for DMs
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-900 text-gray-100 min-h-screen pt-10">
+    
+    <!-- Modal for Username Input (Hidden by default) -->
+    <div id="username-modal" class="hidden fixed inset-0 bg-black bg-opacity-80 z-[200] flex items-center justify-center p-4">
+        <div class="bg-slate-800 p-8 rounded-xl shadow-2xl max-w-sm w-full border-b-4 border-green-600">
+            <h2 class="text-2xl font-bold mb-4 text-green-400">Welcome to Fluff Chat!</h2>
+            <p class="text-slate-300 mb-6">Choose a unique username to join the chat.</p>
+            <input type="text" id="new-username-input" placeholder="Enter Username (max 15 chars)" maxlength="15"
+                   class="w-full p-3 rounded-lg bg-slate-700 text-white placeholder-slate-400 focus:ring-green-500 focus:border-green-500 border-transparent border-2 transition duration-200">
+            <button id="set-username-button" class="mt-4 w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg shadow-lg transition duration-300">
+                Set Username and Enter Chat
+            </button>
+            <p id="username-error" class="text-red-500 text-sm mt-2 hidden"></p>
+        </div>
+    </div>
+    <!-- End Modal -->
+
+    <!-- Christmas Lights HTML Element -->
+    <div id="christmas-lights" class="christmas-lights">
+        <div class="light-string" id="light-string-container">
+            <!-- Lights will be generated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Header / Hero Section -->
+    <header class="bg-slate-800 header-shadow py-8 md:py-10 border-b-4 border-green-600 fixed top-0 left-0 right-0 z-50 pt-12">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+                <span class="text-green-400">Fluff</span> Chat
+            </h1>
+            <p class="text-md text-slate-300 max-w-2xl mx-auto mt-2">
+                A real-time global messenger, brought to you by Fluff's Games!
+            </p>
+            <div id="user-info" class="text-xs mt-1 text-red-400 font-mono flex justify-center items-center space-x-2">
+                <span id="display-username">Loading User...</span>
+                <span id="display-uid" class="text-slate-500"></span>
+            </div>
+            
+        </div>
+    </header>
+
+    <!-- Main Chat Content Section -->
+    <main class="py-4 mt-36 md:mt-40">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <!-- Tab Navigation for Public/DMs -->
+            <div class="flex border-b border-red-800 mb-4">
+                <button id="tab-public" class="px-4 py-2 text-sm font-medium border-b-2 border-green-500 text-green-400 hover:text-green-300 transition duration-150">
+                    Global Chat
+                </button>
+                <button id="tab-dm" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-dm-blue transition duration-150 ml-4">
+                    Direct Messages
+                </button>
+            </div>
+            
+            <!-- Public Chat Window -->
+            <div id="public-chat-view">
+                <div id="chat-messages" class="chat-window bg-slate-800 p-4 rounded-xl shadow-2xl border border-red-800 mb-4 flex flex-col space-y-4">
+                    <div class="text-center text-slate-400 p-10" id="loading-indicator">
+                        <svg class="animate-spin h-8 w-8 text-green-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-2">Connecting to Fluff's Global Chat...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DM List/View -->
+            <div id="dm-view" class="hidden">
+                <!-- Recipient Info and Back Button -->
+                <div id="dm-recipient-header" class="hidden items-center justify-between p-3 bg-slate-700 rounded-t-xl mb-0 border-b border-dm-blue">
+                    <button id="dm-back-button" class="text-dm-blue hover:text-white font-bold transition duration-150 mr-4">
+                        ← Back to Users
+                    </button>
+                    <span id="dm-recipient-name" class="font-bold text-lg" style="color: #33ccff;"></span>
+                </div>
+
+                <!-- DM Messages (Shared chat-window class) -->
+                <div id="dm-messages" class="chat-window bg-slate-800 p-4 rounded-xl shadow-2xl border border-dm-blue mb-4 flex flex-col space-y-4">
+                    <p class="text-center text-slate-400 p-10">Select a user to start a Direct Message conversation.</p>
+                </div>
+                
+                <!-- User List -->
+                <div id="user-list-container" class="bg-slate-800 p-6 rounded-xl shadow-2xl border border-dm-blue hidden">
+                    <h3 class="text-xl font-bold text-dm-blue mb-4">Users Available for DM:</h3>
+                    <div id="user-list" class="space-y-3 max-h-96 overflow-y-auto">
+                        <p class="text-slate-400">Fetching user list...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Input Form -->
+            <form id="message-form" class="bg-slate-800 p-4 rounded-xl shadow-2xl border border-green-800 flex space-x-3">
+                <input type="text" id="message-input" placeholder="Type your festive message here..." 
+                       class="flex-grow p-3 rounded-lg bg-slate-700 text-white placeholder-slate-400 focus:ring-green-500 focus:border-green-500 border-transparent border-2 transition duration-200"
+                       maxlength="250" autocomplete="off" disabled>
+                <button type="submit" id="send-button"
+                        class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Send
+                </button>
+            </form>
+            <p class="text-xs text-slate-400 mt-2 text-right" id="message-info-text">Messages are publicly visible and limited to 250 characters.</p>
+        </div>
+    </main>
+    
+    <!-- Footer (Reduced for space) -->
+    <footer class="bg-slate-900 border-t border-red-800 mt-6 py-4">
+        <div class="max-w-4xl mx-auto px-4 text-center text-red-100 text-xs">
+            <p>&copy; 2025 Fluff Chat. Powered by Firebase and Christmas Spirit.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Global Constants and State
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Use the specific user-provided configuration for Fluff Chat
+        // This ensures a valid API key is present immediately, preventing the auth/invalid-api-key error.
+        let firebaseConfig = {
+            apiKey: "AIzaSyCUocBiHLpftoS-T8-UNbzT_8xp3KpZj_w",
+            authDomain: "fluff-chat.firebaseapp.com",
+            projectId: "fluff-chat",
+            storageBucket: "fluff-chat.firebasestorage.app",
+            messagingSenderId: "143929179536",
+            appId: "1:143929179536:web:fa13bb23d23e87472f0715",
+            measurementId: "G-DHX8DET4KR"
+        };
+
+        try {
+            // If the environment provides a config AND it has a valid API key, we might use it.
+            // But since the environment injection is currently failing, we prioritize the hardcoded config 
+            // if the environment one is missing the key.
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const envConfig = JSON.parse(__firebase_config);
+                if (envConfig.apiKey && envConfig.apiKey.length > 0) {
+                    firebaseConfig = envConfig;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to parse __firebase_config, using default Fluff Chat config:", e);
+        }
+            
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+
+        let db, auth, currentUserId, chatCollectionRef;
+        let currentUserProfile = null;
+        let dmRecipient = null; 
+        let dmUnsubscribe = null; 
+        
+        const AVAILABLE_COLORS = ['#ff3333', '#33ff33', '#33ccff', '#ffaa00', '#f472b6', '#a78bfa', '#fb923c']; 
+        
+        // --- DM UTILITIES ---
+
+        // Generates a canonical Conversation ID by sorting UIDs
+        function getConversationId(uid1, uid2) {
+            return [uid1, uid2].sort().join('_');
+        }
+
+        // Function to assign a deterministic color based on the user's UID
+        function assignUserColor(uid) {
+            let hash = 0;
+            for (let i = 0; i < uid.length; i++) {
+                hash = uid.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const index = Math.abs(hash) % AVAILABLE_COLORS.length;
+            return AVAILABLE_COLORS[index];
+        }
+        
+        // --- UI MANAGEMENT ---
+
+        function setChatView(view, recipient = null) {
+            const publicView = document.getElementById('public-chat-view');
+            const dmView = document.getElementById('dm-view');
+            const userListContainer = document.getElementById('user-list-container');
+            const dmMessagesDiv = document.getElementById('dm-messages');
+            const dmRecipientHeader = document.getElementById('dm-recipient-header');
+            const inputElement = document.getElementById('message-input');
+            const messageInfoText = document.getElementById('message-info-text');
+
+            dmRecipient = recipient;
+
+            // Clear previous DM listener if active
+            if (dmUnsubscribe) {
+                dmUnsubscribe();
+                dmUnsubscribe = null;
+            }
+
+            if (view === 'public') {
+                publicView.classList.remove('hidden');
+                dmView.classList.add('hidden');
+                dmRecipientHeader.classList.add('hidden');
+                userListContainer.classList.add('hidden');
+                inputElement.placeholder = "Type your festive message here...";
+                messageInfoText.textContent = "Messages are publicly visible and limited to 250 characters.";
+
+            } else if (view === 'dm') {
+                dmView.classList.remove('hidden');
+                publicView.classList.add('hidden');
+                
+                if (recipient) {
+                    // Show DM conversation
+                    userListContainer.classList.add('hidden');
+                    dmMessagesDiv.classList.remove('hidden');
+                    dmRecipientHeader.classList.remove('hidden', 'flex');
+                    dmRecipientHeader.classList.add('flex');
+                    document.getElementById('dm-recipient-name').textContent = `Chatting with ${recipient.username}`;
+                    document.getElementById('dm-recipient-name').style.color = recipient.color;
+                    inputElement.placeholder = `DM to ${recipient.username}...`;
+                    messageInfoText.textContent = "This is a private message, visible only to you and the recipient.";
+                    
+                    // Start listening to DM messages
+                    listenForDMMessages(recipient.userId);
+
+                } else {
+                    // Show User List
+                    userListContainer.classList.remove('hidden');
+                    dmMessagesDiv.classList.add('hidden');
+                    dmRecipientHeader.classList.add('hidden');
+                    document.getElementById('dm-messages').innerHTML = '<p class="text-center text-slate-400 p-10">Select a user to start a Direct Message conversation.</p>';
+                    inputElement.placeholder = "Select a user first to send a DM.";
+                    messageInfoText.textContent = "Private messages are in the Direct Messages tab.";
+                }
+            }
+            
+            // Manage Tab Styles
+            const tabPublic = document.getElementById('tab-public');
+            const tabDm = document.getElementById('tab-dm');
+            
+            tabPublic.classList.toggle('border-green-500', view === 'public');
+            tabPublic.classList.toggle('text-green-400', view === 'public');
+            tabPublic.classList.toggle('border-transparent', view !== 'public');
+            tabPublic.classList.toggle('text-slate-400', view !== 'public');
+
+            tabDm.classList.toggle('border-dm-blue', view === 'dm');
+            tabDm.classList.toggle('text-dm-blue', view === 'dm');
+            tabDm.classList.toggle('border-transparent', view !== 'dm');
+            tabDm.classList.toggle('text-slate-400', view !== 'dm');
+        }
+
+        // --- FIREBASE INITIALIZATION ---
+        async function setupFirebaseAndChat() {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            // FIX: DO NOT WIPE THE CONTAINER CONTENT. Update only the child text if needed.
+            const displayUsername = document.getElementById('display-username');
+            if (displayUsername) displayUsername.textContent = 'Initializing...';
+
+            try {
+                // Initialize Firebase with the robust config
+                const app = window.firebase.initializeApp(firebaseConfig);
+                db = window.firebase.getFirestore(app);
+                
+                // CRITICAL FIX: Wrap getAuth in a try-catch to contain the invalid API key error 
+                // and attempt to proceed, as the auth object might still be partially functional
+                // for anonymous sign-in or the subsequent sign-in calls.
+                try {
+                    auth = window.firebase.getAuth(app);
+                } catch (e) {
+                    console.error("CRITICAL: Failed to initialize Firebase Auth service:", e);
+                    // Set auth to null so subsequent calls don't crash the script flow
+                    auth = null; 
+                }
+
+
+                // --- Robust Authentication Logic ---
+                if (auth) {
+                    try {
+                        // 1. Try signing in with the provided custom token
+                        if (initialAuthToken) {
+                            await window.firebase.signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            // 2. Fallback to anonymous sign-in if no token is available
+                            await window.firebase.signInAnonymously(auth);
+                        }
+                    } catch (authError) {
+                        // 3. If token sign-in fails (e.g., token expired/invalid, or invalid-api-key)
+                        console.error("Authentication failed during sign-in attempt:", authError);
+                        // Attempt final anonymous sign-in as a last resort
+                        try {
+                            await window.firebase.signInAnonymously(auth);
+                        } catch (finalError) {
+                            console.error("Final anonymous sign-in failed:", finalError);
+                        }
+                    }
+                    
+                    // We must use onAuthStateChanged regardless of initial auth status to see if sign-in eventually succeeds
+                    // But only if auth is not null
+                    window.firebase.onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            currentUserId = user.uid;
+                            await checkOrCreateUserProfile(currentUserId);
+                            
+                            if (!currentUserProfile) return;
+                            
+                            const chatPath = `artifacts/${appId}/public/data/fluff_chat_messages`;
+                            chatCollectionRef = window.firebase.collection(db, chatPath);
+
+                            // Remove loading indicator from public chat view
+                            const existingIndicator = document.getElementById('loading-indicator');
+                            if (existingIndicator) existingIndicator.remove();
+
+                            updateUserInfoUI();
+                            listenForMessages(); 
+                            listenForUserProfiles(); 
+
+                            document.getElementById('message-form').addEventListener('submit', handleSendMessage);
+                            
+                            // Set up UI listeners
+                            document.getElementById('tab-public').addEventListener('click', () => setChatView('public'));
+                            document.getElementById('tab-dm').addEventListener('click', () => setChatView('dm'));
+                            // Delegate click handling for DM buttons in chat messages
+                            document.getElementById('chat-messages').addEventListener('click', handleDmButtonClick); 
+                            document.getElementById('dm-back-button').addEventListener('click', () => setChatView('dm')); 
+
+                            document.getElementById('message-input').disabled = false;
+                            document.getElementById('send-button').disabled = false;
+                            setChatView('public');
+                            
+                        } else {
+                            const userInfo = document.getElementById('display-username');
+                            if(userInfo) userInfo.textContent = 'Error: Authentication failed. Please refresh.';
+                            if (loadingIndicator) loadingIndicator.innerHTML = `<p class="text-red-500">❌ Authentication failed. Please refresh.</p>`;
+                        }
+                    });
+                } else {
+                    console.error("Auth object is null, skipping sign-in attempts.");
+                    const userInfo = document.getElementById('display-username');
+                    if(userInfo) userInfo.textContent = 'Auth Initialization Error.';
+                    if (loadingIndicator) loadingIndicator.innerHTML = `<p class="text-red-500">❌ Critical Auth Error. Check Console.</p>`;
+                }
+                // --- End Authentication Logic ---
+
+
+            } catch (error) {
+                console.error("Firebase overall setup failed:", error);
+                if (loadingIndicator) loadingIndicator.innerHTML = `<p class="text-red-500">❌ Chat initialization failed. See console for details.</p>`;
+                const userInfo = document.getElementById('display-username');
+                if(userInfo) userInfo.textContent = 'Error: Initialization failed.';
+            }
+        }
+        
+        // --- USER PROFILE ---
+        async function checkOrCreateUserProfile(uid) {
+            const profilesCollection = window.firebase.collection(db, `artifacts/${appId}/public/data/user_profiles`);
+            const userDocRef = window.firebase.doc(profilesCollection, uid);
+            
+            try {
+                const userSnap = await window.firebase.getDoc(userDocRef);
+
+                if (userSnap.exists()) {
+                    currentUserProfile = userSnap.data();
+                    return;
+                }
+            } catch (error) {
+                if (error.code === 'permission-denied') {
+                    console.error("Permission denied when reading user profile. PLEASE UPDATE FIRESTORE RULES.", error);
+                    alert("⚠️ Access Denied: Please update your Firestore Security Rules with the code provided in the chat. The app cannot read your profile.");
+                    const loadingIndicator = document.getElementById('loading-indicator');
+                    if (loadingIndicator) loadingIndicator.innerHTML = `<p class="text-red-500 font-bold">⚠️ Security Rules Update Required. See Chat.</p>`;
+                    return; // Stop execution
+                }
+                console.error("Error checking user profile:", error);
+            }
+
+            return new Promise((resolve) => {
+                const modal = document.getElementById('username-modal');
+                const setButton = document.getElementById('set-username-button');
+                const input = document.getElementById('new-username-input');
+                const error = document.getElementById('username-error');
+
+                modal.classList.remove('hidden');
+
+                setButton.onclick = async () => {
+                    const username = input.value.trim();
+                    if (username.length < 3) {
+                        error.textContent = 'Username must be at least 3 characters long.';
+                        error.classList.remove('hidden');
+                        return;
+                    }
+
+                    try {
+                        const newProfile = {
+                            userId: uid,
+                            username: username,
+                            color: assignUserColor(uid),
+                            createdAt: window.firebase.serverTimestamp()
+                        };
+                        
+                        await window.firebase.setDoc(userDocRef, newProfile); 
+                        currentUserProfile = newProfile;
+                        modal.classList.add('hidden');
+                        resolve();
+
+                    } catch (e) {
+                        console.error("Error setting username:", e);
+                        if (e.code === 'permission-denied') {
+                             error.textContent = 'Permission Denied: Please update Firestore Security Rules.';
+                        } else {
+                             error.textContent = 'Error setting username. Try again.';
+                        }
+                        error.classList.remove('hidden');
+                    }
+                };
+            });
+        }
+        
+        function updateUserInfoUI() {
+            if (currentUserProfile) {
+                document.getElementById('display-username').textContent = `Signed in as: ${currentUserProfile.username}`;
+                document.getElementById('display-username').style.color = currentUserProfile.color;
+                document.getElementById('display-uid').textContent = `(ID: ${currentUserId.slice(0, 8)}...)`;
+            }
+        }
+        
+        // --- DM INTERACTION ---
+        function handleDmButtonClick(event) {
+            // Use event delegation to catch clicks on dynamically created DM buttons
+            const target = event.target.closest('.dm-button');
+            if (target) {
+                const recipientId = target.dataset.userId;
+                const recipientUsername = target.dataset.username;
+                
+                const recipientColor = assignUserColor(recipientId); 
+
+                setChatView('dm', { 
+                    userId: recipientId, 
+                    username: recipientUsername, 
+                    color: recipientColor 
+                });
+            }
+        }
+        
+        // --- MESSAGE SENDING ---
+        const handleSendMessage = async (e) => {
+            e.preventDefault();
+            const inputElement = document.getElementById('message-input');
+            const messageText = inputElement.value.trim();
+
+            if (!messageText || !currentUserId || !currentUserProfile) {
+                return;
+            }
+
+            try {
+                if (dmRecipient) {
+                    // --- DIRECT MESSAGE LOGIC (Two-way write) ---
+                    const senderId = currentUserId;
+                    const recipientId = dmRecipient.userId;
+                    const conversationId = getConversationId(senderId, recipientId);
+                    
+                    const messageData = {
+                        senderId: senderId,
+                        senderUsername: currentUserProfile.username,
+                        senderColor: currentUserProfile.color,
+                        recipientId: recipientId,
+                        text: messageText,
+                        timestamp: window.firebase.serverTimestamp()
+                    };
+
+                    // 1. Write message to SENDER's private path (Owner of the DM collection)
+                    const senderPath = `artifacts/${appId}/users/${senderId}/dms/${conversationId}/messages`;
+                    await window.firebase.addDoc(window.firebase.collection(db, senderPath), messageData);
+                    
+                    // 2. Write message to RECIPIENT's private path
+                    const recipientPath = `artifacts/${appId}/users/${recipientId}/dms/${conversationId}/messages`;
+                    await window.firebase.addDoc(window.firebase.collection(db, recipientPath), messageData);
+                    
+                } else {
+                    // --- GLOBAL CHAT LOGIC (One-way write to public) ---
+                    await window.firebase.addDoc(chatCollectionRef, {
+                        userId: currentUserId,
+                        username: currentUserProfile.username,
+                        color: currentUserProfile.color,
+                        text: messageText,
+                        timestamp: window.firebase.serverTimestamp()
+                    });
+                }
+
+                inputElement.value = '';
+            } catch (error) {
+                console.error("Error sending message:", error);
+                if (error.code === 'permission-denied') {
+                    alert("Error: Permission denied. You may not be allowed to message this user or rules are outdated.");
+                } else {
+                    alert("Error sending message. Check console."); 
+                }
+            }
+        };
+
+        // --- MESSAGE LISTENERS ---
+        
+        function renderMessages(messages, targetDiv) {
+            // Check if the targetDiv is the chatMessages (public) or dmMessages
+            const isPublicChat = targetDiv.id === 'chat-messages';
+            
+            const isNearBottom = targetDiv.scrollHeight - targetDiv.scrollTop <= targetDiv.clientHeight + 50;
+
+            const fragment = document.createDocumentFragment();
+            messages.forEach(message => {
+                const messageElement = document.createElement('div');
+                
+                // Determine source for DM/Public
+                const senderId = message.userId || message.senderId;
+                const senderUsername = message.username || message.senderUsername;
+                const senderColor = message.color || message.senderColor;
+                
+                const isCurrentUser = senderId === currentUserId;
+                const timeString = message.timestamp ? new Date(message.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...';
+                const userColor = senderColor || '#fef3c7'; // Fallback color
+                
+                messageElement.className = `group flex flex-col p-3 rounded-xl max-w-[85%] shadow-lg transition duration-200 ${isCurrentUser ? 'self-end bg-slate-700/80 ml-auto border-r-4' : 'self-start bg-slate-700 mr-auto border-l-4'}`;
+                messageElement.style.borderColor = userColor;
+
+                // DM button only makes sense in public chat (targetDiv.id === 'chat-messages')
+                const dmButtonHtml = (isPublicChat && !isCurrentUser) 
+                    ? `<span class="dm-button text-xs text-slate-500 opacity-0 group-hover:opacity-100 cursor-pointer" data-user-id="${senderId}" data-username="${senderUsername}">[DM]</span>` 
+                    : '';
+
+                messageElement.innerHTML = `
+                    <div class="flex items-baseline space-x-2 mb-1">
+                        <span class="font-bold text-sm" style="color: ${userColor};">${senderUsername || 'Unknown User'}</span>
+                        <span class="text-xs text-slate-400">${timeString}</span>
+                        ${dmButtonHtml}
+                    </div>
+                    <p class="text-base break-words text-white">${message.text}</p>
+                `;
+                
+                fragment.appendChild(messageElement);
+            });
+            
+            targetDiv.innerHTML = '';
+            targetDiv.appendChild(fragment);
+
+            if (isNearBottom) {
+                targetDiv.scrollTop = targetDiv.scrollHeight;
+            }
+        }
+
+        function listenForMessages() {
+            const chatMessagesDiv = document.getElementById('chat-messages');
+            
+            // Re-use the existing chatCollectionRef from setup
+            const q = window.firebase.query(chatCollectionRef, window.firebase.orderBy('timestamp', 'asc'));
+
+            window.firebase.onSnapshot(q, (snapshot) => {
+                renderMessages(snapshot.docs.map(doc => doc.data()), chatMessagesDiv);
+            }, (error) => {
+                console.error("Firestore public chat listener failed:", error);
+                chatMessagesDiv.innerHTML = `<p class="text-red-500 text-center p-10">❌ Error retrieving public messages. (Permission Denied?)</p>`;
+            });
+        }
+        
+        function listenForDMMessages(recipientId) {
+            const dmMessagesDiv = document.getElementById('dm-messages');
+            dmMessagesDiv.innerHTML = '<p class="text-center text-slate-400 p-10">Loading messages...</p>';
+
+            const conversationId = getConversationId(currentUserId, recipientId);
+            // Listen on the current user's private path for this conversation
+            const dmPath = `artifacts/${appId}/users/${currentUserId}/dms/${conversationId}/messages`;
+            const dmCollection = window.firebase.collection(db, dmPath);
+            
+            const q = window.firebase.query(dmCollection, window.firebase.orderBy('timestamp', 'asc'));
+
+            // Store the unsubscribe function
+            dmUnsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
+                renderMessages(snapshot.docs.map(doc => doc.data()), dmMessagesDiv);
+            }, (error) => {
+                console.error("Firestore DM listener failed:", error);
+                dmMessagesDiv.innerHTML = `<p class="text-red-500 text-center p-10">❌ Error retrieving DMs. Check security rules.</p>`;
+            });
+        }
+        
+        // 4. Real-time User Profile Listener (for DM list)
+        function listenForUserProfiles() {
+            const userListDiv = document.getElementById('user-list');
+            const profilesCollection = window.firebase.collection(db, `artifacts/${appId}/public/data/user_profiles`);
+            
+            const q = window.firebase.query(profilesCollection, window.firebase.orderBy('username', 'asc'));
+
+            window.firebase.onSnapshot(q, (snapshot) => {
+                userListDiv.innerHTML = ''; 
+                
+                snapshot.forEach(doc => {
+                    const profile = doc.data();
+                    if (profile.userId === currentUserId) return;
+                    
+                    const userItem = document.createElement('div');
+                    userItem.className = 'flex items-center justify-between p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition duration-150 cursor-pointer user-list-item';
+                    userItem.dataset.userId = profile.userId;
+                    userItem.dataset.username = profile.username;
+                    userItem.dataset.userColor = profile.color;
+                    
+                    // Clicking the user in the list starts the DM
+                    userItem.onclick = () => setChatView('dm', {
+                        userId: profile.userId,
+                        username: profile.username,
+                        color: profile.color
+                    });
+                    
+                    userItem.innerHTML = `
+                        <span class="font-medium" style="color: ${profile.color};">${profile.username}</span>
+                        <span class="text-xs text-slate-400">${profile.userId.slice(0, 8)}...</span>
+                        <button class="text-dm-blue hover:text-white text-sm font-bold ml-2 py-1 px-3 rounded-full border border-dm-blue pointer-events-none">
+                            DM
+                        </button>
+                    `;
+                    userListDiv.appendChild(userItem);
+                });
+
+                if (snapshot.empty) {
+                    userListDiv.innerHTML = '<p class="text-slate-400">No other users online yet!</p>';
+                }
+            }, (error) => {
+                console.error("User profile listener failed:", error);
+                userListDiv.innerHTML = '<p class="text-red-500">Error loading user list.</p>';
+            });
+        }
+
+        
+        // --- CHRISTMAS LIGHTS ANIMATION (from original file) ---
+        function generateLights() {
+            const container = document.getElementById('light-string-container');
+            const colors = ['red-light', 'green-light', 'blue-light', 'gold-light'];
+            const numLights = 40;
+            
+            for (let i = 0; i < numLights; i++) {
+                const colorClass = colors[i % colors.length];
+                
+                const lightContainer = document.createElement('div');
+                lightContainer.className = 'light-container';
+
+                const light = document.createElement('div');
+                light.className = `light ${colorClass}`;
+                
+                light.style.transform = `rotate(${Math.random() * 10 - 5}deg)`;
+                light.style.animationDelay = `${Math.random() * 1.5}s`;
+                light.style.animationDuration = `${1.0 + Math.random() * 1.5}s`;
+                
+                lightContainer.appendChild(light);
+                container.appendChild(lightContainer);
+            }
+        }
+
+
+        // Start everything on window load
+        window.onload = function () {
+            generateLights();
+            // CRITICAL FIX: Introduce a short delay to give the environment time to inject global config variables.
+            // Using a slightly longer delay this time.
+            setTimeout(setupFirebaseAndChat, 150); 
+        };
+
+    </script>
+</body>
+</html>

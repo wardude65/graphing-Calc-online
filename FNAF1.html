@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Five Nights at Fluff's</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --text-color: #eee;
+            --accent-red: #ff3333;
+            --accent-green: #33ff33;
+            --ui-font: 'Courier New', Courier, monospace;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--ui-font);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            touch-action: none;
+        }
+
+        /* --- SCREEN EFFECTS --- */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .vignette {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle, rgba(0,0,0,0) 50%, rgba(0,0,0,0.9) 100%);
+            z-index: 99;
+            pointer-events: none;
+        }
+
+        /* --- OFFICE VIEW --- */
+        #office-view {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: space-between;
+            perspective: 1000px;
+            z-index: 5;
+        }
+
+        .door-frame {
+            position: absolute;
+            top: 10%; bottom: 0;
+            width: 15%;
+            background: #000;
+            z-index: 4;
+            overflow: hidden; 
+        }
+        .door-frame.left { left: 5%; border-right: 5px solid #333; }
+        .door-frame.right { right: 5%; border-left: 5px solid #333; }
+
+        .security-door {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(45deg, #444, #444 10px, #333 10px, #333 20px);
+            transform: translateY(-100%);
+            transition: transform 0.15s ease-in; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        .security-door.closed { transform: translateY(0); }
+
+        .center-room {
+            flex-grow: 1;
+            background: #111;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            overflow: hidden;
+        }
+
+        .office-wall {
+            position: absolute; top:0; width: 100%; height: 80%;
+            background: radial-gradient(circle at 50% 30%, #2a2a2a, #000);
+            z-index: 1;
+        }
+
+        .desk {
+            width: 90%;
+            height: 35%;
+            background: #333;
+            border-top: 5px solid #444;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .fan {
+            font-size: 4rem;
+            animation: spin 0.2s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* --- CONTROLS --- */
+        .door-controls {
+            position: absolute;
+            top: 40%;
+            width: 70px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 40; 
+            padding: 10px;
+            background: #151515;
+            border: 2px solid #555;
+            pointer-events: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .controls-left { left: 19%; }
+        .controls-right { right: 19%; }
+
+        .ctrl-btn {
+            width: 100%;
+            padding: 15px 0;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 11px;
+            border: none;
+            cursor: pointer;
+            color: #ccc;
+            text-transform: uppercase;
+            background: #333;
+            border-radius: 2px;
+            position: relative;
+        }
+        
+        .btn-door { border-left: 4px solid #500; }
+        .btn-door.active { background: #500; color: #fff; box-shadow: 0 0 15px #f00; border-left: 4px solid #f00; }
+        
+        .btn-light { border-left: 4px solid #005; }
+        .btn-light.active { background: #ddf; color: #000; box-shadow: 0 0 20px #fff; border-left: 4px solid #fff; }
+
+        /* --- ANIMATRONIC VISUALS --- */
+        .blind-spot {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 5;
+        }
+        
+        .blind-spot.visible { 
+            opacity: 1; 
+            background: radial-gradient(circle, #333 10%, #111 80%, #000 100%);
+        }
+
+        .animatronic-img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            filter: contrast(1.2) brightness(0.8);
+            display: none;
+        }
+        .animatronic-img.show { display: block; }
+
+        #golden-fluff-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 90; display: none;
+            justify-content: center; align-items: flex-end; animation: glitch 0.2s infinite;
+        }
+        #golden-fluff-overlay img { height: 80%; object-fit: contain; }
+        @keyframes glitch {
+            0% { transform: translate(0,0); opacity: 0.9; }
+            20% { transform: translate(-2px, 2px); opacity: 1; }
+            40% { transform: translate(2px, -2px); opacity: 0.8; }
+            60% { transform: translate(-1px, 1px); opacity: 1; }
+            80% { transform: translate(1px, -1px); opacity: 0.9; }
+            100% { transform: translate(0,0); opacity: 1; }
+        }
+
+        /* --- CAMERA SYSTEM --- */
+        #camera-system {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 55; display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            pointer-events: auto;
+        }
+        #camera-system.active { transform: translateY(0%); }
+
+        .cam-feed {
+            flex-grow: 1; position: relative; border: 2px solid #555; margin: 10px;
+            background: #050505; overflow: hidden; display: flex; justify-content: center; align-items: center;
+        }
+        .cam-view-img { width: 100%; height: 100%; object-fit: contain; opacity: 0.6; filter: grayscale(100%) contrast(1.5) brightness(0.7); }
+        .static-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.4"/></svg>');
+            opacity: 0.3; animation: noise 0.3s steps(4) infinite; pointer-events: none;
+        }
+
+        .map-overlay {
+            position: absolute; bottom: 80px; right: 20px; width: 240px; height: 180px;
+            background: rgba(0,0,0,0.8); border: 2px solid #555; display: block; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: auto; z-index: 60;
+        }
+        .map-btn {
+            position: absolute; width: 45px; height: 30px; background: #222; border: 1px solid #777;
+            color: #fff; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;
+        }
+        .map-btn.active { background: var(--accent-green); color: #000; animation: blink 1s infinite; border-color: #fff; }
+        
+        #btn-1A { top: 20px; left: 100px; }
+        #btn-1B { top: 55px; left: 80px; width: 80px; height: 40px; }
+        #btn-1C { top: 40px; left: 20px; }
+        #btn-2A { bottom: 60px; left: 50px; }
+        #btn-2B { bottom: 20px; left: 50px; }
+        #btn-4A { bottom: 60px; right: 50px; }
+        #btn-4B { bottom: 20px; right: 50px; }
+
+        /* --- UI LAYER --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 60; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .top-ui { display: flex; justify-content: space-between; font-size: 1.5rem; text-shadow: 2px 2px 0 #000; color: #fff; }
+        #mute-btn { font-size: 10px; border: 1px solid #fff; padding: 2px 5px; cursor: pointer; pointer-events: auto; margin-left: 10px; display: inline-block; vertical-align: middle; }
+        #camera-toggle {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; height: 50px;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid #fff; color: #fff; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; pointer-events: auto; font-weight: bold; font-size: 1.2rem; letter-spacing: 2px; z-index: 100;
+        }
+
+        /* --- SCREENS --- */
+        #start-screen, #newspaper-screen, #custom-night-screen, #minigame-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #fff; z-index: 300;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+
+        #jumpscare-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 200; display: none;
+            justify-content: center; align-items: center; overflow: hidden;
+        }
+        #jumpscare-img { width: 100%; height: 100%; object-fit: cover; animation: zoomShake 0.2s infinite; }
+        @keyframes zoomShake {
+            0% { transform: scale(1.0) translate(0,0); } 25% { transform: scale(1.1) translate(5px, 5px); }
+            50% { transform: scale(1.0) translate(-5px, 5px); } 75% { transform: scale(1.1) translate(5px, -5px); }
+            100% { transform: scale(1.0) translate(-5px, -5px); }
+        }
+
+        #game-over-screen, #win-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #fff; z-index: 201; display: none;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+
+        /* 6 AM Clock Specifics */
+        .clock-container { font-family: "Courier New", Courier, monospace; font-size: 6rem; font-weight: bold; }
+        .clock-label { font-size: 2rem; color: #888; margin-top: 10px; }
+
+        /* Hallucination Text */
+        #hallucination {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center;
+            z-index: 150; pointer-events: none;
+            font-size: 5rem; color: rgba(255,255,255,0.1); font-weight: bold;
+            mix-blend-mode: overlay;
+        }
+
+        /* Newspaper specific */
+        #newspaper-content {
+            background: #e0e0e0; color: #111; padding: 20px; max-width: 600px;
+            font-family: 'Times New Roman', Times, serif; text-align: left;
+            border: 1px solid #999; box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            max-height: 80vh; overflow-y: auto;
+            white-space: pre-wrap; /* Preserves newlines */
+        }
+        #newspaper-title { text-align: center; font-size: 2rem; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #000; }
+        
+        /* Custom Night specific */
+        .ai-selector { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .ai-box { background: #222; padding: 10px; border: 1px solid #555; width: 100px; }
+        .ai-box h3 { margin: 5px 0; font-size: 0.9rem; }
+        .ai-controls { display: flex; justify-content: space-between; align-items: center; }
+        .ai-btn { background: #444; border: none; color: #fff; width: 25px; height: 25px; cursor: pointer; }
+        .ai-val { font-size: 1.5rem; font-weight: bold; }
+
+        .hidden { display: none !important; }
+        .red-text { color: var(--accent-red); }
+        .green-text { color: var(--accent-green); }
+        
+        /* Mini Game */
+        #minigame-canvas { background: #222; border: 2px solid #fff; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- START SCREEN -->
+    <div id="start-screen">
+        <h1 style="font-size: 3rem; margin-bottom: 0;">FIVE NIGHTS</h1>
+        <h2 style="font-size: 1.5rem; margin-top: 5px; color: var(--accent-red);">AT FLUFF'S</h2>
+        <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 10px; width: 200px;">
+            <button class="ctrl-btn" style="background: #fff; color: #000;" onclick="startNewGame()">NEW GAME</button>
+            <button class="ctrl-btn" style="background: #ccc; color: #000;" onclick="continueGame()">CONTINUE</button>
+            <button class="ctrl-btn" style="background: #666; color: #fff;" onclick="triggerLoad()">LOAD SAVE</button>
+            <button id="btn-custom" class="ctrl-btn hidden" style="background: #500; color: #fff;" onclick="openCustomNight()">CUSTOM NIGHT</button>
+        </div>
+        <p id="menu-night-display" style="color: #666; margin-top: 20px;">Night 1</p>
+        <input type="file" id="save-upload" style="display:none" accept=".json" onchange="handleSaveUpload(this)">
+    </div>
+
+    <!-- CUSTOM NIGHT SCREEN -->
+    <div id="custom-night-screen" class="hidden">
+        <h1>ULTIMATE CUSTOM NIGHT</h1>
+        <div class="ai-selector">
+            <!-- Generated in JS -->
+        </div>
+        <div style="margin-top: 30px;">
+            <button class="ctrl-btn" style="width: 150px; background: #fff; color: #000;" onclick="startCustomNight()">START</button>
+            <button class="ctrl-btn" style="width: 150px; background: #333; color: #fff;" onclick="location.reload()">BACK</button>
+        </div>
+    </div>
+
+    <!-- OFFICE, CAMS, UI (Game Layer) -->
+    <div id="game-layer" class="hidden" style="width:100%; height:100%;">
+        <div id="hallucination">IT'S ME</div>
+        <div id="office-view">
+            <div class="office-wall"></div>
+            <div id="golden-fluff-overlay"><img src="https://www.dropbox.com/scl/fi/wlrxbgkro3a4le5wlwcxl/Untitled-1.png?rlkey=2k9t0rixlkhx7j2slnpe7pfid&st=lzqsk9z1&raw=1"></div>
+            
+            <div class="door-frame left">
+                <div class="blind-spot" id="blind-left"><img id="img-bonnie-left" class="animatronic-img" src="https://www.dropbox.com/scl/fi/vqlkddl1ktsnx5clka8if/Bonnie_Rabbit.webp?rlkey=5ilfxiitrfzf4ic8fxm97k5m8&st=4vj7ul60&raw=1"></div>
+                <div class="security-door" id="door-left"></div>
+            </div>
+            
+            <div class="controls-left door-controls">
+                <button class="ctrl-btn btn-door" id="btn-door-left" onmousedown="toggleDoor('left')" ontouchstart="toggleDoor('left')">DOOR</button>
+                <button class="ctrl-btn btn-light" id="btn-light-left" onmousedown="toggleLight('left')" onmouseup="toggleLight('left')" ontouchstart="toggleLight('left')" ontouchend="toggleLight('left')">LIGHT</button>
+            </div>
+
+            <div class="center-room">
+                <div class="desk">
+                    <div style="text-align: center; color: #555; font-size: 0.8rem;">FAN<div class="fan">☢️</div></div>
+                    <div style="position: absolute; right: 20px; bottom: 20px; font-size: 2rem;">🥤</div>
+                    <div style="position: absolute; left: 40px; bottom: 10px; font-size: 2rem; transform: rotate(-10deg);">📄</div>
+                </div>
+            </div>
+
+            <div class="door-frame right">
+                <div class="blind-spot" id="blind-right"><img id="img-chica-right" class="animatronic-img" src="https://www.dropbox.com/scl/fi/ih0clp6lm3jxm0dt2du4s/Chica.webp?rlkey=38uamw7g4xpsqu153y05ogeir&st=8u9xddqh&raw=1"></div>
+                <div class="security-door" id="door-right"></div>
+            </div>
+
+            <div class="controls-right door-controls">
+                <button class="ctrl-btn btn-door" id="btn-door-right" onmousedown="toggleDoor('right')" ontouchstart="toggleDoor('right')">DOOR</button>
+                <button class="ctrl-btn btn-light" id="btn-light-right" onmousedown="toggleLight('right')" onmouseup="toggleLight('right')" ontouchstart="toggleLight('right')" ontouchend="toggleLight('right')">LIGHT</button>
+            </div>
+        </div>
+
+        <div id="camera-system">
+            <div class="cam-label"><span id="cam-name">CAM 1A - SHOW STAGE</span></div>
+            <div class="cam-feed">
+                <div class="static-overlay"></div>
+                <img id="cam-display" class="cam-view-img" src="" style="display:none;">
+                <div id="cam-text-fallback" style="color: #444; font-size: 2rem;">NO SIGNAL</div>
+            </div>
+            <div class="map-overlay">
+                <button class="map-btn" onclick="switchCam('1A')" id="btn-1A">1A</button>
+                <button class="map-btn" onclick="switchCam('1B')" id="btn-1B">1B</button>
+                <button class="map-btn" onclick="switchCam('1C')" id="btn-1C">1C</button>
+                <button class="map-btn" onclick="switchCam('2A')" id="btn-2A">2A</button>
+                <button class="map-btn" onclick="switchCam('2B')" id="btn-2B">2B</button>
+                <button class="map-btn" onclick="switchCam('4A')" id="btn-4A">4A</button>
+                <button class="map-btn" onclick="switchCam('4B')" id="btn-4B">4B</button>
+                <div style="position:absolute; bottom:5px; width:100%; text-align:center; font-size:10px; color:#aaa;">MAP TOGGLE</div>
+            </div>
+        </div>
+
+        <div id="ui-layer">
+            <div class="top-ui">
+                <div class="power-box">
+                    <div>Power: <span id="power-pct">100</span>%</div>
+                    <div style="font-size: 0.8rem; color: #aaa;">Usage: <span id="usage-text" class="green-text">LOW</span></div>
+                </div>
+                <div class="time-box">
+                    <span id="night-display" style="font-size: 0.8rem; display:block; text-align:right;">Night 1</span>
+                    <span id="clock-time">12 AM</span>
+                    <span id="mute-btn" onclick="toggleMute()">MUTE CALL</span>
+                </div>
+            </div>
+            <button id="camera-toggle" onclick="toggleCamera()"><span id="cam-toggle-text">OPEN MONITOR</span></button>
+        </div>
+    </div>
+
+    <!-- NEWSPAPER SCREEN -->
+    <div id="newspaper-screen" class="hidden">
+        <div id="newspaper-content">
+            <div id="newspaper-title">NEWS</div>
+            <p id="newspaper-body">...</p>
+        </div>
+        <button class="ctrl-btn" style="width: 200px; margin-top: 20px; background: #fff; color: #000;" onclick="nextNight()">CONTINUE</button>
+    </div>
+
+    <!-- JUMPSCARE & GAME OVER -->
+    <div id="jumpscare-screen">
+        <img id="jumpscare-img" src="" alt="SCREAM">
+    </div>
+    
+    <div id="game-over-screen">
+        <h1 style="color: #a00; font-size: 4rem;">GAME OVER</h1>
+        <p>You were stuffed into a suit.</p>
+        <button class="ctrl-btn" style="width: 200px; margin-top: 20px; background: #fff; color: #000;" onclick="location.reload()">TRY AGAIN</button>
+    </div>
+    
+    <div id="win-screen">
+        <div class="clock-container" id="win-clock">5:59</div>
+        <div class="clock-label">AM</div>
+        <div style="margin-top: 50px; font-size: 1.5rem;" id="win-text" class="hidden">NIGHT COMPLETE</div>
+    </div>
+
+    <!-- 1985 MINIGAME -->
+    <div id="minigame-screen" class="hidden">
+        <canvas id="minigame-canvas" width="400" height="300"></canvas>
+        <p>DESTROY THEM ALL</p>
+    </div>
+
+</div>
+
+<script>
+/**
+ * FIVE NIGHTS AT FLUFF'S - V3
+ */
+
+// --- ASSETS ---
+const SOUNDS = {
+    // Phone calls mapped by night number
+    phone: {
+        1: new Audio('https://www.dropbox.com/scl/fi/orns3go1db7pb3hwihcck/Recording-8.m4a?rlkey=ivqpoboxrr74qpqezcjlqq0p5&st=60hbcdyi&raw=1'),
+        2: new Audio('https://www.dropbox.com/scl/fi/s3fxeo5a7njkriash7874/Recording-9.m4a?rlkey=qfnkfu9tb6alaodt3jr6qcthl&st=z8g2sh1f&raw=1'),
+        3: new Audio('https://www.dropbox.com/scl/fi/nyxcs9ajwvzi8p0noundm/Recording-10.m4a?rlkey=1dlgkhifc3p81ptsgjihfrw7j&st=5nlxd20y&raw=1'),
+        4: new Audio('https://www.dropbox.com/scl/fi/fw69khaczn7c1bevn95x1/Recording-12.m4a?rlkey=j2y63wydjdsgc87797qezgk9s&st=lcafulal&raw=1'),
+        5: new Audio('https://www.dropbox.com/scl/fi/3gdaeuibclroo0vh3wd77/Recording-13.m4a?rlkey=epbzqdsxkauvwq6xqx4kcxcw4&st=7o7x0u2w&raw=1')
+    },
+    jumpscare: new Audio('https://www.dropbox.com/scl/fi/q9uue7gofjpgzg6u26idt/five-nights-at-freddys-full-scream-sound_2.mp3?rlkey=28fnjw1iifrddvox46vn74x1k&st=6vesryod&raw=1'),
+    door: new Audio('https://www.dropbox.com/scl/fi/88kqnah3hw95mk5r8b9ky/door-slamming-fnaf-1-sound-effects.mp3?rlkey=yd5vanfgur1zwm75zyys11jlx&st=1n1ikmcr&raw=1'),
+    camera: new Audio('https://www.dropbox.com/scl/fi/e4xevbnswumwmgiwx5ndu/fnaf-open-camera-sound.mp3?rlkey=qwvg6uwsvxa1c6kk66ra4yhfy&st=7pq5srkw&raw=1'),
+    win: new Audio('https://www.dropbox.com/scl/fi/4zx0ien3icjxtqyb15s43/6am-fnaf1.mp3?rlkey=cxgv5wkr6qkr7f90tl38rz29u&st=2liosd3j&raw=1'),
+    run: new Audio('https://www.dropbox.com/scl/fi/7e7n701sxal2nyipyl071/foxy-running.mp3?rlkey=lh0qnnkkef7nu8tpmgf8ax0km&st=s3qex4nd&raw=1')
+};
+
+const IMAGES = {
+    bonnie: 'https://www.dropbox.com/scl/fi/vqlkddl1ktsnx5clka8if/Bonnie_Rabbit.webp?rlkey=5ilfxiitrfzf4ic8fxm97k5m8&st=4vj7ul60&raw=1',
+    chica: 'https://www.dropbox.com/scl/fi/ih0clp6lm3jxm0dt2du4s/Chica.webp?rlkey=38uamw7g4xpsqu153y05ogeir&st=8u9xddqh&raw=1',
+    foxy: 'https://www.dropbox.com/scl/fi/pyvlgn15nm2h3hcaklx3z/Foxy_Fnaf_1.webp?rlkey=i6ozltbpyjsae4k9fahqn8o29&st=1fae3zsv&raw=1',
+    fluff: 'https://www.dropbox.com/scl/fi/3upywbzlg2rt0zdw97bpo/Gemini_Generated_Image_c2loycc2loycc2lo-1.png?rlkey=vfv572gk3jd0hi6um6ncq2afv&st=0pzfwy5g&raw=1',
+    golden: 'https://www.dropbox.com/scl/fi/wlrxbgkro3a4le5wlwcxl/Untitled-1.png?rlkey=2k9t0rixlkhx7j2slnpe7pfid&st=lzqsk9z1&raw=1'
+};
+
+const NEWS_CLIPPINGS = [
+    { 
+        title: "FIVE CHILDREN REPORTED MISSING AT FLUFF’S PIZZA", 
+        body: `By Staff Writer\n\nSt. Clair — Police are investigating the disappearance of five children last seen at Fluff’s Pizza, a popular family restaurant on the east side of town.\n\nAccording to authorities, the children were attending a birthday party at the restaurant earlier this week. Witnesses say they were last seen near the main stage area shortly before closing time.\n\nOwners Baby Jayce and John Emily released a joint statement late last night, stating they are “completely unaware of what could have happened” and are “fully cooperating with the investigation.”\n\n“We are devastated,” the statement reads. “Our restaurant has always been a place for families and fun. We do not understand how this could have happened.”\n\nPolice have not confirmed whether surveillance footage from inside the building is usable. Sources close to the investigation report that several camera feeds were corrupted or missing during the time of the disappearances.\n\nParents gathered outside the restaurant Wednesday evening, some leaving flowers and handwritten notes on the front doors. The building has since been temporarily closed pending further investigation.\n\nAuthorities stress that there is no immediate evidence of foul play, though the case remains open.\n\nAnyone with information is urged to contact local law enforcement.` 
+    },
+    { 
+        title: "FOUL ODOR PROMPTS COMPLAINTS AT FLUFF’S PIZZA", 
+        body: `By Staff Writer\n\nSt. Clair — Health officials confirmed Tuesday that multiple complaints have been filed regarding a strong, unpleasant odor coming from inside Fluff’s Pizza, the family restaurant recently linked to the disappearance of five children.\n\nAccording to reports, customers and employees described the smell as “rotting,” “metallic,” and “impossible to ignore.” Several patrons claimed the odor appeared strongest near the animatronic stage and storage areas.\n\nOwners Baby Jayce and John Emily responded in a brief statement, attributing the smell to “plumbing issues and aging equipment.”\n\n“The building is old,” the statement said. “We believe the odor is the result of mechanical problems and will be resolved shortly.”\n\nHealth inspectors conducted a walkthrough but noted that certain back rooms were inaccessible at the time of inspection. No official violations were issued, though the restaurant was advised to address the issue immediately.\n\nDespite assurances, nearby businesses report the smell has worsened at night, with one employee stating:\n\n“It’s like something’s been left behind.”\n\nFluff’s Pizza remains temporarily closed, though management has not announced a reopening date.` 
+    },
+    { 
+        title: "FLUFF’S PIZZA TO CLOSE FOLLOWING ONGOING INVESTIGATION", 
+        body: `By Staff Writer\n\nST. CLAIR — Fluff’s Pizza, the once-popular family restaurant located in downtown St. Clair, will be closing indefinitely, according to a statement released late Sunday night.\n\nThe closure comes amid an ongoing investigation into the disappearance of five children, as well as recent health complaints involving a foul odor reported by customers and nearby businesses.\n\nOwners Baby Jayce and John Emily stated that the decision was made to allow authorities time to complete their investigation and to address what they described as “unforeseen maintenance issues.”\n\n“This was not an easy choice,” the statement read. “Our priority is the safety of families in the St. Clair community. We hope to reopen once all concerns have been resolved.”\n\nPolice confirmed that the building will remain secured and unoccupied for the foreseeable future. Officials declined to comment on whether evidence had been recovered from inside the restaurant.\n\nFormer employees reported being instructed to leave all equipment and animatronics in place prior to the closure.\n\nSince the announcement, paper notices have appeared on the restaurant’s doors, and the parking lot has remained empty after dark.\n\nAuthorities urge anyone with information related to the missing children to contact the St. Clair Police Department.` 
+    },
+    { 
+        title: "UNKNOWN INDIVIDUAL BREAKS INTO CLOSED FLUFF’S PIZZA", 
+        body: `By Staff Writer\n\nST. CLAIR — Police are investigating reports of an unknown individual who forcibly entered the closed Fluff’s Pizza building late Friday night, despite the property being barricaded and marked as restricted.\n\nAccording to witnesses, a yellow compact car was seen parking near the building shortly after midnight. The driver, described only as an adult wearing dark clothing, allegedly exited the vehicle carrying a fire axe and proceeded to break through the wooden barricades covering the front entrance.\n\n“They didn’t hesitate,” said one nearby resident. “They just went straight in.”\n\nAuthorities say the individual remained inside the building for several hours, during which time no lights were visible, despite the building being without active power service.\n\nWitnesses reported hearing metal scraping, dull thuds, and what one caller described as “movement that didn’t sound human.”\n\nThe individual exited the building shortly before dawn and left the area in the same yellow vehicle. Police arrived later that morning to find the barricades destroyed but reported no signs of forced entry beyond the front doors.\n\nInvestigators declined to comment on what, if anything, may have been taken from inside the building.\n\n“At this time, we are treating this as an active investigation,” a St. Clair police spokesperson said. “We urge the public not to enter the property under any circumstances.”\n\nFluff’s Pizza has been closed indefinitely following the disappearance of five children earlier this year.` 
+    },
+    { 
+        title: "INVESTIGATORS ENTER FLUFF'S PIZZA", 
+        body: `By Staff Writer\n\nST. CLAIR — Investigators from the st. clair police department entered the closed fluff’s pizza building early monday morning following reports of a break-in earlier that week.\n\nThe search was conducted after authorities received a warrant to inspect the property due to ongoing concerns tied to the missing children case.\n\nWithin the main dining area, officers discovered extensive damage to the interior, including overturned equipment and shattered stage fixtures.\n\nAll animatronic characters were found severely damaged, with missing components and signs of deliberate destruction.\n\nSeveral units appeared to have been struck repeatedly with a heavy tool, consistent with axe or crowbar damage.\n\nBehind the main stage, officers noted drag marks and loose wiring scattered across the floor.\n\nAccording to the police report, none of the animatronics were operational at the time of discovery.\n\nBarricades at the front entrance had already been broken prior to the search, suggesting forced entry hours before police arrival.\n\nYards of the building’s internal camera wiring were found torn out and piled near the security office.\n\nJoint task force members declined to comment on whether anything had been removed from the building.\n\nAuthorities confirmed that no suspects are currently in custody.\n\nYet officials emphasized that the condition of the animatronics indicates intentional human involvement.\n\nCommunity members have expressed concern over the lack of clarity surrounding the incident.\n\nEvidence collected from the scene has been sent for further analysis as the investigation continues.` 
+    }
+];
+
+// --- GAME STATE ---
+let currentNight = 1;
+let gameActive = false;
+let power = 100;
+let powerAccumulator = 0;
+let timeHour = 0;
+let usage = 1;
+let currentCam = '1A';
+let cameraOpen = false;
+
+// Custom Night Levels
+let customAI = { bonnie: 0, chica: 0, foxy: 0, fluff: 0 };
+
+// Interaction State
+let leftDoor = false; let rightDoor = false;
+let leftLight = false; let rightLight = false;
+let goldenFluffActive = false;
+let currentPhoneAudio = null;
+
+// Timers
+let timers = { game: null, power: null, ai: null, hour: null, foxy: null, golden: null };
+
+// AI Data - UPDATED PATHS (Removed OFFICE to prevent phantom attacks)
+let animatronics = {
+    bonnie: { name: 'Bonnie', location: '1A', path: ['1A', '1B', '2A', '2B'], difficulty: 0, img: IMAGES.bonnie },
+    chica: { name: 'Chica', location: '1A', path: ['1A', '1B', '4A', '4B'], difficulty: 0, img: IMAGES.chica },
+    foxy: { name: 'Foxy', location: '1C', stage: 0, difficulty: 0, img: IMAGES.foxy },
+    fluff: { name: 'Fluff', location: '1A', path: ['1A', '1B', '4A', '4B'], difficulty: 0, img: IMAGES.fluff }
+};
+
+// --- INITIALIZATION ---
+
+// Load save
+if(localStorage.getItem('fnaf_fluff_night')) {
+    currentNight = parseInt(localStorage.getItem('fnaf_fluff_night'));
+    if(currentNight > 5) {
+        document.getElementById('btn-custom').classList.remove('hidden');
+        document.getElementById('menu-night-display').innerText = "Night 5 Completed (Custom Night Unlocked)";
+    } else {
+        document.getElementById('menu-night-display').innerText = "Night " + currentNight;
+    }
+}
+
+function startNewGame() {
+    currentNight = 1;
+    localStorage.setItem('fnaf_fluff_night', 1);
+    setupNight(1);
+}
+
+function continueGame() {
+    if(currentNight > 5) setupNight(5); // Cap at 5 for continue, use Custom for 6+
+    else setupNight(currentNight);
+}
+
+function openCustomNight() {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('custom-night-screen').classList.remove('hidden');
+    renderCustomSelector();
+}
+
+function renderCustomSelector() {
+    const container = document.querySelector('.ai-selector');
+    container.innerHTML = '';
+    ['bonnie', 'chica', 'foxy', 'fluff'].forEach(name => {
+        let div = document.createElement('div');
+        div.className = 'ai-box';
+        div.innerHTML = `<h3>${name.toUpperCase()}</h3>
+            <div class="ai-controls">
+                <button class="ai-btn" onclick="adjAI('${name}', -1)">-</button>
+                <span class="ai-val" id="val-${name}">${customAI[name]}</span>
+                <button class="ai-btn" onclick="adjAI('${name}', 1)">+</button>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+function adjAI(name, val) {
+    customAI[name] += val;
+    if(customAI[name] < 0) customAI[name] = 0;
+    if(customAI[name] > 20) customAI[name] = 20;
+    document.getElementById(`val-${name}`).innerText = customAI[name];
+}
+
+function startCustomNight() {
+    // Check 1985 Easter Egg
+    if(customAI.bonnie === 1 && customAI.chica === 9 && customAI.foxy === 8 && customAI.fluff === 5) {
+        startMinigame();
+        return;
+    }
+    
+    currentNight = 6; // Custom
+    setupNight(6);
+}
+
+function setupNight(night) {
+    // Difficulty Settings
+    if(night === 1) setAI(0, 0, 0, 0); // Ramps up during night
+    if(night === 2) setAI(3, 3, 1, 0);
+    if(night === 3) setAI(6, 6, 2, 1);
+    if(night === 4) setAI(10, 10, 6, 4);
+    if(night === 5) setAI(15, 15, 10, 10);
+    if(night === 6) {
+        animatronics.bonnie.difficulty = customAI.bonnie;
+        animatronics.chica.difficulty = customAI.chica;
+        animatronics.foxy.difficulty = customAI.foxy;
+        animatronics.fluff.difficulty = customAI.fluff;
+    }
+
+    // Reset State
+    gameActive = true;
+    power = 100;
+    timeHour = 0;
+    leftDoor = false; rightDoor = false; leftLight = false; rightLight = false;
+    cameraOpen = false;
+    currentCam = '1A';
+    animatronics.foxy.stage = 0;
+    animatronics.bonnie.location = '1A';
+    animatronics.chica.location = '1A';
+    animatronics.fluff.location = '1A';
+    
+    // UI Reset
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('custom-night-screen').classList.add('hidden');
+    document.getElementById('game-layer').classList.remove('hidden');
+    document.getElementById('win-screen').style.display = 'none';
+    document.getElementById('newspaper-screen').classList.add('hidden');
+    document.getElementById('door-left').classList.remove('closed');
+    document.getElementById('door-right').classList.remove('closed');
+    document.getElementById('btn-door-left').classList.remove('active');
+    document.getElementById('btn-door-right').classList.remove('active');
+    document.getElementById('clock-time').innerText = "12 AM";
+    document.getElementById('night-display').innerText = night === 6 ? "Custom Night" : "Night " + night;
+    
+    // Start Loops
+    // Stop any previous audio first
+    if(currentPhoneAudio) {
+        currentPhoneAudio.pause();
+        currentPhoneAudio.currentTime = 0;
+    }
+    
+    // Play correct phone call
+    let phoneKey = night > 5 ? 1 : night;
+    if(SOUNDS.phone[phoneKey]) {
+        currentPhoneAudio = SOUNDS.phone[phoneKey];
+        playSound(currentPhoneAudio);
+    }
+    
+    timers.game = setInterval(gameTick, 1000);
+    timers.power = setInterval(drainPower, 100);
+    timers.ai = setInterval(aiLogic, 4000);
+    timers.hour = setInterval(hourTick, 30000); // 30s per hour
+    
+    updateUsage();
+}
+
+function setAI(b, c, f, fl) {
+    animatronics.bonnie.difficulty = b;
+    animatronics.chica.difficulty = c;
+    animatronics.foxy.difficulty = f;
+    animatronics.fluff.difficulty = fl;
+}
+
+// --- CORE GAMEPLAY ---
+
+function playSound(audio) {
+    try {
+        audio.currentTime = 0;
+        let p = audio.play();
+        if(p) p.catch(e=>{});
+    } catch(e){}
+}
+
+function toggleMute() {
+    if(currentPhoneAudio) currentPhoneAudio.pause();
+    document.getElementById('mute-btn').style.display = 'none';
+}
+
+function hourTick() {
+    if(!gameActive) return;
+    timeHour++;
+    let displayHour = timeHour === 0 ? 12 : timeHour;
+    document.getElementById('clock-time').innerText = `${displayHour} AM`;
+    
+    // Difficulty Ramp for Night 1 & 2
+    if(currentNight === 1) {
+        if(timeHour === 2) { animatronics.bonnie.difficulty=1; animatronics.chica.difficulty=1; }
+        if(timeHour === 3) { animatronics.foxy.difficulty=1; }
+        if(timeHour === 4) { animatronics.bonnie.difficulty=3; animatronics.chica.difficulty=3; }
+    }
+    
+    if(timeHour === 6) winGame();
+}
+
+function drainPower() {
+    if(!gameActive) return;
+    let drainRate = 50 + (usage * 50);
+    powerAccumulator += drainRate;
+    if(powerAccumulator >= 5000) {
+        power--;
+        powerAccumulator = 0;
+        document.getElementById('power-pct').innerText = power;
+        if(power <= 0) triggerPowerOutage();
+        if(power < 20) document.getElementById('power-pct').classList.add('red-text');
+    }
+}
+
+function updateUsage() {
+    usage = 1;
+    if(leftDoor) usage++; if(rightDoor) usage++;
+    if(leftLight) usage++; if(rightLight) usage++;
+    if(cameraOpen) usage++;
+    
+    let el = document.getElementById('usage-text');
+    if(usage === 1) { el.innerText = "LOW"; el.className = "green-text"; }
+    else if(usage <= 3) { el.innerText = "MED"; el.className = ""; }
+    else { el.innerText = "HIGH"; el.className = "red-text"; }
+}
+
+// --- AI LOGIC ---
+function aiLogic() {
+    if(!gameActive) return;
+    
+    // Foxy
+    if(!(cameraOpen && currentCam === '1C')) {
+        if(Math.random() * 20 < animatronics.foxy.difficulty) {
+            animatronics.foxy.stage++;
+            if(animatronics.foxy.stage === 4) triggerFoxyRun();
+        }
+    }
+    
+    // Others
+    ['bonnie', 'chica', 'fluff'].forEach(id => {
+        if(Math.random() * 20 < animatronics[id].difficulty) moveAnimatronic(id);
+    });
+    
+    if(cameraOpen) renderCam();
+    checkLights();
+}
+
+function moveAnimatronic(id) {
+    let anim = animatronics[id];
+    let idx = anim.path.indexOf(anim.location);
+    // At door? (Last index of path is now the Blind Spot)
+    if(idx === anim.path.length - 1) {
+         // Attack Logic - Attempt to enter office
+         let blocked = (id === 'bonnie' ? leftDoor : rightDoor);
+         if(id === 'fluff') blocked = rightDoor;
+         
+         if(blocked) {
+             anim.location = '1A'; // Reset if blocked
+             playSound(SOUNDS.door); // Bonk sound
+         } else {
+             // Not blocked, they enter and kill you
+             triggerJumpscare(anim.img);
+         }
+    } else {
+        // Move forward along path
+        anim.location = anim.path[idx+1];
+    }
+}
+
+function gameTick() {
+    if(!gameActive) return;
+    
+    // Golden Fluff (Rare)
+    if(!goldenFluffActive && !cameraOpen && Math.random() < 0.005 * currentNight) {
+        goldenFluffActive = true;
+        document.getElementById('golden-fluff-overlay').style.display = 'flex';
+        timers.golden = setTimeout(() => {
+            if(gameActive && goldenFluffActive) triggerJumpscare(IMAGES.golden);
+        }, 4000);
+    }
+
+    // Hallucinations (Very brief flashes)
+    if(Math.random() < 0.02) { // 2% chance per second
+        let hal = document.getElementById('hallucination');
+        let texts = ["IT'S ME", "RUN", "FLUFF", "1985"];
+        hal.innerText = texts[Math.floor(Math.random() * texts.length)];
+        hal.style.display = 'flex';
+        // Random placement
+        hal.style.justifyContent = Math.random() > 0.5 ? 'center' : (Math.random() > 0.5 ? 'flex-start' : 'flex-end');
+        
+        setTimeout(() => { hal.style.display = 'none'; }, 100);
+    }
+}
+
+// --- INTERACTION ---
+function toggleDoor(side) {
+    if(!gameActive || power <= 0) return;
+    playSound(SOUNDS.door);
+    if(side === 'left') {
+        leftDoor = !leftDoor;
+        document.getElementById('door-left').classList.toggle('closed', leftDoor);
+        document.getElementById('btn-door-left').classList.toggle('active', leftDoor);
+    } else {
+        rightDoor = !rightDoor;
+        document.getElementById('door-right').classList.toggle('closed', rightDoor);
+        document.getElementById('btn-door-right').classList.toggle('active', rightDoor);
+    }
+    updateUsage();
+}
+
+function toggleLight(side) {
+    if(!gameActive || power <= 0) return;
+    if(side === 'left') {
+        leftLight = !leftLight;
+        document.getElementById('btn-light-left').classList.toggle('active', leftLight);
+    } else {
+        rightLight = !rightLight;
+        document.getElementById('btn-light-right').classList.toggle('active', rightLight);
+    }
+    checkLights();
+    updateUsage();
+}
+
+function checkLights() {
+    // Left
+    let bl = document.getElementById('blind-left');
+    let il = document.getElementById('img-bonnie-left');
+    if(leftLight) {
+        bl.classList.add('visible');
+        if(animatronics.bonnie.location === '2B') il.classList.add('show');
+        else il.classList.remove('show');
+    } else {
+        bl.classList.remove('visible');
+    }
+    
+    // Right
+    let br = document.getElementById('blind-right');
+    let ir = document.getElementById('img-chica-right');
+    if(rightLight) {
+        br.classList.add('visible');
+        if(animatronics.fluff.location === '4B') { ir.src = IMAGES.fluff; ir.classList.add('show'); }
+        else if(animatronics.chica.location === '4B') { ir.src = IMAGES.chica; ir.classList.add('show'); }
+        else ir.classList.remove('show');
+    } else {
+        br.classList.remove('visible');
+    }
+}
+
+function toggleCamera() {
+    if(!gameActive || power <= 0) return;
+    cameraOpen = !cameraOpen;
+    playSound(SOUNDS.camera);
+    
+    let sys = document.getElementById('camera-system');
+    if(cameraOpen) {
+        sys.classList.add('active');
+        document.getElementById('cam-toggle-text').innerText = "CLOSE MONITOR";
+        // Golden Defense
+        if(goldenFluffActive) {
+            goldenFluffActive = false;
+            clearTimeout(timers.golden);
+            document.getElementById('golden-fluff-overlay').style.display = 'none';
+        }
+        renderCam();
+    } else {
+        sys.classList.remove('active');
+        document.getElementById('cam-toggle-text').innerText = "OPEN MONITOR";
+    }
+    updateUsage();
+}
+
+function switchCam(id) {
+    if(!gameActive) return;
+    currentCam = id;
+    document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-'+id).classList.add('active');
+    document.getElementById('cam-name').innerText = id;
+    renderCam();
+}
+
+function renderCam() {
+    let img = document.getElementById('cam-display');
+    let showing = null;
+    
+    if(currentCam === '1C') {
+        if(animatronics.foxy.stage < 4) showing = IMAGES.foxy;
+    } else {
+        // Priority
+        if(animatronics.fluff.location === currentCam) showing = IMAGES.fluff;
+        else if(animatronics.bonnie.location === currentCam) showing = IMAGES.bonnie;
+        else if(animatronics.chica.location === currentCam) showing = IMAGES.chica;
+    }
+    
+    if(showing) { img.src = showing; img.style.display = 'block'; }
+    else img.style.display = 'none';
+}
+
+function triggerFoxyRun() {
+    playSound(SOUNDS.run);
+    timers.foxy = setTimeout(() => {
+        if(!gameActive) return;
+        if(leftDoor) {
+            playSound(SOUNDS.door); power -= 10; animatronics.foxy.stage = 0;
+        } else {
+            triggerJumpscare(IMAGES.foxy);
+        }
+    }, 4500);
+}
+
+// --- WIN/LOSS ---
+function triggerJumpscare(src) {
+    stopAll();
+    document.getElementById('jumpscare-img').src = src;
+    document.getElementById('jumpscare-screen').style.display = 'flex';
+    playSound(SOUNDS.jumpscare);
+    setTimeout(() => {
+        document.getElementById('jumpscare-screen').style.display = 'none';
+        document.getElementById('game-over-screen').style.display = 'flex';
+    }, 2500);
+}
+
+function triggerPowerOutage() {
+    stopAll();
+    document.getElementById('office-view').style.filter = 'brightness(0)';
+    document.getElementById('door-left').classList.remove('closed');
+    document.getElementById('door-right').classList.remove('closed');
+    setTimeout(() => triggerJumpscare(IMAGES.fluff), 5000);
+}
+
+function winGame() {
+    stopAll();
+    // Don't play sound immediately, wait for visual cue
+    const winScreen = document.getElementById('win-screen');
+    const clock = document.getElementById('win-clock');
+    const label = document.getElementById('win-text');
+    
+    winScreen.style.display = 'flex';
+    clock.innerText = "5:59";
+    label.classList.add('hidden');
+
+    // 6 AM Animation Sequence
+    setTimeout(() => {
+        clock.innerText = "5:59"; // Pause
+        setTimeout(() => {
+            clock.innerText = "6:00"; // TICK
+            clock.style.color = "var(--accent-green)";
+            playSound(SOUNDS.win); // Cheer
+            label.classList.remove('hidden');
+            
+            // Proceed after celebration
+            setTimeout(() => {
+                document.getElementById('win-screen').style.display = 'none';
+                clock.style.color = "#fff"; // Reset
+                showNewspaper();
+            }, 8000);
+        }, 1500);
+    }, 1000);
+}
+
+function stopAll() {
+    gameActive = false;
+    Object.values(timers).forEach(t => clearInterval(t));
+    Object.values(timers).forEach(t => clearTimeout(t));
+    if(currentPhoneAudio) currentPhoneAudio.pause();
+    SOUNDS.run.pause();
+}
+
+function showNewspaper() {
+    let clip = NEWS_CLIPPINGS[currentNight - 1];
+    document.getElementById('newspaper-title').innerText = clip.title;
+    document.getElementById('newspaper-body').innerText = clip.body;
+    document.getElementById('newspaper-screen').classList.remove('hidden');
+    
+    // NOTE: We don't download here anymore to prevent popup blocking.
+    // The download now happens when the user clicks "CONTINUE".
+}
+
+function nextNight() {
+    // 1. Calculate next night
+    let next = currentNight + 1;
+    
+    // 2. Save Progression & Download File (User Click = Safe Download)
+    localStorage.setItem('fnaf_fluff_night', next);
+    downloadSave(next);
+
+    // 3. Logic to proceed
+    currentNight = next;
+    
+    // Hide Newspaper
+    document.getElementById('newspaper-screen').classList.add('hidden');
+
+    if (currentNight > 5) {
+        // Unlocked Custom Night - Go to Menu
+        document.getElementById('start-screen').classList.remove('hidden');
+        document.getElementById('btn-custom').classList.remove('hidden');
+        document.getElementById('menu-night-display').innerText = "Night 5 Completed (Custom Night Unlocked)";
+        // Reset state cleanup
+        stopAll();
+        document.getElementById('game-layer').classList.add('hidden');
+    } else {
+        // Flow directly into the next night
+        setupNight(currentNight);
+    }
+}
+
+// --- 1985 MINIGAME ---
+function startMinigame() {
+    document.getElementById('custom-night-screen').classList.add('hidden');
+    document.getElementById('minigame-screen').classList.remove('hidden');
+    const canvas = document.getElementById('minigame-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let player = { x: 50, y: 150, color: 'yellow' };
+    let targets = [ {x:300, y:50, alive:true}, {x:300, y:120, alive:true}, {x:300, y:190, alive:true}, {x:300, y:260, alive:true} ];
+    let win = false;
+
+    // Loop
+    function update() {
+        if(win) return;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0,0,400,300);
+        
+        // Draw Player (Car shape)
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, 40, 20); 
+        
+        // Draw Targets
+        let aliveCount = 0;
+        targets.forEach(t => {
+            if(t.alive) {
+                aliveCount++;
+                ctx.fillStyle = '#555';
+                ctx.fillRect(t.x, t.y, 20, 20); // Animatronic
+                
+                // Collision
+                if(player.x + 40 > t.x && player.x < t.x + 20 && Math.abs(player.y - t.y) < 30) {
+                    t.alive = false;
+                    playSound(SOUNDS.door); // Crunch sound
+                }
+            }
+        });
+        
+        // Auto move
+        player.x += 2;
+        if(player.x > 400) player.x = 0;
+        
+        // Player control (simple y move)
+        // Just Auto-play demo for simplicity of easter egg
+        if(Math.random() < 0.05) player.y = targets.find(t=>t.alive)?.y || 150;
+
+        if(aliveCount === 0) {
+            win = true;
+            ctx.fillStyle = 'red';
+            ctx.font = '30px Courier';
+            ctx.fillText("IT'S ME", 140, 150);
+            setTimeout(() => location.reload(), 3000);
+        }
+        requestAnimationFrame(update);
+    }
+    update();
+}
+
+// --- CHEAT CODE ---
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'F12' && gameActive) {
+        // Prevent default only if you want to block DevTools, but usually F12 is system level.
+        // We just execute the skip logic here.
+        
+        stopAll(); // Stop animatronics, power, and audio
+        
+        if (currentNight <= 5) {
+            // Story Mode: Skip 6AM screen, go straight to lore
+            showNewspaper();
+        } else {
+            // Custom Night: Just reload to menu
+            location.reload();
+        }
+    }
+});
+
+// --- SAVE SYSTEM ---
+function downloadSave(nightVal) {
+    const data = JSON.stringify({ night: nightVal });
+    const blob = new Blob([data], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fluffs_pizza_save_night_${nightVal}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function triggerLoad() {
+    document.getElementById('save-upload').click();
+}
+
+function handleSaveUpload(input) {
+    const file = input.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if(data.night && typeof data.night === 'number') {
+                // Update State WITHOUT Reloading
+                currentNight = data.night;
+                localStorage.setItem('fnaf_fluff_night', currentNight);
+                
+                // Update Menu UI
+                if(currentNight > 5) {
+                    document.getElementById('btn-custom').classList.remove('hidden');
+                    document.getElementById('menu-night-display').innerText = "Night 5 Completed (Custom Night Unlocked)";
+                } else {
+                    document.getElementById('menu-night-display').innerText = "Night " + currentNight;
+                }
+                
+                alert(`Save Loaded: Night ${currentNight}`);
+            } else {
+                alert("Invalid Save File");
+            }
+        } catch(err) {
+            alert("Error reading save file");
+        }
+        // Reset input so same file can be selected again
+        input.value = ''; 
+    };
+    reader.readAsText(file);
+}
+
+</script>
+</body>
+</html>

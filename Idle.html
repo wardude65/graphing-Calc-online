@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Business</title>
+    <!-- Include Tone.js for Sound Effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-panel-hover: #2a2a2a;
+            --accent: #00d26a;
+            --accent-hover: #00ff80;
+            --accent-angel: #ffd700;
+            --text-main: #ffffff;
+            --text-dim: #aaaaaa;
+            --progress-bg: #333333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Bar */
+        #top-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            padding: 15px 30px;
+            background-color: var(--bg-panel);
+            border-bottom: 2px solid var(--accent);
+            font-size: 1.2rem;
+            font-weight: bold;
+            gap: 10px;
+            z-index: 10;
+        }
+        .stat-group span { color: var(--accent); margin-left: 10px; transition: color 0.2s;}
+        .stat-group.angel span { color: var(--accent-angel); }
+
+        /* Main Layout */
+        #main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: row;
+        }
+
+        @media (max-width: 768px) {
+            #main-container { flex-direction: column; }
+            #left-panel { border-right: none; border-bottom: 1px solid #333; }
+        }
+
+        /* Left Panel - Businesses */
+        #left-panel {
+            flex: 2;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+            position: relative;
+        }
+
+        .business-card {
+            background-color: var(--bg-panel);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.1s;
+            position: relative;
+        }
+        .business-card:active { transform: scale(0.99); }
+        
+        .biz-header { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center;}
+        .biz-name { font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px;}
+        .biz-owned { color: var(--accent); font-size: 1.2rem; font-weight: bold;}
+        
+        /* Milestone Bar */
+        .milestone-container {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        }
+        .milestone-bar-bg {
+            flex: 1; height: 6px; background-color: var(--progress-bg); border-radius: 3px; overflow: hidden;
+        }
+        .milestone-bar-fill {
+            height: 100%; background-color: #ffaa00; width: 0%; transition: width 0.3s ease-out;
+        }
+        .milestone-text { font-size: 0.75rem; color: var(--text-dim); font-weight: bold; width: 45px; text-align: right;}
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%; height: 30px; background-color: var(--progress-bg);
+            border-radius: 6px; overflow: hidden; margin-bottom: 10px; cursor: pointer;
+            position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .progress-fill {
+            height: 100%; background-color: var(--accent); width: 0%;
+            transition: width 0.1s linear;
+        }
+        .progress-text {
+            position: absolute; width: 100%; text-align: center; top: 0;
+            line-height: 30px; font-size: 0.9rem; font-weight: bold; color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .biz-controls { display: flex; gap: 10px; justify-content: space-between; }
+        .btn {
+            background-color: var(--progress-bg); color: var(--text-main);
+            border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;
+            font-weight: bold; transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover { background-color: var(--bg-panel-hover); }
+        .btn:active { transform: translateY(1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn.buy-btn { background-color: #2a2a2a; flex: 1; border: 1px solid #444; }
+        .btn.buy-btn:not(:disabled):hover { border-color: var(--accent); }
+
+        /* Right Panel - Tabs */
+        #right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-panel);
+            min-width: 320px;
+        }
+
+        #tabs { display: flex; border-bottom: 1px solid #333; background: #151515;}
+        .tab-btn {
+            flex: 1; padding: 15px 5px; background: none; border: none;
+            color: var(--text-dim); cursor: pointer; font-weight: bold; font-size: 0.85rem;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); background: var(--bg-panel);}
+
+        .tab-content { padding: 20px; overflow-y: auto; flex: 1; display: none; }
+        .tab-content.active { display: block; }
+
+        /* Upgrade / Manager Cards */
+        .list-item {
+            background-color: var(--bg-dark); padding: 15px; border-radius: 8px;
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            border-left: 3px solid var(--accent);
+        }
+        .list-item.angel-upgrade { border-left-color: var(--accent-angel); }
+        .list-item.achievement { border-left-color: #00aaff; flex-direction: column; align-items: flex-start;}
+        
+        .list-item-info { flex: 1; }
+        .list-item-info h4 { margin-bottom: 5px; color: #fff;}
+        .list-item-info p { font-size: 0.85rem; color: var(--text-dim); }
+        
+        .buy-upgrade-btn { background-color: var(--accent); color: #000; flex-shrink: 0;}
+        .buy-upgrade-btn:not(:disabled):hover { background-color: var(--accent-hover); }
+        .buy-upgrade-btn.angel-btn { background-color: var(--accent-angel); }
+        .buy-upgrade-btn.angel-btn:not(:disabled):hover { background-color: #ffea00; }
+
+        /* Bottom Log */
+        #bottom-log {
+            padding: 10px 20px; background-color: #0a0a0a; border-top: 1px solid #333;
+            font-size: 0.9rem; color: var(--text-dim); height: 40px; overflow: hidden;
+            display: flex; align-items: center; transition: color 0.3s;
+        }
+
+        /* Settings/Controls */
+        .buy-multiplier { margin-bottom: 15px; display: flex; gap: 5px; }
+        .buy-multiplier .btn { flex: 1; }
+        .buy-multiplier .btn.active { background-color: var(--accent); color: #000; }
+
+        /* Prestige UI */
+        .prestige-box { text-align: center; padding: 20px; background: var(--bg-dark); border-radius: 8px;}
+        .prestige-btn { background: #ff9900; color: #000; font-size: 1.2rem; padding: 15px 30px; margin-top: 20px; width: 100%;}
+        .prestige-btn:hover { background: #ffaa33; }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-content {
+            background: var(--bg-panel); padding: 30px; border-radius: 12px; text-align: center; max-width: 450px; width: 90%;
+            border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-content h2 { color: var(--accent); margin-bottom: 15px; }
+        .modal-content input {
+            width: 100%; padding: 10px; margin-top: 15px; background: var(--bg-dark); 
+            border: 1px solid #444; color: #fff; border-radius: 6px;
+        }
+        
+        /* Floating Text & Particles */
+        .floating-text {
+            position: absolute; color: var(--accent); font-weight: bold; font-size: 1.2rem;
+            pointer-events: none; animation: floatUp 1s ease-out forwards; z-index: 50;
+            text-shadow: 1px 1px 2px #000;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-40px); }
+        }
+
+        .particle {
+            position: absolute; pointer-events: none; border-radius: 50%;
+            animation: burst 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; z-index: 40;
+        }
+        @keyframes burst {
+            0% { transform: scale(1) translate(0, 0); opacity: 1; }
+            100% { transform: scale(0) translate(var(--tx), var(--ty)); opacity: 0; }
+        }
+
+        /* Utility */
+        .manager-icon { background: #444; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; justify-content: center; align-items: center; font-size: 0.8rem; }
+        .section-header { margin: 20px 0 10px 0; padding-bottom: 5px; border-bottom: 1px solid #333; color: var(--text-dim); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;}
+        .section-header:first-child { margin-top: 0; }
+        
+        /* Admin Panel */
+        #admin-panel {
+            display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%);
+            background: #0f0f0f; border: 2px solid #ff0055; padding: 20px; z-index: 9999;
+            border-radius: 8px; color: #fff; box-shadow: 0 0 20px rgba(255,0,85,0.5); width: 400px;
+        }
+        #admin-panel h3 { color: #ff0055; margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 5px;}
+        .admin-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .admin-row input, .admin-row select { flex: 1; padding: 8px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px; }
+        .admin-row button { background: #ff0055; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .admin-row button:hover { background: #ff3377; }
+        .admin-close { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #888; font-size: 1.2rem; cursor: pointer; }
+        .admin-close:hover { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="top-bar">
+        <div class="stat-group">Cash: <span id="ui-money">$0</span></div>
+        <div class="stat-group">Income: <span id="ui-income">$0/sec</span></div>
+        <div class="stat-group angel">Investor Pts: <span id="ui-investor-points">0</span></div>
+        <div class="stat-group" style="font-size:0.9rem; margin-top:4px;">Global Boost: <span id="ui-global-boost">1x</span></div>
+    </div>
+
+    <div id="main-container">
+        <div id="left-panel">
+            <div class="buy-multiplier">
+                <button class="btn active" onclick="setBuyAmount(1)" id="btn-buy-1">Buy 1</button>
+                <button class="btn" onclick="setBuyAmount(10)" id="btn-buy-10">Buy 10</button>
+                <button class="btn" onclick="setBuyAmount(100)" id="btn-buy-100">Buy 100</button>
+                <button class="btn" onclick="setBuyAmount('max')" id="btn-buy-max">Buy Max</button>
+            </div>
+            <div id="businesses-container"></div>
+        </div>
+
+        <div id="right-panel">
+            <div id="tabs">
+                <button class="tab-btn active" onclick="switchTab('upgrades')">Upgrades</button>
+                <button class="tab-btn" onclick="switchTab('managers')">Managers</button>
+                <button class="tab-btn" onclick="switchTab('achievements')">Achievs</button>
+                <button class="tab-btn" onclick="switchTab('stats')">Stats</button>
+                <button class="tab-btn" onclick="switchTab('prestige')">Investor</button>
+            </div>
+
+            <div id="tab-upgrades" class="tab-content active"></div>
+            <div id="tab-managers" class="tab-content"></div>
+            
+            <div id="tab-achievements" class="tab-content">
+                <p style="color: var(--text-dim); text-align: center; margin-bottom: 15px; font-size:0.85rem;">Each achievement grants a permanent +1% bonus to all profits.</p>
+                <div id="achievements-container"></div>
+            </div>
+            
+            <div id="tab-stats" class="tab-content">
+                <div class="list-item"><div class="list-item-info"><h4 id="stat-lifetime">Lifetime Earnings: $0</h4></div></div>
+                <div class="list-item"><div class="list-item-info"><h4 id="stat-clicks">Total Clicks: 0</h4></div></div>
+                <div class="list-item"><div class="list-item-info"><h4 id="stat-resets">Investor Resets: 0</h4></div></div>
+                <div class="list-item"><div class="list-item-info"><h4 id="stat-time">Time Played: 0s</h4></div></div>
+                <button class="btn" style="width:100%; margin-top:20px;" onclick="saveGame(true)">Manual Save</button>
+                <button class="btn" style="width:100%; margin-top:10px; background:#aa0000; color:white;" onclick="hardResetPrompt()">HARD RESET</button>
+            </div>
+
+            <div id="tab-prestige" class="tab-content">
+                <div class="prestige-box">
+                    <h2>Investor Network</h2>
+                    <p style="margin: 15px 0; color: var(--text-dim); font-size: 0.9rem;">Reset your businesses and cash to attract investors. Each Investor Point grants a permanent 2% bonus to all profits.</p>
+                    <h3>Current Points: <span id="prestige-current" class="stat-group angel">0</span></h3>
+                    <h3 style="margin-top:10px;">Current Bonus: <span id="prestige-bonus" class="stat-group">0%</span></h3>
+                    <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
+                        <h3>Points on Reset: <span id="prestige-pending" style="color:#ff9900; font-size:1.5rem; display:block; margin: 10px 0;">0</span></h3>
+                        <button class="btn prestige-btn" onclick="prestigePrompt()">Attract Investors</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bottom-log">Welcome to Idle Business! Click the Lemonade Stand progress bar to earn your first dollars.</div>
+
+    <!-- Custom Modal System -->
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modal-title">Message</h2>
+            <p id="modal-text" style="color: var(--text-main); margin-bottom: 10px;"></p>
+            <input type="text" id="modal-input" style="display:none;" autocomplete="off">
+            
+            <div id="modal-offline-content" style="display:none; margin: 15px 0;">
+                <p>Your managers worked hard and earned:</p>
+                <h3 id="modal-offline-earnings" style="color: var(--accent); margin: 15px 0; font-size: 2rem;">$0</h3>
+            </div>
+
+            <div style="margin-top:25px; display:flex; gap:10px; justify-content:center;">
+                <button id="modal-btn-no" class="btn" style="flex:1;">Cancel</button>
+                <button id="modal-btn-yes" class="btn buy-upgrade-btn" style="flex:1;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel">
+        <button class="admin-close" onclick="document.getElementById('admin-panel').style.display='none'">✖</button>
+        <h3>Developer Tools</h3>
+        
+        <div class="admin-row">
+            <input type="number" id="admin-money-amt" placeholder="Amount" value="1000000000">
+            <button onclick="adminAction('money')">Give Cash</button>
+        </div>
+        <div class="admin-row">
+            <input type="number" id="admin-investor-amt" placeholder="Amount" value="1000">
+            <button onclick="adminAction('investor')">Give Points</button>
+        </div>
+        <div class="admin-row">
+            <select id="admin-biz-select"></select>
+            <input type="number" id="admin-biz-amt" placeholder="Qty" value="100" style="width: 80px; flex: none;">
+            <button onclick="adminAction('business')">Give Biz</button>
+        </div>
+        <div class="admin-row" style="justify-content: space-between; margin-top: 15px;">
+            <button onclick="adminAction('upgrades')" style="flex:1; margin-right:5px; background:#00d26a; color:#000;">Unlock Upgrades</button>
+            <button onclick="adminAction('managers')" style="flex:1; margin-left:5px; background:#00d26a; color:#000;">Unlock Managers</button>
+        </div>
+        <div class="admin-row" style="margin-top: 5px;">
+            <button onclick="triggerRandomEvent()" style="width:100%; background:#ffd700; color:#000;">Trigger Random Event</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 0. AUDIO SYSTEM ---
+        let audioInitialized = false;
+        let synth, coinSynth, milestoneSynth;
+
+        function initAudio() {
+            if(audioInitialized) return;
+            Tone.start();
+            
+            // Subtle click for manual labor
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }
+            }).toDestination();
+            synth.volume.value = -15;
+
+            // Cash register/buy sound
+            coinSynth = new Tone.MembraneSynth({
+                pitchDecay: 0.05,
+                octaves: 4,
+                oscillator: { type: "square" },
+                envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.2 }
+            }).toDestination();
+            coinSynth.volume.value = -10;
+
+            // Milestone achievement chime
+            milestoneSynth = new Tone.PolySynth(Tone.FMSynth, {
+                harmonicity: 2, modulationIndex: 1,
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 1 }
+            }).toDestination();
+            milestoneSynth.volume.value = -10;
+
+            audioInitialized = true;
+        }
+
+        function playSound(type) {
+            if(!audioInitialized) initAudio(); // Try to init if user interacted
+            if(!audioInitialized) return;
+
+            if(type === 'click') synth.triggerAttackRelease("C5", "8n");
+            if(type === 'buy') coinSynth.triggerAttackRelease("G4", "8n");
+            if(type === 'milestone') {
+                milestoneSynth.triggerAttackRelease(["C5", "E5", "G5"], "4n");
+            }
+        }
+
+        // Add a global click listener to initialize audio context on first interaction
+        document.body.addEventListener('click', () => { if(!audioInitialized) initAudio(); }, { once: true });
+
+
+        // --- 1. GAME DATA & CONFIGURATION ---
+        const CONFIG = {
+            baseScale: 1.07,
+            fps: 60,
+            offlineEfficiency: 0.80,
+            maxOfflineHours: 12,
+            prestigeDivisor: 1000000,
+            prestigeBonusPerPoint: 0.02,
+        };
+
+        const DB_BUSINESSES = [
+            { id: 'b1', name: "Lemonade Stand", baseCost: 4, baseProfit: 1, baseTime: 1000 },
+            { id: 'b2', name: "Newspaper Delivery", baseCost: 60, baseProfit: 10, baseTime: 3000 },
+            { id: 'b3', name: "Car Wash", baseCost: 720, baseProfit: 60, baseTime: 6000 },
+            { id: 'b4', name: "Pizza Shop", baseCost: 8000, baseProfit: 540, baseTime: 12000 },
+            { id: 'b5', name: "Coffee House", baseCost: 100000, baseProfit: 4500, baseTime: 24000 },
+            { id: 'b5a', name: "Supermarket", baseCost: 750000, baseProfit: 15000, baseTime: 32000 },
+            { id: 'b6', name: "Tech Startup", baseCost: 5000000, baseProfit: 65000, baseTime: 45000 },
+            { id: 'b6a', name: "Bank", baseCost: 25000000, baseProfit: 250000, baseTime: 60000 },
+            { id: 'b7', name: "Manufacturing Plant", baseCost: 150000000, baseProfit: 1000000, baseTime: 90000 },
+            { id: 'b7a', name: "Real Estate", baseCost: 800000000, baseProfit: 4000000, baseTime: 120000 },
+            { id: 'b8', name: "Airline Company", baseCost: 5000000000, baseProfit: 15000000, baseTime: 180000 },
+            { id: 'b9', name: "Space Corporation", baseCost: 50000000000, baseProfit: 100000000, baseTime: 600000 },
+            { id: 'b10', name: "Quantum Industries", baseCost: 1000000000000, baseProfit: 1500000000, baseTime: 1800000 },
+            { id: 'b11', name: "Asteroid Mining", baseCost: 50000000000000, baseProfit: 50000000000, baseTime: 3600000 },
+            { id: 'b12', name: "Dyson Sphere", baseCost: 10000000000000000, baseProfit: 20000000000000, baseTime: 7200000 },
+            { id: 'b13', name: "Galactic Empire", baseCost: 5000000000000000000, baseProfit: 10000000000000000, baseTime: 14400000 }
+        ];
+
+        const DB_MANAGERS = [
+            { id: 'm1', bizId: 'b1', name: "Timmy (Lemonade)", cost: 1000 },
+            { id: 'm2', bizId: 'b2', name: "Paperboy Pete", cost: 15000 },
+            { id: 'm3', bizId: 'b3', name: "Walter (Car Wash)", cost: 100000 },
+            { id: 'm4', bizId: 'b4', name: "Chef Luigi", cost: 500000 },
+            { id: 'm5', bizId: 'b5', name: "Barista Bella", cost: 1200000 },
+            { id: 'm5a', bizId: 'b5a', name: "Manager Mike", cost: 5000000 },
+            { id: 'm6', bizId: 'b6', name: "Steve (Startup)", cost: 25000000 },
+            { id: 'm6a', bizId: 'b6a', name: "Banker Bob", cost: 100000000 },
+            { id: 'm7', bizId: 'b7', name: "Foreman Fred", cost: 500000000 },
+            { id: 'm7a', bizId: 'b7a', name: "Realtor Rachel", cost: 2000000000 },
+            { id: 'm8', bizId: 'b8', name: "Captain Amelia", cost: 25000000000 },
+            { id: 'm9', bizId: 'b9', name: "Major Tom", cost: 250000000000 },
+            { id: 'm10', bizId: 'b10', name: "Dr. Schrodinger", cost: 10000000000000 },
+            { id: 'm11', bizId: 'b11', name: "Cyborg Miner 9000", cost: 250000000000000 },
+            { id: 'm12', bizId: 'b12', name: "Architect Prime", cost: 50000000000000000 },
+            { id: 'm13', bizId: 'b13', name: "The Emperor", cost: 25000000000000000000 }
+        ];
+
+        const DB_UPGRADES = [
+            { id: 'u1', name: "Sugary Lemons", desc: "Lemonade profits x3", cost: 250, type: 'multiplier', target: 'b1', value: 3, currency: 'money' },
+            { id: 'u2', name: "Electric Bikes", desc: "Newspaper speed x2", cost: 5000, type: 'speed', target: 'b2', value: 2, currency: 'money' },
+            { id: 'u3', name: "Premium Wax", desc: "Car Wash profits x3", cost: 50000, type: 'multiplier', target: 'b3', value: 3, currency: 'money' },
+            { id: 'u4', name: "Synergistic Paradigms", desc: "All profits x2", cost: 1000000, type: 'global_multiplier', target: 'all', value: 2, currency: 'money' },
+            { id: 'u4a', name: "Organic Sourcing", desc: "Supermarket profits x3", cost: 20000000, type: 'multiplier', target: 'b5a', value: 3, currency: 'money' },
+            { id: 'u4b', name: "High Frequency Trading", desc: "Bank speed x2", cost: 250000000, type: 'speed', target: 'b6a', value: 2, currency: 'money' },
+            { id: 'u5', name: "Robotic Assembly", desc: "Manufacturing speed x2", cost: 500000000, type: 'speed', target: 'b7', value: 2, currency: 'money' },
+            { id: 'u5a', name: "Luxury Condos", desc: "Real Estate profits x3", cost: 15000000000, type: 'multiplier', target: 'b7a', value: 3, currency: 'money' },
+            { id: 'u6', name: "Corporate Restructuring", desc: "All profits x3", cost: 10000000000, type: 'global_multiplier', target: 'all', value: 3, currency: 'money' },
+            { id: 'u7', name: "Jetpacks", desc: "Airline speed x2", cost: 50000000000, type: 'speed', target: 'b8', value: 2, currency: 'money' },
+            { id: 'u8', name: "Warp Drives", desc: "Space Corp profits x5", cost: 2000000000000, type: 'multiplier', target: 'b9', value: 5, currency: 'money' },
+            { id: 'u9', name: "Quantum Computing", desc: "Quantum Ind. speed x2", cost: 50000000000000, type: 'speed', target: 'b10', value: 2, currency: 'money' },
+            { id: 'u10', name: "Nanobots", desc: "All profits x2", cost: 500000000000000, type: 'global_multiplier', target: 'all', value: 2, currency: 'money' },
+            { id: 'u11', name: "AI Overlords", desc: "All speeds x2", cost: 50000000000000000, type: 'global_speed', target: 'all', value: 2, currency: 'money' },
+            
+            // Angel Upgrades (Cost Investor Points, survive resets)
+            { id: 'au1', name: "Divine Intervention", desc: "All profits x2 PERMANENTLY", cost: 100, type: 'global_multiplier', target: 'all', value: 2, currency: 'angel' },
+            { id: 'au2', name: "Heavenly Speed", desc: "All production speeds x1.5", cost: 500, type: 'global_speed', target: 'all', value: 1.5, currency: 'angel' },
+            { id: 'au3', name: "Archangel Status", desc: "All profits x5 PERMANENTLY", cost: 5000, type: 'global_multiplier', target: 'all', value: 5, currency: 'angel' }
+        ];
+
+        const DB_ACHIEVEMENTS = [
+            { id: 'a1', name: "Humble Beginnings", desc: "Earn your first $1,000", condition: (s) => s.lifetimeEarnings >= 1000 },
+            { id: 'a2', name: "Millionaire", desc: "Earn $1,000,000", condition: (s) => s.lifetimeEarnings >= 1000000 },
+            { id: 'a3', name: "Billionaire", desc: "Earn $1,000,000,000", condition: (s) => s.lifetimeEarnings >= 1000000000 },
+            { id: 'a4', name: "Trillionaire", desc: "Earn $1,000,000,000,000", condition: (s) => s.lifetimeEarnings >= 1000000000000 },
+            { id: 'a5', name: "First Hire", desc: "Hire 1 Manager", condition: (s) => Object.keys(s.managers).length >= 1 },
+            { id: 'a6', name: "Corporate Structure", desc: "Hire 5 Managers", condition: (s) => Object.keys(s.managers).length >= 5 },
+            { id: 'a7', name: "Diversification", desc: "Own 100 total businesses", condition: (s) => Object.values(s.businesses).reduce((sum, b) => sum + b.owned, 0) >= 100 },
+            { id: 'a8', name: "Monopoly", desc: "Own 1,000 total businesses", condition: (s) => Object.values(s.businesses).reduce((sum, b) => sum + b.owned, 0) >= 1000 },
+            { id: 'a9', name: "Going Public", desc: "Perform an Investor Reset", condition: (s) => s.stats.prestigeCount >= 1 }
+        ];
+
+        const MILESTONES = [25, 50, 100, 250, 500, 1000, 2000, 3000];
+
+        // --- 2. GAME STATE ---
+        let state = getInitialState();
+        let currentBuyAmount = 1; // 1, 10, 100, 'max'
+        let lastTime = performance.now();
+        let saveTimer = 0;
+        let eventTimer = 0;
+        let globalMultiplierTemp = 1;
+        let pendingMilestones = {}; // Used to trigger visual effects
+
+        function getInitialState() {
+            let s = {
+                money: 0,
+                lifetimeEarnings: 0,
+                investorPoints: 0,
+                businesses: {},
+                managers: {},
+                upgradesOwned: [],
+                achievements: [],
+                lastPlayed: Date.now(),
+                stats: { clicks: 0, prestigeCount: 0, timePlayed: 0 }
+            };
+            DB_BUSINESSES.forEach(b => {
+                s.businesses[b.id] = { owned: 0, progress: 0, active: false };
+            });
+            s.businesses['b1'].owned = 1; // Start with 1 Lemonade Stand
+            return s;
+        }
+
+        // --- 3. CORE LOGIC & MATH ---
+        const Format = {
+            suffixes: ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td"],
+            num: function(val) {
+                if (val < 1000) return Math.floor(val).toString();
+                let exp = Math.floor(Math.log10(val) / 3);
+                if (exp >= this.suffixes.length) return val.toExponential(2);
+                let shortVal = val / Math.pow(10, exp * 3);
+                return shortVal.toFixed(2) + this.suffixes[exp];
+            },
+            time: function(ms) {
+                let s = Math.floor(ms / 1000);
+                if (s < 60) return s + "s";
+                let m = Math.floor(s / 60); s = s % 60;
+                if (m < 60) return `${m}m ${s}s`;
+                let h = Math.floor(m / 60); m = m % 60;
+                return `${h}h ${m}m`;
+            }
+        };
+
+        function getBusinessCost(id, amount) {
+            let b = DB_BUSINESSES.find(x => x.id === id);
+            let owned = state.businesses[id].owned;
+            if (amount === 1) return b.baseCost * Math.pow(CONFIG.baseScale, owned);
+            
+            // Geometric series sum: a * (1 - r^n) / (1 - r)
+            let currentCost = b.baseCost * Math.pow(CONFIG.baseScale, owned);
+            return currentCost * (1 - Math.pow(CONFIG.baseScale, amount)) / (1 - CONFIG.baseScale);
+        }
+
+        function getMaxBuyable(id) {
+            let b = DB_BUSINESSES.find(x => x.id === id);
+            let owned = state.businesses[id].owned;
+            let currentCost = b.baseCost * Math.pow(CONFIG.baseScale, owned);
+            
+            if (state.money < currentCost) return 0;
+            let val = 1 - (state.money * (1 - CONFIG.baseScale) / currentCost);
+            if (val <= 0) return 9999; 
+            return Math.floor(Math.log(val) / Math.log(CONFIG.baseScale));
+        }
+
+        function getNextMilestone(owned) {
+            for(let i=0; i<MILESTONES.length; i++) {
+                if (owned < MILESTONES[i]) return MILESTONES[i];
+            }
+            return owned + 1000; // Arbitrary high next target if maxed
+        }
+        
+        function getPrevMilestone(owned) {
+            let prev = 0;
+            for(let i=0; i<MILESTONES.length; i++) {
+                if (owned >= MILESTONES[i]) prev = MILESTONES[i];
+                else break;
+            }
+            return prev;
+        }
+
+        function getMilestoneMultiplier(owned) {
+            let mult = 1;
+            MILESTONES.forEach(m => { if (owned >= m) mult *= 2; });
+            return mult;
+        }
+
+        function getGlobalMultiplier() {
+            let mult = 1;
+            
+            // Achievement Bonus (1% per achievement)
+            mult *= (1 + (state.achievements.length * 0.01));
+            
+            // Prestige Bonus (2% per point)
+            mult *= (1 + (state.investorPoints * CONFIG.prestigeBonusPerPoint));
+            
+            // Global Upgrades (Money & Angel)
+            DB_UPGRADES.forEach(u => {
+                if (state.upgradesOwned.includes(u.id) && u.type === 'global_multiplier') {
+                    mult *= u.value;
+                }
+            });
+            
+            // Event Bonus
+            mult *= globalMultiplierTemp;
+            
+            return mult;
+        }
+
+        function getBusinessProfit(id) {
+            let b = DB_BUSINESSES.find(x => x.id === id);
+            let owned = state.businesses[id].owned;
+            if (owned === 0) return 0;
+
+            let profit = b.baseProfit * owned;
+            profit *= getMilestoneMultiplier(owned);
+            
+            // Local Upgrades
+            DB_UPGRADES.forEach(u => {
+                if (state.upgradesOwned.includes(u.id) && u.type === 'multiplier' && u.target === id) profit *= u.value;
+            });
+
+            profit *= getGlobalMultiplier();
+            return profit;
+        }
+
+        function getBusinessTime(id) {
+            let b = DB_BUSINESSES.find(x => x.id === id);
+            let time = b.baseTime;
+            
+            // Local Speed upgrades
+            DB_UPGRADES.forEach(u => {
+                if (state.upgradesOwned.includes(u.id) && u.type === 'speed' && u.target === id) time /= u.value;
+            });
+            
+            // Global Speed upgrades
+            DB_UPGRADES.forEach(u => {
+                if (state.upgradesOwned.includes(u.id) && u.type === 'global_speed') time /= u.value;
+            });
+            
+            return Math.max(100, time); // Cap at 100ms
+        }
+
+        // --- 4. GAME ACTIONS ---
+        function setBuyAmount(amt) {
+            currentBuyAmount = amt;
+            document.querySelectorAll('.buy-multiplier .btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-buy-${amt}`).classList.add('active');
+            renderBusinesses();
+        }
+
+        function spawnFloatingText(id, amount) {
+            const bar = document.getElementById(`prog-${id}`);
+            if(!bar) return;
+            const rect = bar.parentElement.getBoundingClientRect();
+            
+            const txt = document.createElement('div');
+            txt.className = 'floating-text';
+            txt.innerText = `+$${Format.num(amount)}`;
+            // Randomize X position slightly within the bar
+            const randX = Math.random() * (rect.width - 50); 
+            txt.style.left = `${rect.left + randX}px`;
+            txt.style.top = `${rect.top}px`;
+            
+            document.body.appendChild(txt);
+            setTimeout(() => txt.remove(), 1000);
+        }
+
+        function spawnParticles(id) {
+            const card = document.getElementById(`biz-card-${id}`);
+            if(!card) return;
+            const rect = card.getBoundingClientRect();
+            
+            for(let i=0; i<30; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = `${rect.left + rect.width/2}px`;
+                p.style.top = `${rect.top + 20}px`;
+                
+                // Random colors: gold, green, white
+                const colors = ['#ffd700', '#00ff80', '#ffffff'];
+                p.style.backgroundColor = colors[Math.floor(Math.random()*colors.length)];
+                
+                const size = Math.random() * 8 + 4;
+                p.style.width = `${size}px`;
+                p.style.height = `${size}px`;
+                
+                // Random trajectory
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = Math.random() * 100 + 50;
+                p.style.setProperty('--tx', `${Math.cos(angle) * velocity}px`);
+                p.style.setProperty('--ty', `${Math.sin(angle) * velocity}px`);
+                
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 800);
+            }
+        }
+
+        function clickBusiness(id) {
+            if (state.businesses[id].owned > 0 && !state.businesses[id].active) {
+                state.businesses[id].active = true;
+                state.stats.clicks++;
+                playSound('click');
+            }
+        }
+
+        function buyBusiness(id) {
+            let amtToBuy = currentBuyAmount === 'max' ? getMaxBuyable(id) : currentBuyAmount;
+            if (amtToBuy <= 0) return;
+
+            let cost = getBusinessCost(id, amtToBuy);
+            if (state.money >= cost) {
+                state.money -= cost;
+                
+                let oldOwned = state.businesses[id].owned;
+                state.businesses[id].owned += amtToBuy;
+                let newOwned = state.businesses[id].owned;
+                
+                playSound('buy');
+                
+                // Check if crossed a milestone
+                let oldMilestone = getPrevMilestone(oldOwned);
+                let newMilestone = getPrevMilestone(newOwned);
+                
+                if (newMilestone > oldMilestone) {
+                    pendingMilestones[id] = true;
+                }
+                
+                renderBusinesses();
+                checkAchievements();
+            }
+        }
+
+        function buyManager(id) {
+            let m = DB_MANAGERS.find(x => x.id === id);
+            if (!state.managers[id] && state.money >= m.cost) {
+                state.money -= m.cost;
+                state.managers[id] = true;
+                logEvent(`Hired ${m.name}!`);
+                playSound('buy');
+                renderManagers();
+                renderBusinesses();
+                checkAchievements();
+            }
+        }
+
+        function buyUpgrade(id) {
+            let u = DB_UPGRADES.find(x => x.id === id);
+            if (!state.upgradesOwned.includes(id)) {
+                if (u.currency === 'money' && state.money >= u.cost) {
+                    state.money -= u.cost;
+                } else if (u.currency === 'angel' && state.investorPoints >= u.cost) {
+                    state.investorPoints -= u.cost;
+                } else {
+                    return; // Can't afford
+                }
+                
+                state.upgradesOwned.push(id);
+                logEvent(`Purchased Upgrade: ${u.name}`);
+                playSound('buy');
+                renderUpgrades();
+                renderBusinesses();
+            }
+        }
+
+        function showModal(opts) {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = opts.title || 'Message';
+            document.getElementById('modal-text').innerText = opts.text || '';
+            
+            const input = document.getElementById('modal-input');
+            const offlineContent = document.getElementById('modal-offline-content');
+            
+            if (opts.type === 'prompt') {
+                input.style.display = 'block';
+                input.value = '';
+                input.type = opts.inputType || 'text';
+                offlineContent.style.display = 'none';
+            } else if (opts.type === 'offline') {
+                input.style.display = 'none';
+                offlineContent.style.display = 'block';
+                document.getElementById('modal-offline-earnings').innerText = opts.earnings || '$0';
+            } else {
+                input.style.display = 'none';
+                offlineContent.style.display = 'none';
+            }
+
+            const btnYes = document.getElementById('modal-btn-yes');
+            const btnNo = document.getElementById('modal-btn-no');
+
+            btnYes.innerText = opts.yesText || 'OK';
+            btnYes.onclick = () => {
+                modal.style.display = 'none';
+                if (opts.onYes) opts.onYes(opts.type === 'prompt' ? input.value : null);
+            };
+
+            if (opts.type === 'alert' || opts.type === 'offline') {
+                btnNo.style.display = 'none';
+            } else {
+                btnNo.style.display = 'inline-block';
+                btnNo.innerText = opts.noText || 'Cancel';
+                btnNo.onclick = () => {
+                    modal.style.display = 'none';
+                    if (opts.onNo) opts.onNo();
+                };
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function prestigePrompt() {
+            let pending = Math.floor(Math.sqrt(state.lifetimeEarnings / CONFIG.prestigeDivisor));
+            if (pending > 0) {
+                showModal({
+                    title: 'Attract Investors',
+                    text: `This will reset your businesses, managers, cash upgrades, and cash in exchange for ${Format.num(pending)} Investor Points! Proceed?`,
+                    type: 'confirm',
+                    yesText: 'Yes, Reset',
+                    onYes: () => executePrestige(pending)
+                });
+            } else {
+                showModal({
+                    title: 'Not Enough Earnings',
+                    text: 'You need to earn more lifetime cash to attract investors!',
+                    type: 'alert'
+                });
+            }
+        }
+
+        function executePrestige(pending) {
+            state.investorPoints += pending;
+            state.stats.prestigeCount++;
+            
+            // Reset variables
+            state.money = 0;
+            DB_BUSINESSES.forEach(b => {
+                state.businesses[b.id] = { owned: 0, progress: 0, active: false };
+            });
+            state.businesses['b1'].owned = 1; // Give the starter business back!
+            state.managers = {};
+            
+            // Keep angel upgrades and achievements
+            state.upgradesOwned = state.upgradesOwned.filter(id => DB_UPGRADES.find(u => u.id === id).currency === 'angel');
+            
+            logEvent(`Investors acquired! +${Format.num(pending)} points.`);
+            playSound('milestone');
+            renderBusinesses();
+            renderManagers();
+            renderUpgrades();
+            checkAchievements();
+            switchTab('upgrades'); 
+        }
+
+        function hardResetPrompt() {
+            showModal({
+                title: 'HARD RESET',
+                text: 'DANGER: This will delete your entire save file completely! Are you absolutely sure?',
+                type: 'confirm',
+                yesText: 'DELETE EVERYTHING',
+                noText: 'Nevermind',
+                onYes: () => {
+                    localStorage.removeItem('idleBusinessSave');
+                    location.reload();
+                }
+            });
+        }
+
+        function triggerRandomEvent() {
+            const events = [
+                { msg: "Viral Marketing! All profits x2 for 30s!", effect: () => { globalMultiplierTemp = 2; setTimeout(() => globalMultiplierTemp = 1, 30000); } },
+                { msg: "Government Grant!", effect: () => { let bonus = calculateTotalIncome() * 60; state.money += bonus; state.lifetimeEarnings += bonus; } }
+            ];
+            let ev = events[Math.floor(Math.random() * events.length)];
+            if(ev) {
+                ev.effect();
+                logEvent(`EVENT: ${ev.msg}`);
+                playSound('milestone');
+            }
+        }
+
+        // --- 5. UI UPDATES ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            const btns = document.querySelectorAll('.tab-btn');
+            for(let btn of btns) {
+                if(btn.innerText.toLowerCase().includes(tabId.substring(0,3))) {
+                    btn.classList.add('active');
+                }
+            }
+            
+            if(tabId === 'managers') renderManagers();
+            if(tabId === 'upgrades') renderUpgrades();
+            if(tabId === 'achievements') renderAchievements();
+        }
+
+        function logEvent(msg) {
+            const log = document.getElementById('bottom-log');
+            log.innerText = msg;
+            log.style.color = 'var(--accent)';
+            setTimeout(() => log.style.color = 'var(--text-dim)', 600);
+        }
+
+        function renderBusinesses() {
+            const container = document.getElementById('businesses-container');
+            container.innerHTML = '';
+            
+            let showNext = true;
+
+            DB_BUSINESSES.forEach((b, index) => {
+                if (!showNext) return;
+                
+                let bState = state.businesses[b.id];
+                let amt = currentBuyAmount === 'max' ? Math.max(1, getMaxBuyable(b.id)) : currentBuyAmount;
+                let cost = getBusinessCost(b.id, amt);
+                let profit = getBusinessProfit(b.id);
+                let time = getBusinessTime(b.id);
+                
+                let isManager = Object.values(DB_MANAGERS).find(m => m.bizId === b.id && state.managers[m.id]);
+                
+                let nextMile = getNextMilestone(bState.owned);
+                let prevMile = getPrevMilestone(bState.owned);
+                let milePercent = ((bState.owned - prevMile) / (nextMile - prevMile)) * 100;
+
+                let div = document.createElement('div');
+                div.className = 'business-card';
+                div.id = `biz-card-${b.id}`;
+                div.innerHTML = `
+                    <div class="biz-header">
+                        <span class="biz-name" onclick="clickBusiness('${b.id}')">
+                            ${b.name} ${isManager ? '<span class="manager-icon" title="Automated">⚙️</span>' : ''}
+                        </span>
+                        <span class="biz-owned">${bState.owned}</span>
+                    </div>
+                    
+                    <div class="milestone-container" title="Next Profit x2 at ${nextMile}">
+                        <div class="milestone-bar-bg">
+                            <div class="milestone-bar-fill" style="width: ${milePercent}%"></div>
+                        </div>
+                        <div class="milestone-text">${bState.owned}/${nextMile}</div>
+                    </div>
+
+                    <div class="progress-bar" onclick="clickBusiness('${b.id}')">
+                        <div class="progress-fill" id="prog-${b.id}" style="width: ${bState.progress * 100}%"></div>
+                        <div class="progress-text">$${Format.num(profit)} / ${Format.time(time)}</div>
+                    </div>
+                    <div class="biz-controls">
+                        <button class="btn buy-btn" id="buy-btn-${b.id}" onclick="buyBusiness('${b.id}')" ${state.money < cost ? 'disabled' : ''}>
+                            Buy ${amt} - $${Format.num(cost)}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+
+                if (pendingMilestones[b.id]) {
+                    spawnParticles(b.id);
+                    playSound('milestone');
+                    logEvent(`${b.name} reached a milestone! Profits doubled!`);
+                    delete pendingMilestones[b.id];
+                }
+
+                if (bState.owned === 0) showNext = false; // Only show one undiscovered
+            });
+        }
+
+        function renderManagers() {
+            const container = document.getElementById('tab-managers');
+            container.innerHTML = '';
+            let count = 0;
+            DB_MANAGERS.forEach(m => {
+                if (state.managers[m.id]) return; 
+                
+                let bizOwned = state.businesses[m.bizId].owned;
+                if(bizOwned === 0 && m.bizId !== 'b1') return; 
+
+                count++;
+                let div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <div class="list-item-info">
+                        <h4>${m.name}</h4>
+                        <p>Automates ${DB_BUSINESSES.find(b=>b.id===m.bizId).name}</p>
+                    </div>
+                    <button class="btn buy-upgrade-btn" id="buy-mgr-${m.id}" onclick="buyManager('${m.id}')" ${state.money < m.cost ? 'disabled' : ''}>
+                        $${Format.num(m.cost)}
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+            if (count === 0) {
+                container.innerHTML = '<p style="color: var(--text-dim); text-align: center;">No managers available to hire right now.</p>';
+            }
+        }
+
+        function renderUpgrades() {
+            const container = document.getElementById('tab-upgrades');
+            container.innerHTML = '';
+            
+            // Separate Cash and Angel Upgrades
+            let cashUpgrades = [];
+            let angelUpgrades = [];
+            
+            DB_UPGRADES.forEach(u => {
+                if (state.upgradesOwned.includes(u.id)) return;
+                if (u.currency === 'money') cashUpgrades.push(u);
+                else angelUpgrades.push(u);
+            });
+
+            if (angelUpgrades.length > 0 && state.stats.prestigeCount > 0) {
+                container.innerHTML += `<div class="section-header">Angel Upgrades</div>`;
+                angelUpgrades.forEach(u => {
+                    let div = document.createElement('div');
+                    div.className = 'list-item angel-upgrade';
+                    div.innerHTML = `
+                        <div class="list-item-info">
+                            <h4>${u.name}</h4>
+                            <p>${u.desc}</p>
+                        </div>
+                        <button class="btn buy-upgrade-btn angel-btn" id="buy-upg-${u.id}" onclick="buyUpgrade('${u.id}')" ${state.investorPoints < u.cost ? 'disabled' : ''}>
+                            ${Format.num(u.cost)} Pts
+                        </button>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            container.innerHTML += `<div class="section-header" style="${angelUpgrades.length > 0 && state.stats.prestigeCount > 0 ? 'margin-top:20px;' : ''}">Cash Upgrades</div>`;
+            
+            if (cashUpgrades.length === 0) {
+                 container.innerHTML += '<p style="color: var(--text-dim); text-align: center; margin-top:10px;">More upgrades unlock as you expand!</p>';
+            }
+
+            cashUpgrades.forEach(u => {
+                let div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <div class="list-item-info">
+                        <h4>${u.name}</h4>
+                        <p>${u.desc}</p>
+                    </div>
+                    <button class="btn buy-upgrade-btn" id="buy-upg-${u.id}" onclick="buyUpgrade('${u.id}')" ${state.money < u.cost ? 'disabled' : ''}>
+                        $${Format.num(u.cost)}
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        function renderAchievements() {
+            const container = document.getElementById('achievements-container');
+            container.innerHTML = '';
+            
+            DB_ACHIEVEMENTS.forEach(a => {
+                let unlocked = state.achievements.includes(a.id);
+                let div = document.createElement('div');
+                div.className = `list-item achievement`;
+                div.style.opacity = unlocked ? 1 : 0.5;
+                if(!unlocked) div.style.borderLeftColor = '#333';
+                
+                div.innerHTML = `
+                    <div class="list-item-info" style="width: 100%; display:flex; justify-content: space-between;">
+                        <h4>${a.name}</h4>
+                        ${unlocked ? '<span style="color:#00aaff;">✓ Unlocked</span>' : '<span>Locked</span>'}
+                    </div>
+                    <p>${a.desc}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function checkAchievements() {
+            let newUnlocks = false;
+            DB_ACHIEVEMENTS.forEach(a => {
+                if (!state.achievements.includes(a.id) && a.condition(state)) {
+                    state.achievements.push(a.id);
+                    logEvent(`Achievement Unlocked: ${a.name}!`);
+                    playSound('milestone');
+                    newUnlocks = true;
+                }
+            });
+            if(newUnlocks && document.getElementById('tab-achievements').classList.contains('active')) {
+                renderAchievements();
+            }
+        }
+
+        // --- 6. MAIN GAME LOOP ---
+        function calculateTotalIncome() {
+            let total = 0;
+            DB_BUSINESSES.forEach(b => {
+                if (state.businesses[b.id].owned > 0) {
+                    let isManager = Object.values(DB_MANAGERS).find(m => m.bizId === b.id && state.managers[m.id]);
+                    if (isManager) {
+                        let profit = getBusinessProfit(b.id);
+                        let timeSec = getBusinessTime(b.id) / 1000;
+                        total += (profit / timeSec);
+                    }
+                }
+            });
+            return total;
+        }
+
+        function gameLoop(timestamp) {
+            let delta = timestamp - lastTime;
+            lastTime = timestamp;
+            state.stats.timePlayed += delta / 1000;
+            saveTimer += delta;
+            eventTimer += delta;
+
+            checkAchievements(); // Constant check for earnings achievements
+
+            DB_BUSINESSES.forEach(b => {
+                let bState = state.businesses[b.id];
+                if (bState.owned > 0) {
+                    let isManager = Object.values(DB_MANAGERS).find(m => m.bizId === b.id && state.managers[m.id]);
+                    
+                    if (bState.active || isManager) {
+                        let duration = getBusinessTime(b.id);
+                        bState.progress += delta / duration;
+                        
+                        // Update UI smoothly for progress bars
+                        let bar = document.getElementById(`prog-${b.id}`);
+                        if (bar) bar.style.width = Math.min(100, bState.progress * 100) + '%';
+
+                        if (bState.progress >= 1) {
+                            let completions = Math.floor(bState.progress);
+                            let profit = getBusinessProfit(b.id) * completions;
+                            state.money += profit;
+                            state.lifetimeEarnings += profit;
+                            
+                            bState.progress -= completions;
+                            if (!isManager) {
+                                bState.active = false; // Stop if manual
+                                spawnFloatingText(b.id, profit);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update Header UI
+            document.getElementById('ui-money').innerText = '$' + Format.num(state.money);
+            document.getElementById('ui-income').innerText = '$' + Format.num(calculateTotalIncome()) + '/sec';
+            document.getElementById('ui-investor-points').innerText = Format.num(state.investorPoints);
+            document.getElementById('ui-global-boost').innerText = getGlobalMultiplier().toFixed(2) + 'x';
+
+            // Update Button States Dynamically (60fps fixing)
+            DB_BUSINESSES.forEach(b => {
+                let btn = document.getElementById(`buy-btn-${b.id}`);
+                if (btn) {
+                    let amt = currentBuyAmount === 'max' ? Math.max(1, getMaxBuyable(b.id)) : currentBuyAmount;
+                    let cost = getBusinessCost(b.id, amt);
+                    btn.disabled = state.money < cost;
+                    let newText = `Buy ${amt} - $${Format.num(cost)}`;
+                    if (btn.innerText !== newText) btn.innerText = newText;
+                }
+            });
+            DB_MANAGERS.forEach(m => {
+                let btn = document.getElementById(`buy-mgr-${m.id}`);
+                if (btn) btn.disabled = state.money < m.cost;
+            });
+            DB_UPGRADES.forEach(u => {
+                let btn = document.getElementById(`buy-upg-${u.id}`);
+                if (btn) {
+                    if (u.currency === 'money') btn.disabled = state.money < u.cost;
+                    if (u.currency === 'angel') btn.disabled = state.investorPoints < u.cost;
+                }
+            });
+
+            // Update Stats Tab if open
+            if(document.getElementById('tab-stats').classList.contains('active')) {
+                document.getElementById('stat-lifetime').innerText = `Lifetime Earnings: $${Format.num(state.lifetimeEarnings)}`;
+                document.getElementById('stat-clicks').innerText = `Total Clicks: ${state.stats.clicks}`;
+                document.getElementById('stat-resets').innerText = `Investor Resets: ${state.stats.prestigeCount}`;
+                document.getElementById('stat-time').innerText = `Time Played: ${Format.time(state.stats.timePlayed * 1000)}`;
+            }
+
+            // Update Prestige UI
+            if(document.getElementById('tab-prestige').classList.contains('active')) {
+                document.getElementById('prestige-current').innerText = Format.num(state.investorPoints);
+                document.getElementById('prestige-bonus').innerText = (state.investorPoints * (CONFIG.prestigeBonusPerPoint * 100)).toFixed(0) + '%';
+                let pending = Math.floor(Math.sqrt(state.lifetimeEarnings / CONFIG.prestigeDivisor));
+                document.getElementById('prestige-pending').innerText = Format.num(pending);
+            }
+
+            // Auto-save every 10s
+            if (saveTimer > 10000) {
+                saveGame(false);
+                saveTimer = 0;
+            }
+
+            // Random Events ~ every 3 minutes
+            if (eventTimer > 180000) {
+                if(Math.random() > 0.5) triggerRandomEvent();
+                eventTimer = 0;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- 7. SAVING & OFFLINE PROGRESS ---
+        function saveGame(manual = false) {
+            state.lastPlayed = Date.now();
+            localStorage.setItem('idleBusinessSave', JSON.stringify(state));
+            if (manual) logEvent("Game Saved Successfully.");
+        }
+
+        function loadGame() {
+            let saved = localStorage.getItem('idleBusinessSave');
+            if (saved) {
+                let parsed = JSON.parse(saved);
+                // Merge to prevent breaking on updates
+                state = { ...getInitialState(), ...parsed };
+
+                // Deep merge businesses to ensure new game updates don't break old saves
+                let freshState = getInitialState();
+                for (let bizId in freshState.businesses) {
+                    if (!state.businesses[bizId]) state.businesses[bizId] = freshState.businesses[bizId];
+                }
+                
+                // Rescue stuck saves
+                if (state.money < 4 && state.businesses['b1'].owned === 0) {
+                    state.businesses['b1'].owned = 1;
+                }
+                
+                // Calculate Offline Progress
+                let now = Date.now();
+                let timeAwayMs = now - state.lastPlayed;
+                let maxOfflineMs = CONFIG.maxOfflineHours * 60 * 60 * 1000;
+                let effectiveTimeMs = Math.min(timeAwayMs, maxOfflineMs);
+                
+                if (effectiveTimeMs > 60000) { // More than 1 minute away
+                    let earned = 0;
+                    DB_BUSINESSES.forEach(b => {
+                        let isManager = Object.values(DB_MANAGERS).find(m => m.bizId === b.id && state.managers[m.id]);
+                        if (isManager && state.businesses[b.id].owned > 0) {
+                            let cycles = effectiveTimeMs / getBusinessTime(b.id);
+                            earned += cycles * getBusinessProfit(b.id) * CONFIG.offlineEfficiency;
+                        }
+                    });
+
+                    if (earned > 0) {
+                        state.money += earned;
+                        state.lifetimeEarnings += earned;
+                        
+                        showModal({
+                            title: 'Welcome Back!',
+                            text: `You were away for ${Format.time(effectiveTimeMs)}.`,
+                            type: 'offline',
+                            earnings: '$' + Format.num(earned),
+                            yesText: 'Awesome!'
+                        });
+                    }
+                }
+            }
+            renderBusinesses();
+            renderUpgrades();
+        }
+
+        // --- 8. INITIALIZATION ---
+        window.onload = function () {
+            loadGame();
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+            
+            // Init Admin Dropdown
+            const select = document.getElementById('admin-biz-select');
+            DB_BUSINESSES.forEach(b => {
+                let opt = document.createElement('option');
+                opt.value = b.id; opt.innerText = b.name; select.appendChild(opt);
+            });
+        };
+
+        // --- 9. ADMIN PANEL LOGIC ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '`') { // The backtick key
+                showModal({
+                    title: 'Admin Access',
+                    text: 'Enter Developer Password:',
+                    type: 'prompt',
+                    inputType: 'password',
+                    yesText: 'Login',
+                    onYes: (pwd) => {
+                        if (pwd === 'fakyou123') {
+                            document.getElementById('admin-panel').style.display = 'block';
+                            playSound('milestone');
+                        } else {
+                            showModal({ title: 'Denied', text: 'Incorrect Password.', type: 'alert' });
+                        }
+                    }
+                });
+            }
+        });
+
+        function adminAction(type) {
+            if(type === 'money') {
+                let amt = Number(document.getElementById('admin-money-amt').value) || 0;
+                state.money += amt;
+                state.lifetimeEarnings += amt;
+                logEvent(`Admin: Added $${Format.num(amt)}`);
+            }
+            if(type === 'investor') {
+                let amt = Number(document.getElementById('admin-investor-amt').value) || 0;
+                state.investorPoints += amt;
+                logEvent(`Admin: Added ${Format.num(amt)} Investor Points`);
+            }
+            if(type === 'business') {
+                let id = document.getElementById('admin-biz-select').value;
+                let amt = Number(document.getElementById('admin-biz-amt').value) || 0;
+                let b = DB_BUSINESSES.find(x => x.id === id);
+                state.businesses[id].owned += amt;
+                logEvent(`Admin: Added ${amt} ${b.name}`);
+                renderBusinesses();
+                checkAchievements();
+            }
+            if(type === 'upgrades') {
+                DB_UPGRADES.forEach(u => {
+                    if(!state.upgradesOwned.includes(u.id)) state.upgradesOwned.push(u.id);
+                });
+                logEvent("Admin: All Upgrades Unlocked!");
+                renderUpgrades();
+            }
+            if(type === 'managers') {
+                DB_MANAGERS.forEach(m => {
+                    state.managers[m.id] = true;
+                });
+                logEvent("Admin: All Managers Unlocked!");
+                renderManagers();
+                renderBusinesses();
+            }
+            playSound('buy');
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fish a Fluff - Catcher Minigame</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka One', cursive;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .game-container {
+            flex-grow: 1;
+            border-radius: 0;
+            transition: background 1.5s ease-in-out, transform 0.1s ease-in-out;
+        }
+        .day { background: linear-gradient(to bottom, #3498db, #2980b9); }
+        .night { background: linear-gradient(to bottom, #2c3e50, #1B2631); }
+        .bay-day { background: linear-gradient(to bottom, #1abc9c, #16a085); }
+        .bay-night { background: linear-gradient(to bottom, #0E6251, #0B5345); }
+        .swamp-day { background: linear-gradient(to bottom, #27ae60, #229954); }
+        .swamp-night { background: linear-gradient(to bottom, #145a32, #11502c); }
+        .forsaken-day { background: linear-gradient(to bottom, #7D9D9C, #576F72); }
+        .forsaken-night { background: linear-gradient(to bottom, #393E46, #222831); }
+        .garden-day { background: linear-gradient(to bottom, #f39c12, #d35400); }
+        .garden-night { background: linear-gradient(to bottom, #b87333, #8b4513); }
+        .ancient-day { background: linear-gradient(to bottom, #9b59b6, #8e44ad); }
+        .ancient-night { background: linear-gradient(to bottom, #4a235a, #3c1b49); }
+        .lore-day { background: linear-gradient(to bottom, #FAD7A0, #F5B041); }
+        .lore-night { background: linear-gradient(to bottom, #5B2C6F, #2C3E50); }
+        .sol-day { background: linear-gradient(to bottom, #85C1E9, #3498DB); }
+        .sol-night { background: linear-gradient(to bottom, #2874A6, #1B4F72); }
+        .winter-day { background: linear-gradient(to bottom, #EBF5FB, #D6EAF8); }
+        .winter-night { background: linear-gradient(to bottom, #212F3D, #1C2833); }
+        .halloween-day { background: linear-gradient(to bottom, #E67E22, #CA6F1E); }
+        .halloween-night { background: linear-gradient(to bottom, #2C3E50, #17202A); }
+        .machine-day { background: linear-gradient(to bottom, #7F8C8D, #95A5A6); }
+        .machine-night { background: linear-gradient(to bottom, #34495E, #2C3E50); }
+        .treasure-day { background: linear-gradient(to bottom, #F7DC6F, #F1C40F); }
+        .treasure-night { background: linear-gradient(to bottom, #7E5109, #6E2C00); }
+        .modal-container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 30;
+        }
+        .shop-button, .pedia-button, .quest-button, .aquarium-button, .travel-button, .save-button { transition: all 0.2s ease-in-out; }
+        .shop-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+        .stat-positive { color: #2ecc71; }
+        .stat-negative { color: #e74c3c; }
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .money-popup {
+            position: absolute;
+            bottom: 20px; left: 50%; transform: translateX(-50%);
+            padding: 8px 16px; border-radius: 20px; background-color: #2ecc71;
+            color: white; font-size: 1.5rem; animation: float-up 2s ease-out forwards; pointer-events: none;
+        }
+        @keyframes float-up {
+            0% { transform: translate(-50%, 0); opacity: 1; }
+            100% { transform: translate(-50%, -100px); opacity: 0; }
+        }
+        @keyframes jayce-float-up {
+            0% { transform: translate(-50%, 0); opacity: 1; }
+            83% { transform: translate(-50%, -80px); opacity: 1; } /* Visible for 5s of a 6s animation */
+            100% { transform: translate(-50%, -100px); opacity: 0; }
+        }
+        .shop-tab { border-bottom: 4px solid transparent; }
+        .shop-tab.active { border-bottom-color: #3b82f6; }
+        .pedia-entry.locked { filter: grayscale(1) brightness(0.5); }
+        .xp-bar-fill { transition: width 0.5s ease-out; }
+        
+        .fish-shiny { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #f0e68c; }
+        .fish-sparkling { text-shadow: 0 0 5px #fff, 0 0 10px #add8e6, 0 0 15px #add8e6; }
+        .fish-big { transform: scale(1.1); font-weight: bold; }
+        .fish-giant { transform: scale(1.2); font-weight: bold; text-shadow: 0 0 8px #ff4500; }
+        
+        #minigameTrack { background-color: #2c3e50; border: 4px solid #34495e; width: 80%; max-width: 900px; }
+        #minigameFish { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4)); position: absolute; }
+        #minigamePlayerBar { background-color: rgba(255, 255, 255, 0.8); border: 2px solid white; border-radius: 8px; }
+        #minigameProgressBarFill { transition: width 0.1s linear; }
+    </style>
+</head>
+<body class="bg-blue-300">
+
+    <div id="banner" class="w-full h-32 bg-cover bg-center flex items-center justify-center shadow-lg" style="background-color: #16a085;">
+        <h1 id="locationName" class="text-6xl text-white font-bold" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.5);">Fluff Island</h1>
+    </div>
+
+    <div id="gameContainer" class="game-container day relative flex flex-col items-center justify-center p-8">
+        <div id="watermark" class="absolute top-4 right-5 text-white text-xs opacity-50 pointer-events-none z-50">Owned by Jayce Rich's Fluff Store</div>
+        <div class="absolute top-0 left-0 w-full p-5 text-white flex flex-col gap-4 z-10">
+            <div class="flex justify-between items-start text-3xl">
+                <div class="flex items-center gap-4">
+                    <div id="money" class="bg-black bg-opacity-40 px-4 py-2 rounded-xl">💰 $0</div>
+                    <div id="relics" class="bg-black bg-opacity-40 px-4 py-2 rounded-xl">💎 0</div>
+                    <div id="timeIndicator" class="bg-black bg-opacity-40 px-4 py-2 rounded-xl text-4xl">☀️</div>
+                    <div id="weatherIndicator" class="bg-black bg-opacity-40 px-4 py-2 rounded-xl text-4xl"></div>
+                    <button id="baitSelector" class="bg-black bg-opacity-40 px-4 py-2 rounded-xl text-xl">No Bait</button>
+                </div>
+                <div class="flex flex-wrap gap-4 justify-end items-center">
+                    <button id="muteButton" class="text-3xl">🔊</button>
+                    <button id="saveButton" class="save-button bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105">Save</button>
+                    <button id="travelButton" class="travel-button bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105">Travel</button>
+                    <button id="inventoryButton" class="inventory-button bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105">Inventory</button>
+                    <button id="aquariumButton" class="aquarium-button bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105 hidden">Aquarium</button>
+                    <button id="questButton" class="quest-button bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105">Quests</button>
+                    <button id="pediaButton" class="pedia-button bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105">Pedia</button>
+                    <button id="shopButton" class="shop-button bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-full text-2xl transform hover:scale-105">Shop</button>
+                </div>
+            </div>
+            <div class="w-full bg-black bg-opacity-40 p-1 rounded-full flex items-center">
+                <div id="level" class="px-4 text-xl font-bold">Lvl 1</div>
+                <div class="flex-grow bg-gray-700 rounded-full h-6">
+                    <div id="xpBar" class="xp-bar-fill bg-yellow-400 h-6 rounded-full text-black text-center text-sm leading-6"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mainGameArea" class="text-center">
+             <button id="fishButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-6 px-12 rounded-full text-5xl transform hover:scale-105 shadow-xl">FISH</button>
+            <p id="fishStatus" class="text-white text-2xl mt-4 bg-black bg-opacity-30 rounded-lg px-4 py-2 min-h-[52px]"></p>
+        </div>
+
+        <div id="minigameArea" class="w-full flex-col items-center justify-center hidden z-20">
+            <div id="minigameTrack" class="relative h-20 rounded-lg shadow-inner"><div id="minigameFish" class="absolute top-1/2 -translate-y-1/2 w-12 h-12 text-4xl transform transition-all duration-100 ease-in-out">🐟</div><div id="minigamePlayerBar" class="absolute top-0 h-full w-48 shadow-lg"></div></div>
+            <div class="w-11/12 max-w-[800px] h-8 mt-4 bg-gray-700 rounded-full overflow-hidden border-2 border-gray-900"><div id="minigameProgressBarFill" class="h-full bg-green-400 rounded-full"></div></div>
+            <p id="minigameTimer" class="text-white text-3xl font-bold mt-4">10.00</p>
+        </div>
+
+        <div id="modalContainer"></div>
+        <div id="popupContainer" class="absolute inset-0 pointer-events-none"></div>
+
+    </div>
+
+    <script type="module">
+        // --- UI Elements ---
+        const locationNameEl = document.getElementById('locationName');
+        const travelButton = document.getElementById('travelButton');
+        const moneyEl = document.getElementById('money');
+        const relicsEl = document.getElementById('relics');
+        const shopButton = document.getElementById('shopButton');
+        const fishButton = document.getElementById('fishButton');
+        const fishStatus = document.getElementById('fishStatus');
+        const mainGameArea = document.getElementById('mainGameArea');
+        const minigameArea = document.getElementById('minigameArea');
+        const minigameTrack = document.getElementById('minigameTrack');
+        const minigameFish = document.getElementById('minigameFish');
+        const minigamePlayerBar = document.getElementById('minigamePlayerBar');
+        const minigameProgressBarFill = document.getElementById('minigameProgressBarFill');
+        const minigameTimerEl = document.getElementById('minigameTimer');
+        const gameContainer = document.getElementById('gameContainer');
+        const timeIndicator = document.getElementById('timeIndicator');
+        const weatherIndicator = document.getElementById('weatherIndicator');
+        const pediaButton = document.getElementById('pediaButton');
+        const questButton = document.getElementById('questButton');
+        const inventoryButton = document.getElementById('inventoryButton');
+        const popupContainer = document.getElementById('popupContainer');
+        const modalContainer = document.getElementById('modalContainer');
+        const levelEl = document.getElementById('level');
+        const xpBar = document.getElementById('xpBar');
+        const baitSelector = document.getElementById('baitSelector');
+        const aquariumButton = document.getElementById('aquariumButton');
+        const saveButton = document.getElementById('saveButton');
+        const muteButton = document.getElementById('muteButton');
+        
+        // --- Game Data ---
+        const locations = {
+            'Fluff Island': { cost: 0, bannerColor: '#16a085', dayClass: 'day', nightClass: 'night' },
+            'Flufflet Bay': { cost: 5000, bannerColor: '#f39c12', dayClass: 'bay-day', nightClass: 'bay-night' },
+            'The Slice of Life Bay': { cost: 50000, bannerColor: '#5DADE2', dayClass: 'sol-day', nightClass: 'sol-night' },
+            'Winter Wonderland Island': { cost: 100000, bannerColor: '#A9CCE3', dayClass: 'winter-day', nightClass: 'winter-night' },
+            'The Panda Swamp': { cost: 25000, bannerColor: '#2c3e50', dayClass: 'swamp-day', nightClass: 'swamp-night' },
+            'Forsaken Shores': { cost: 150000, bannerColor: '#5D6D7E', dayClass: 'forsaken-day', nightClass: 'forsaken-night' },
+            'Treasure Island': { cost: 250000, bannerColor: '#F1C40F', dayClass: 'treasure-day', nightClass: 'treasure-night' },
+            'Carrot Garden': { cost: 75000, bannerColor: '#e67e22', dayClass: 'garden-day', nightClass: 'garden-night' },
+            'Ancient Isles': { cost: 500000, bannerColor: '#8e44ad', dayClass: 'ancient-day', nightClass: 'ancient-night' },
+            'Lore Accurate Island': { cost: 100000000, bannerColor: '#F1C40F', dayClass: 'lore-day', nightClass: 'lore-night' },
+            'Halloween Town': { cost: 1000, bannerColor: '#E67E22', dayClass: 'halloween-day', nightClass: 'halloween-night', isSeasonal: true },
+            'The Machine': { cost: 0, bannerColor: '#34495E', dayClass: 'machine-day', nightClass: 'machine-night' }
+        };
+        const rods = {
+            'Fluff Island': { 'Training Rod': {}, 'Plastic Rod':  {}, 'Carbon Rod':   {}, 'Fast Rod':     {}, 'Lucky Rod':    {}, 'Long Rod':     {} },
+            'Flufflet Bay': { 'Steady Rod': {}, 'Fortune Rod':{}, 'Rapid Rod':  {}, 'Tryhard Rod':{} },
+            'The Slice of Life Bay': { 'Wildflower Rod': {}, 'Magnet Rod': {} },
+            'Winter Wonderland Island': {},
+            'The Panda Swamp': { 'Fluffly Rod': {} },
+            'Forsaken Shores': { 'Scurvy Rod': {} },
+            'Treasure Island': {},
+            'Carrot Garden': { 'Carrot Rod': {} },
+            'Ancient Isles': { 'Stone Rod': {}, 'Phoenix Rod': {} },
+            'Lore Accurate Island': { '67 Mustard Rod': {} },
+            'Halloween Town': {}
+        };
+        const enchantments = {
+            'Swift': { cost: 1, description: "+30% Lure Speed, +5% Progress Speed" },
+            'Hasty': { cost: 1, description: "+55% Lure Speed" },
+            'Lucky': { cost: 1, description: "+10% Luck, +15% Lure Speed, +40% Mutation chance" },
+            'Divine': { cost: 1, description: "+25% Luck, +20% Resilience, +20% Lure Speed" },
+            'Controlled': { cost: 1, description: "+0.15 Control" },
+            'Resilient': { cost: 1, description: "+35% Resilience" },
+            'Quality': { cost: 1, description: "+5% Luck, +5% Resilience, +15% Lure Speed, +5% Progress Speed" },
+            'Unbreakable': { cost: 1, description: "+10,000 Max Kg, +0.1 Control" },
+            'Steady': { cost: 1, description: "+20% Progress Speed" },
+            'Blessed': { cost: 1, description: "+5% Shiny/Sparkling chance, +5% Lure Speed, +5% Progress Speed" },
+            'Mutated': { cost: 1, description: "+90% Mutation chance" },
+            'Clever': { cost: 1, description: "x2.25 XP from all catches" },
+            'Scrapper': { cost: 1, description: "60% chance not to consume Bait" },
+            'Scavenger': { cost: 1, description: "3x higher chance to catch Ancient Relics" },
+            'Flashline': { cost: 1, description: "1/5 chance for +90% Progress Speed, 4/5 for +10% Progress Speed" },
+            'Chronos': { cost: 1, description: "Every 5 seconds, 50% chance to freeze a fish for 3 seconds" },
+            'Momentum': { cost: 1, description: "Every perfect catch increases stats by 2%. Regular catch reduces by 4%. Goes up to 30%" }
+        };
+        const weatherTypes = {
+            'Clear': { icon: '☀️', mutationMultiplier: 1 },
+            'Windy': { icon: '💨', mutationMultiplier: 2 },
+            'Rain': { icon: '🌧️', mutationMultiplier: 2 },
+            'Foggy': { icon: '🌫️', mutationMultiplier: 2 },
+            'Starfall': { icon: '🌠', mutationMultiplier: 15 },
+            'Tornado': { icon: '🌪️', mutationMultiplier: 6 },
+            'Rainbow': { icon: '🌈', mutationMultiplier: 30 },
+            'Eclipse': { icon: '🌘', mutationMultiplier: 60 },
+            'Aurora Borealis': { icon: '🌌', mutationMultiplier: 20 }
+        };
+        const fishData = [
+            // Secret
+            { name: "Ancient Fluffladon", rarity: "Secret", value: 1000000, speed: 100, volatility: 2.0, icon: '✨🦈✨', weightMin: 1000, weightMax: 2000, luckThreshold: 1000, time: 'Any', location: 'Any' },
+            { name: "Kraken", rarity: "Secret", value: 500000, speed: 40, volatility: 1.8, icon: '🐙', weightMin: 2000, weightMax: 3000, luckThreshold: 1200, time: 'Night', location: 'Forsaken Shores' },
+            // Fish God
+            { name: "Fluffladon", rarity: "Fish God", value: 100000, speed: 50, volatility: 1.5, icon: '🦈', weightMin: 500, weightMax: 1000, luckThreshold: 500, time: 'Any', location: 'Any' },
+            { name: "Manatee", rarity: "Fish God", value: 12500, speed: 4, volatility: 0.3, icon: '🦭', weightMin: 1200, weightMax: 1300, luckThreshold: 350, time: 'Any', location: 'The Slice of Life Bay' },
+            { name: "Dexter Whale", rarity: "Fish God", value: 25000, speed: 15, volatility: 1.0, icon: '🐳', weightMin: 1500, weightMax: 2000, luckThreshold: 400, time: 'Night', location: 'The Slice of Life Bay' },
+            { name: "Doakes Shark", rarity: "Fish God", value: 20000, speed: 25, volatility: 1.2, icon: '🦈', weightMin: 800, weightMax: 1000, luckThreshold: 400, time: 'Day', location: 'The Slice of Life Bay' },
+            { name: "Jason Voorhees", rarity: "Fish God", value: 131313, speed: 30, volatility: 1.3, icon: '🔪', weightMin: 13, weightMax: 13, luckThreshold: 666, time: 'Night', location: 'Halloween Town' },
+            { name: "Gem Blobfish", rarity: "Fish God", value: 11000, speed: 2, volatility: 0.1, icon: '💎', weightMin: 5, weightMax: 6, luckThreshold: 450, time: 'Any', location: 'Treasure Island' },
+            { name: "Combination Fluffladon", rarity: "Fish God", value: 150000, speed: 60, volatility: 1.6, icon: '🧬', weightMin: 750, weightMax: 1250, luckThreshold: 0, time: 'Any', location: 'The Machine' },
+            { name: "The Bay Harbor Butcher Kraken", rarity: "Fish God", value: 200000, speed: 50, volatility: 1.9, icon: '🦑', weightMin: 2500, weightMax: 3500, luckThreshold: 0, time: 'Any', location: 'The Machine' },
+            // Exotic
+            { name: "Goldfin Octopus", rarity: "Exotic", value: 2437, speed: 8, volatility: 1.0, icon: '🐙', weightMin: 60, weightMax: 70, luckThreshold: 230, time: 'Any', location: 'Treasure Island' },
+            { name: "Captain's Goldfish", rarity: "Exotic", value: 10000, speed: 10, volatility: 1.0, icon: '🐠', weightMin: 1.75, weightMax: 2.25, luckThreshold: 220, time: 'Day', location: 'Forsaken Shores' },
+            { name: "Treble Bass", rarity: "Exotic", value: 2500, speed: 12, volatility: 1.2, icon: '🐠', weightMin: 100, weightMax: 500, luckThreshold: 200, time: 'Any', location: 'Fluff Island' },
+            { name: "Whisker Bill", rarity: "Exotic", value: 2000, speed: 11, volatility: 1.1, icon: '🐟', weightMin: 50, weightMax: 200, luckThreshold: 195, time: 'Any', location: 'Fluff Island' },
+            { name: "Carrot Snapper", rarity: "Exotic", value: 2880, speed: 9, volatility: 0.9, icon: '🥕', weightMin: 8, weightMax: 12, luckThreshold: 190, time: 'Any', location: 'Carrot Garden' },
+            { name: "Carrot Turtle", rarity: "Exotic", value: 2000, speed: 4, volatility: 0.5, icon: '🐢', weightMin: 14, weightMax: 20, luckThreshold: 195, time: 'Any', location: 'Carrot Garden' },
+            { name: "Ancient Megalodon", rarity: "Exotic", value: 13714, speed: 13, volatility: 1.3, icon: '🦈', weightMin: 50000, weightMax: 70000, luckThreshold: 250, time: 'Any', location: 'Ancient Isles' },
+            { name: "Megalodon", rarity: "Exotic", value: 8731, speed: 12, volatility: 1.2, icon: '🦈', weightMin: 50000, weightMax: 60000, luckThreshold: 240, time: 'Any', location: 'Ancient Isles' },
+             // Legendary
+             { name: "Ruby Lionfish", rarity: "Legendary", value: 1786, speed: 9, volatility: 1.1, icon: '🦁', weightMin: 11, weightMax: 12, luckThreshold: 99, time: 'Any', location: 'Treasure Island' },
+             { name: "Gem Dolphin", rarity: "Legendary", value: 1767, speed: 12, volatility: 1.0, icon: '🐬', weightMin: 17, weightMax: 19, luckThreshold: 99, time: 'Any', location: 'Treasure Island' },
+             { name: "Gem Marlin", rarity: "Legendary", value: 4312, speed: 14, volatility: 1.3, icon: '🐠', weightMin: 11400, weightMax: 11600, luckThreshold: 99.5, time: 'Any', location: 'Treasure Island' },
+             { name: "Gemstone Whale Shark", rarity: "Legendary", value: 4062, speed: 8, volatility: 0.8, icon: '🐋', weightMin: 2500, weightMax: 2700, luckThreshold: 99.5, time: 'Any', location: 'Treasure Island' },
+             { name: "Golden Smallmouth Bass", rarity: "Legendary", value: 466, speed: 8, volatility: 0.8, icon: '🐠', weightMin: 3, weightMax: 4, luckThreshold: 98, time: 'Day', location: 'The Slice of Life Bay' },
+             { name: "Olm", rarity: "Legendary", value: 562, speed: 6, volatility: 0.5, icon: '🦎', weightMin: 0.2, weightMax: 0.3, luckThreshold: 98.5, time: 'Night', location: 'The Slice of Life Bay' },
+             { name: "Pond Emperor", rarity: "Legendary", value: 630, speed: 5, volatility: 0.4, icon: '👑', weightMin: 170, weightMax: 180, luckThreshold: 98, time: 'Any', location: 'Winter Wonderland Island' },
+             { name: "Ringle", rarity: "Legendary", value: 562, speed: 3, volatility: 0.2, icon: '💍', weightMin: 0.2, weightMax: 0.3, luckThreshold: 98, time: 'Night', location: 'Winter Wonderland Island' },
+             { name: "Glacierfish", rarity: "Legendary", value: 666, speed: 9, volatility: 0.9, icon: '🧊', weightMin: 13, weightMax: 14, luckThreshold: 98.5, time: 'Night', location: 'Winter Wonderland Island' },
+             { name: "Baby Pond Emperor", rarity: "Legendary", value: 3125, speed: 4, volatility: 0.3, icon: '👑', weightMin: 1.2, weightMax: 1.3, luckThreshold: 99, time: 'Any', location: 'Winter Wonderland Island' },
+             { name: "White Sturgeon", rarity: "Legendary", value: 7392, speed: 10, volatility: 1.1, icon: '🐠', weightMin: 440, weightMax: 460, luckThreshold: 99.5, time: 'Night', location: 'Winter Wonderland Island' },
+             { name: "Nessie", rarity: "Legendary", value: 4875, speed: 5, volatility: 0.5, icon: '🐉', weightMin: 2900, weightMax: 3100, luckThreshold: 99, time: 'Night', location: 'Halloween Town' },
+             { name: "Fluff La Granda", rarity: "Legendary", value: 15000, speed: 20, volatility: 1.1, icon: '👑', weightMin: 100, weightMax: 150, luckThreshold: 0, time: 'Any', location: 'The Machine' },
+             { name: "Scurvy Sailfish", rarity: "Legendary", value: 4500, speed: 11, volatility: 1.2, icon: '🐠', weightMin: 40, weightMax: 50, luckThreshold: 99, time: 'Night', location: 'Forsaken Shores' },
+             { name: "Shipwreck Barracuda", rarity: "Legendary", value: 5000, speed: 12, volatility: 1.3, icon: '🐟', weightMin: 18, weightMax: 22, luckThreshold: 99, time: 'Night', location: 'Forsaken Shores' },
+             { name: "Golden Seahorse", rarity: "Legendary", value: 8000, speed: 5, volatility: 0.5, icon: '🐴', weightMin: 0.5, weightMax: 1, luckThreshold: 98.5, time: 'Day', location: 'Forsaken Shores' },
+             { name: "Axolotl", rarity: "Legendary", value: 666, speed: 10, volatility: 1.0, icon: '🦎', weightMin: 1, weightMax: 3, luckThreshold: 99, time: 'Night', location: 'Flufflet Bay' },
+             { name: "Alligator", rarity: "Legendary", value: 525, speed: 9, volatility: 1.0, icon: '🐊', weightMin: 150, weightMax: 300, luckThreshold: 98, time: 'Night', location: 'The Panda Swamp' },
+             { name: "RocketFuel", rarity: "Legendary", value: 769, speed: 11, volatility: 1.2, icon: '🚀', weightMin: 1, weightMax: 2, luckThreshold: 98.5, time: 'Any', location: 'The Panda Swamp' },
+             { name: "Golden Carp", rarity: "Legendary", value: 500, speed: 10, volatility: 1.0, icon: '🐠', weightMin: 50, weightMax: 150, luckThreshold: 98, time: 'Any', location: 'Fluff Island' },
+             { name: "Dumbo Octopus", rarity: "Legendary", value: 618, speed: 9, volatility: 1.1, icon: '🐙', weightMin: 2, weightMax: 5, luckThreshold: 98, time: 'Any', location: 'Flufflet Bay' },
+             { name: "Carrot Shark", rarity: "Legendary", value: 5276, speed: 10, volatility: 1.1, icon: '🥕', weightMin: 25, weightMax: 40, luckThreshold: 98, time: 'Any', location: 'Carrot Garden' },
+             { name: "Mosasaurus", rarity: "Legendary", value: 6428, speed: 11, volatility: 1.1, icon: '🐊', weightMin: 10000, weightMax: 15000, luckThreshold: 99, time: 'Night', location: 'Ancient Isles' },
+             { name: "Helicoprion", rarity: "Legendary", value: 4785, speed: 10, volatility: 1.2, icon: '🌀', weightMin: 300, weightMax: 400, luckThreshold: 98.5, time: 'Any', location: 'Ancient Isles' },
+             { name: "Dunkleosteus", rarity: "Legendary", value: 2450, speed: 9, volatility: 1.0, icon: '🐠', weightMin: 2000, weightMax: 2500, luckThreshold: 98, time: 'Day', location: 'Ancient Isles' },
+             { name: "Yellowfin Tuna", rarity: "Legendary", value: 800, speed: 10.5, volatility: 0.9, icon: '🐟', weightMin: 80, weightMax: 150, luckThreshold: 97, time: 'Any', location: 'Fluff Island' },
+             { name: "Deep Pearl", rarity: "Legendary", value: 550, speed: 2, volatility: 0.1, icon: '⚪', weightMin: 0.1, weightMax: 0.5, luckThreshold: 97, time: 'Any', location: 'Flufflet Bay' },
+             { name: "Whiptail Catfish", rarity: "Legendary", value: 400, speed: 9, volatility: 1.0, icon: '🐡', weightMin: 150, weightMax: 400, luckThreshold: 96, time: 'Night', location: 'Fluff Island' },
+             // Epic
+            { name: "Fluff Salmon", rarity: "Epic", value: 2000, speed: 10, volatility: 0.8, icon: '🐟', weightMin: 15, weightMax: 25, luckThreshold: 0, time: 'Any', location: 'The Machine' },
+            { name: "Fluff Combinations", rarity: "Epic", value: 10000, speed: 15, volatility: 1.0, icon: '🌀', weightMin: 50, weightMax: 70, luckThreshold: 0, time: 'Any', location: 'The Machine' },
+            { name: "Gem Eel", rarity: "Epic", value: 530, speed: 10, volatility: 0.9, icon: '🐍', weightMin: 3, weightMax: 4, luckThreshold: 85, time: 'Any', location: 'Treasure Island' },
+            { name: "Coin Squid", rarity: "Epic", value: 753, speed: 8, volatility: 0.8, icon: '🦑', weightMin: 19, weightMax: 21, luckThreshold: 86, time: 'Any', location: 'Treasure Island' },
+            { name: "Golden Dorado", rarity: "Epic", value: 540, speed: 9, volatility: 0.8, icon: '🐠', weightMin: 6, weightMax: 7, luckThreshold: 87, time: 'Any', location: 'Treasure Island' },
+            { name: "Hidden Filefish", rarity: "Epic", value: 578, speed: 7, volatility: 0.6, icon: '🐠', weightMin: 12, weightMax: 13, luckThreshold: 88, time: 'Any', location: 'Treasure Island' },
+            { name: "Queen Angelfish", rarity: "Epic", value: 1007, speed: 6, volatility: 0.5, icon: '👑', weightMin: 5, weightMax: 6, luckThreshold: 89, time: 'Any', location: 'Treasure Island' },
+            { name: "Coin Piranha", rarity: "Epic", value: 886, speed: 11, volatility: 1.1, icon: '🐟', weightMin: 19, weightMax: 21, luckThreshold: 90, time: 'Any', location: 'Treasure Island' },
+            { name: "Net Wolflish", rarity: "Epic", value: 810, speed: 9, volatility: 0.9, icon: '🐺', weightMin: 90, weightMax: 100, luckThreshold: 90, time: 'Any', location: 'Treasure Island' },
+            { name: "Chinook Salmon", rarity: "Epic", value: 143, speed: 9, volatility: 0.9, icon: '🐟', weightMin: 24, weightMax: 26, luckThreshold: 88, time: 'Any', location: 'The Slice of Life Bay' },
+            { name: "King Oyster", rarity: "Epic", value: 140, speed: 2, volatility: 0.1, icon: '🦪', weightMin: 0.6, weightMax: 0.8, luckThreshold: 89, time: 'Any', location: 'The Slice of Life Bay' },
+            { name: "Sea Turtle", rarity: "Epic", value: 1466, speed: 6, volatility: 0.5, icon: '🐢', weightMin: 100, weightMax: 120, luckThreshold: 90, time: 'Any', location: 'The Slice of Life Bay' },
+            { name: "Glacier Pike", rarity: "Epic", value: 154, speed: 10, volatility: 1.0, icon: '🐠', weightMin: 2.3, weightMax: 2.4, luckThreshold: 88, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Lingcod", rarity: "Epic", value: 70, speed: 8, volatility: 0.7, icon: '🐟', weightMin: 8, weightMax: 10, luckThreshold: 88, time: 'Day', location: 'Winter Wonderland Island' },
+            { name: "Skipjack Tuna", rarity: "Epic", value: 107, speed: 9, volatility: 0.8, icon: '🐟', weightMin: 11, weightMax: 12, luckThreshold: 89, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Sturgeon", rarity: "Epic", value: 187, speed: 7, volatility: 0.6, icon: '🐠', weightMin: 48, weightMax: 52, luckThreshold: 90, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Penguin", rarity: "Epic", value: 6107, speed: 7, volatility: 0.7, icon: '🐧', weightMin: 2.2, weightMax: 2.3, luckThreshold: 92, time: 'Night', location: 'Winter Wonderland Island' },
+            { name: "Lurkerfish", rarity: "Epic", value: 937, speed: 9, volatility: 0.9, icon: '👻', weightMin: 1.2, weightMax: 1.3, luckThreshold: 90, time: 'Any', location: 'Halloween Town' },
+            { name: "Galleon Goliath", rarity: "Epic", value: 800, speed: 8, volatility: 0.7, icon: '🦑', weightMin: 9, weightMax: 13, luckThreshold: 90, time: 'Day', location: 'Forsaken Shores' },
+            { name: "Buccaneer Barracuda", rarity: "Epic", value: 950, speed: 10, volatility: 0.9, icon: '🐟', weightMin: 15, weightMax: 20, luckThreshold: 90, time: 'Night', location: 'Forsaken Shores' },
+            { name: "Cutlass Fish", rarity: "Epic", value: 750, speed: 9, volatility: 0.8, icon: '🐠', weightMin: 18, weightMax: 22, luckThreshold: 89, time: 'Day', location: 'Forsaken Shores' },
+            { name: "Cursed Eel", rarity: "Epic", value: 850, speed: 9.5, volatility: 1.0, icon: '🐍', weightMin: 15, weightMax: 18, luckThreshold: 88, time: 'Night', location: 'Forsaken Shores' },
+            { name: "Reefrunner Snapper", rarity: "Epic", value: 700, speed: 8.5, volatility: 0.8, icon: '🐠', weightMin: 15, weightMax: 20, luckThreshold: 87, time: 'Day', location: 'Forsaken Shores' },
+            { name: "Pike", rarity: "Epic", value: 150, speed: 8.5, volatility: 0.8, icon: '🐠', weightMin: 30, weightMax: 150, luckThreshold: 90, time: 'Any', location: 'Fluff Island' },
+            { name: "Arapaima", rarity: "Epic", value: 187, speed: 9, volatility: 0.8, icon: '🐟', weightMin: 100, weightMax: 200, luckThreshold: 90, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Handfish", rarity: "Epic", value: 666, speed: 7, volatility: 0.8, icon: '✋', weightMin: 3, weightMax: 5, luckThreshold: 90, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Carrot Salmon", rarity: "Epic", value: 702, speed: 8, volatility: 0.7, icon: '🥕', weightMin: 5, weightMax: 7, luckThreshold: 90, time: 'Any', location: 'Carrot Garden' },
+            { name: "Carrot Eel", rarity: "Epic", value: 519, speed: 9, volatility: 0.9, icon: '🥕', weightMin: 4, weightMax: 5, luckThreshold: 89, time: 'Any', location: 'Carrot Garden' },
+            { name: "Leedsichthys", rarity: "Epic", value: 2000, speed: 5, volatility: 0.6, icon: '🐋', weightMin: 1000, weightMax: 3000, luckThreshold: 90, time: 'Day', location: 'Ancient Isles' },
+            { name: "Ginsu Shark", rarity: "Epic", value: 2670, speed: 9.5, volatility: 0.9, icon: '🦈', weightMin: 800, weightMax: 1000, luckThreshold: 89, time: 'Night', location: 'Ancient Isles' },
+            { name: "Xiphactinus", rarity: "Epic", value: 144, speed: 8, volatility: 0.8, icon: '🐠', weightMin: 150, weightMax: 200, luckThreshold: 88, time: 'Night', location: 'Ancient Isles' },
+            { name: "Sockeye Salmon", rarity: "Epic", value: 180, speed: 9, volatility: 0.7, icon: '🐟', weightMin: 20, weightMax: 60, luckThreshold: 88, time: 'Any', location: 'Fluff Island' },
+            { name: "Suckermouth Catfish", rarity: "Epic", value: 124, speed: 4, volatility: 0.9, icon: '🐠', weightMin: 10, weightMax: 20, luckThreshold: 88, time: 'Day', location: 'Flufflet Bay' },
+            { name: "Red Snapper", rarity: "Epic", value: 160, speed: 8, volatility: 0.8, icon: '🐠', weightMin: 10, weightMax: 40, luckThreshold: 86, time: 'Any', location: 'Fluff Island' },
+            { name: "Alligator Gar", rarity: "Epic", value: 158, speed: 8.5, volatility: 0.7, icon: '🐊', weightMin: 20, weightMax: 50, luckThreshold: 86, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Eel", rarity: "Epic", value: 120, speed: 9.5, volatility: 0.9, icon: '🐡', weightMin: 20, weightMax: 70, luckThreshold: 85, time: 'Night', location: 'Fluff Island' },
+            { name: "Catfish", rarity: "Epic", value: 200, speed: 6, volatility: 0.7, icon: '🐟', weightMin: 8, weightMax: 12, luckThreshold: 85, time: 'Night', location: 'The Panda Swamp' },
+            // Uncommon
+            { name: "Crowned Royal Gramma", rarity: "Uncommon", value: 97, speed: 5, volatility: 0.4, icon: '👑', weightMin: 19, weightMax: 20, luckThreshold: 40, time: 'Any', location: 'Treasure Island' },
+            { name: "Emerald Angelfish", rarity: "Uncommon", value: 120, speed: 6, volatility: 0.5, icon: '💎', weightMin: 8, weightMax: 9, luckThreshold: 45, time: 'Any', location: 'Treasure Island' },
+            { name: "Goldband Butterflyfish", rarity: "Uncommon", value: 481, speed: 7, volatility: 0.6, icon: '🦋', weightMin: 14, weightMax: 15, luckThreshold: 50, time: 'Any', location: 'Treasure Island' },
+            { name: "Gemscale Mandarinfish", rarity: "Uncommon", value: 463, speed: 6, volatility: 0.5, icon: '💎', weightMin: 7, weightMax: 8, luckThreshold: 55, time: 'Any', location: 'Treasure Island' },
+            { name: "Smallmouth Bass", rarity: "Uncommon", value: 45, speed: 7, volatility: 0.6, icon: '🐟', weightMin: 1, weightMax: 1.2, luckThreshold: 30, time: 'Any', location: 'The Slice of Life Bay' },
+            { name: "Walleye", rarity: "Uncommon", value: 65, speed: 6, volatility: 0.5, icon: '🐠', weightMin: 2.8, weightMax: 3, luckThreshold: 35, time: 'Any', location: 'The Slice of Life Bay' },
+            { name: "White Bass", rarity: "Uncommon", value: 61, speed: 7, volatility: 0.6, icon: '🐟', weightMin: 1.3, weightMax: 1.5, luckThreshold: 40, time: 'Day', location: 'The Slice of Life Bay' },
+            { name: "Redeye Bass", rarity: "Uncommon", value: 69, speed: 8, volatility: 0.7, icon: '🐠', weightMin: 0.8, weightMax: 1, luckThreshold: 45, time: 'Day', location: 'The Slice of Life Bay' },
+            { name: "Red Drum", rarity: "Uncommon", value: 56, speed: 7, volatility: 0.6, icon: '🐠', weightMin: 1.7, weightMax: 1.8, luckThreshold: 40, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Arctic Char", rarity: "Uncommon", value: 53, speed: 8, volatility: 0.7, icon: '🐟', weightMin: 3.9, weightMax: 4.1, luckThreshold: 45, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Burbot", rarity: "Uncommon", value: 51, speed: 6, volatility: 0.5, icon: '🐠', weightMin: 2.2, weightMax: 2.3, luckThreshold: 50, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Blackfish", rarity: "Uncommon", value: 62, speed: 5, volatility: 0.4, icon: '🐟', weightMin: 1.2, weightMax: 1.3, luckThreshold: 55, time: 'Night', location: 'Winter Wonderland Island' },
+            { name: "Skelefish", rarity: "Uncommon", value: 150, speed: 6, volatility: 0.6, icon: '💀', weightMin: 0.7, weightMax: 0.8, luckThreshold: 40, time: 'Any', location: 'Halloween Town' },
+            { name: "Candy Fish", rarity: "Uncommon", value: 150, speed: 5, volatility: 0.5, icon: '🍬', weightMin: 0.7, weightMax: 0.8, luckThreshold: 45, time: 'Any', location: 'Halloween Town' },
+            { name: "Corsair Grouper", rarity: "Uncommon", value: 150, speed: 6, volatility: 0.6, icon: '🐟', weightMin: 10, weightMax: 15, luckThreshold: 60, time: 'Day', location: 'Forsaken Shores' },
+            { name: "Rose Pearl", rarity: "Uncommon", value: 90, speed: 1, volatility: 0.1, icon: '🌸', weightMin: 0.1, weightMax: 0.5, luckThreshold: 65, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Largemouth Bass", rarity: "Uncommon", value: 50, speed: 7, volatility: 0.6, icon: '🐟', weightMin: 10, weightMax: 50, luckThreshold: 60, time: 'Any', location: 'Fluff Island' },
+            { name: "Yellow Boxfish", rarity: "Uncommon", value: 87, speed: 6, volatility: 0.6, icon: '🐠', weightMin: 1, weightMax: 2, luckThreshold: 60, time: 'Day', location: 'Flufflet Bay' },
+            { name: "Snook", rarity: "Uncommon", value: 70, speed: 7.5, volatility: 0.5, icon: '🐠', weightMin: 10, weightMax: 80, luckThreshold: 55, time: 'Any', location: 'Fluff Island' },
+            { name: "Squid", rarity: "Uncommon", value: 84, speed: 7, volatility: 0.8, icon: '🦑', weightMin: 1, weightMax: 3, luckThreshold: 58, time: 'Night', location: 'Flufflet Bay' },
+            { name: "Angelfish", rarity: "Uncommon", value: 75, speed: 5, volatility: 0.5, icon: '🐟', weightMin: 1, weightMax: 2, luckThreshold: 55, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Trout", rarity: "Uncommon", value: 40, speed: 6, volatility: 0.5, icon: '🐡', weightMin: 5, weightMax: 20, luckThreshold: 50, time: 'Any', location: 'Fluff Island' },
+            { name: "Gilded Pearl", rarity: "Uncommon", value: 75, speed: 1, volatility: 0.1, icon: '🟡', weightMin: 0.1, weightMax: 0.5, luckThreshold: 53, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Mauve Pearl", rarity: "Uncommon", value: 125, speed: 1, volatility: 0.1, icon: '🟣', weightMin: 0.1, weightMax: 0.5, luckThreshold: 50, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Flounder", rarity: "Uncommon", value: 60, speed: 5, volatility: 0.6, icon: '🐟', weightMin: 5, weightMax: 70, luckThreshold: 45, time: 'Night', location: 'Fluff Island' },
+            { name: "Butterflyfish", rarity: "Uncommon", value: 62, speed: 5.5, volatility: 0.6, icon: '🐠', weightMin: 0.5, weightMax: 1.5, luckThreshold: 45, time: 'Day', location: 'Flufflet Bay' },
+            { name: "Clownfish", rarity: "Uncommon", value: 52, speed: 6.5, volatility: 0.7, icon: '🐡', weightMin: 0.2, weightMax: 0.8, luckThreshold: 40, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Blue Tang", rarity: "Uncommon", value: 54, speed: 7, volatility: 0.7, icon: '🐟', weightMin: 0.8, weightMax: 1.5, luckThreshold: 35, time: 'Day', location: 'Flufflet Bay' },
+            { name: "Ribbon Eel", rarity: "Uncommon", value: 77, speed: 8, volatility: 0.9, icon: '🐍', weightMin: 5, weightMax: 10, luckThreshold: 30, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Mushgrove Crab", rarity: "Uncommon", value: 235, speed: 5, volatility: 0.8, icon: '🦀', weightMin: 0.8, weightMax: 1.5, luckThreshold: 40, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Marsh Gar", rarity: "Uncommon", value: 202, speed: 8, volatility: 0.7, icon: '🐟', weightMin: 20, weightMax: 40, luckThreshold: 35, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Bowfin", rarity: "Uncommon", value: 75, speed: 7, volatility: 0.6, icon: '🐠', weightMin: 4, weightMax: 6, luckThreshold: 30, time: 'Night', location: 'The Panda Swamp' },
+            { name: "Carrot Pufferfish", rarity: "Uncommon", value: 108, speed: 6, volatility: 0.6, icon: '🥕', weightMin: 2, weightMax: 3, luckThreshold: 40, time: 'Any', location: 'Carrot Garden' },
+            { name: "Carrot Minnow", rarity: "Uncommon", value: 355, speed: 7, volatility: 0.5, icon: '🥕', weightMin: 3, weightMax: 4, luckThreshold: 35, time: 'Any', location: 'Carrot Garden' },
+            { name: "Cobia", rarity: "Uncommon", value: 180, speed: 7.5, volatility: 0.6, icon: '🐟', weightMin: 50, weightMax: 60, luckThreshold: 40, time: 'Any', location: 'Ancient Isles' },
+            { name: "Hyneria", rarity: "Uncommon", value: 112, speed: 6, volatility: 0.5, icon: '🐠', weightMin: 130, weightMax: 150, luckThreshold: 35, time: 'Any', location: 'Ancient Isles' },
+            { name: "Onychodus", rarity: "Uncommon", value: 98, speed: 7, volatility: 0.7, icon: '🐟', weightMin: 100, weightMax: 150, luckThreshold: 30, time: 'Night', location: 'Ancient Isles' },
+            // Common
+            { name: "Gem Anchovy", rarity: "Common", value: 119, speed: 5, volatility: 0.3, icon: '💎', weightMin: 1.4, weightMax: 1.5, luckThreshold: 0, time: 'Any', location: 'Treasure Island' },
+            { name: "Coin Triggerfish", rarity: "Common", value: 85, speed: 6, volatility: 0.5, icon: '💰', weightMin: 5.5, weightMax: 6, luckThreshold: 5, time: 'Any', location: 'Treasure Island' },
+            { name: "Bluegem Angelfish", rarity: "Common", value: 65, speed: 4, volatility: 0.4, icon: '💎', weightMin: 6, weightMax: 7, luckThreshold: 10, time: 'Any', location: 'Treasure Island' },
+            { name: "Gem Salmon", rarity: "Common", value: 50, speed: 7, volatility: 0.6, icon: '💎', weightMin: 6.5, weightMax: 7.5, luckThreshold: 15, time: 'Any', location: 'Treasure Island' },
+            { name: "Gudgeon", rarity: "Common", value: 26, speed: 4, volatility: 0.3, icon: '🐟', weightMin: 0.1, weightMax: 0.3, luckThreshold: 0, time: 'Day', location: 'The Slice of Life Bay' },
+            { name: "Pollock", rarity: "Common", value: 42, speed: 5, volatility: 0.4, icon: '🐟', weightMin: 2, weightMax: 4, luckThreshold: 0, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Herring", rarity: "Common", value: 50, speed: 6, volatility: 0.5, icon: '🐟', weightMin: 0.7, weightMax: 0.9, luckThreshold: 5, time: 'Day', location: 'Winter Wonderland Island' },
+            { name: "Bluegill", rarity: "Common", value: 35, speed: 4, volatility: 0.3, icon: '🐠', weightMin: 0.3, weightMax: 0.4, luckThreshold: 10, time: 'Any', location: 'Winter Wonderland Island' },
+            { name: "Grayling", rarity: "Common", value: 50, speed: 5, volatility: 0.4, icon: '🐟', weightMin: 1.2, weightMax: 1.3, luckThreshold: 15, time: 'Day', location: 'Winter Wonderland Island' },
+            { name: "Ghoulfish", rarity: "Common", value: 687, speed: 7, volatility: 0.7, icon: '👻', weightMin: 8, weightMax: 9, luckThreshold: 0, time: 'Any', location: 'Halloween Town' },
+            { name: "Zombiefish", rarity: "Common", value: 150, speed: 4, volatility: 0.4, icon: '🧟', weightMin: 2, weightMax: 2.5, luckThreshold: 10, time: 'Any', location: 'Halloween Town' },
+            { name: "Shortfin Mako Shark", rarity: "Common", value: 80, speed: 7, volatility: 0.7, icon: '🦈', weightMin: 60, weightMax: 120, luckThreshold: 20, time: 'Night', location: 'Forsaken Shores' },
+            { name: "Bream", rarity: "Common", value: 25, speed: 4.5, volatility: 0.4, icon: '🐠', weightMin: 2, weightMax: 40, luckThreshold: 20, time: 'Day', location: 'Fluff Island' },
+            { name: "Goldfish", rarity: "Common", value: 15, speed: 3.5, volatility: 0.3, icon: '🐡', weightMin: 0.5, weightMax: 4, luckThreshold: 10, time: 'Day', location: 'Fluff Island' },
+            { name: "Perch", rarity: "Common", value: 40, speed: 4, volatility: 0.3, icon: '🐠', weightMin: 0.5, weightMax: 1, luckThreshold: 0, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Anchovy", rarity: "Common", value: 20, speed: 5, volatility: 0.2, icon: '🐟', weightMin: 0.2, weightMax: 2, luckThreshold: 0, time: 'Day', location: 'Fluff Island' },
+            { name: "Minnow", rarity: "Common", value: 26, speed: 3, volatility: 0.3, icon: '🐟', weightMin: 0.1, weightMax: 0.5, luckThreshold: 15, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Chub", rarity: "Common", value: 26, speed: 3.5, volatility: 0.4, icon: '🐠', weightMin: 1, weightMax: 3, luckThreshold: 10, time: 'Day', location: 'Flufflet Bay' },
+            { name: "Pumpkinseed", rarity: "Common", value: 54, speed: 4, volatility: 0.4, icon: '🐡', weightMin: 0.2, weightMax: 0.8, luckThreshold: 5, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Clam", rarity: "Common", value: 12, speed: 0.5, volatility: 0.1, icon: '🦪', weightMin: 0.5, weightMax: 1.5, luckThreshold: 0, time: 'Any', location: 'Flufflet Bay' },
+            { name: "Swamp Bass", rarity: "Common", value: 40, speed: 4, volatility: 0.5, icon: '🐟', weightMin: 3, weightMax: 5, luckThreshold: 20, time: 'Any', location: 'The Panda Swamp' },
+            { name: "White Perch", rarity: "Common", value: 46, speed: 4.5, volatility: 0.4, icon: '🐠', weightMin: 0.5, weightMax: 1, luckThreshold: 15, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Grey Carp", rarity: "Common", value: 77, speed: 5, volatility: 0.3, icon: '🐟', weightMin: 4, weightMax: 5, luckThreshold: 10, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Swamp Scallop", rarity: "Common", value: 107, speed: 1, volatility: 0.1, icon: '🦪', weightMin: 0.8, weightMax: 1.2, luckThreshold: 5, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Fungal Cluster", rarity: "Common", value: 9, speed: 0.2, volatility: 0, icon: '🍄', weightMin: 0.5, weightMax: 1, luckThreshold: 0, time: 'Any', location: 'The Panda Swamp' },
+            { name: "Carrot Goldfish", rarity: "Common", value: 67, speed: 4, volatility: 0.3, icon: '🥕', weightMin: 1, weightMax: 3, luckThreshold: 20, time: 'Any', location: 'Carrot Garden' },
+            { name: "Piranha", rarity: "Common", value: 59, speed: 6, volatility: 0.6, icon: '🐟', weightMin: 3, weightMax: 4, luckThreshold: 20, time: 'Any', location: 'Ancient Isles' },
+            { name: "Starfish", rarity: "Common", value: 70, speed: 1, volatility: 0.1, icon: '⭐', weightMin: 4, weightMax: 5, luckThreshold: 15, time: 'Any', location: 'Ancient Isles' },
+            { name: "Anomalocaris", rarity: "Common", value: 56, speed: 5, volatility: 0.5, icon: '🦐', weightMin: 20, weightMax: 30, luckThreshold: 10, time: 'Night', location: 'Ancient Isles' },
+            { name: "Acanthodii", rarity: "Common", value: 145, speed: 6.5, volatility: 0.4, icon: '🐠', weightMin: 10, weightMax: 20, luckThreshold: 5, time: 'Any', location: 'Ancient Isles' },
+            { name: "Hallucigenia", rarity: "Common", value: 130, speed: 2, volatility: 0.8, icon: '🐛', weightMin: 6, weightMax: 7, luckThreshold: 0, time: 'Day', location: 'Ancient Isles' },
+            { name: "Floppy", rarity: "Common", value: 1800, speed: 1, volatility: 1, icon: '🐠', weightMin: 8, weightMax: 10, luckThreshold: 0, time: 'Any', location: 'Ancient Isles' },
+            // Lore Accurate Island Fish
+            { name: "Sweetfish", rarity: "Common", value: 28, speed: 4, volatility: 0.3, icon: '🍬', weightMin: 0.3, weightMax: 0.4, luckThreshold: 0, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Glassfish", rarity: "Common", value: 28, speed: 3, volatility: 0.2, icon: '🧊', weightMin: 0.2, weightMax: 0.3, luckThreshold: 5, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Longtail Bass", rarity: "Uncommon", value: 90, speed: 7, volatility: 0.6, icon: '🐟', weightMin: 2, weightMax: 4, luckThreshold: 30, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Red Tang", rarity: "Uncommon", value: 60, speed: 6, volatility: 0.5, icon: '🐠', weightMin: 0.8, weightMax: 1, luckThreshold: 35, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Chinfish", rarity: "Uncommon", value: 64, speed: 5, volatility: 0.4, icon: '🐟', weightMin: 2.5, weightMax: 3.5, luckThreshold: 40, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Trumpetfish", rarity: "Uncommon", value: 72, speed: 8, volatility: 0.7, icon: '🎺', weightMin: 1.4, weightMax: 1.5, luckThreshold: 45, time: 'Day', location: 'Lore Accurate Island' },
+            { name: "Napoleonfish", rarity: "Uncommon", value: 171, speed: 9, volatility: 0.8, icon: '👑', weightMin: 28, weightMax: 32, luckThreshold: 50, time: 'Day', location: 'Lore Accurate Island' },
+            { name: "Mahi Mahi", rarity: "Uncommon", value: 110, speed: 10, volatility: 0.9, icon: '🐠', weightMin: 10, weightMax: 12, luckThreshold: 55, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Ancient Wood", rarity: "Uncommon", value: 337, speed: 1, volatility: 0.1, icon: '🪵', weightMin: 0.1, weightMax: 0.2, luckThreshold: 60, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Voltfish", rarity: "Epic", value: 1650, speed: 12, volatility: 1.2, icon: '⚡️', weightMin: 1.1, weightMax: 1.3, luckThreshold: 90, time: 'Night', location: 'Lore Accurate Island' },
+            { name: "Wiifish", rarity: "Legendary", value: 900, speed: 6, volatility: 0.5, icon: '🎮', weightMin: 28, weightMax: 32, luckThreshold: 98, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Sunfish", rarity: "Legendary", value: 1050, speed: 5, volatility: 0.4, icon: '☀️', weightMin: 600, weightMax: 800, luckThreshold: 98.5, time: 'Day', location: 'Lore Accurate Island' },
+            { name: "Tartaruga", rarity: "Legendary", value: 6187, speed: 3, volatility: 0.2, icon: '🐢', weightMin: 2400, weightMax: 2500, luckThreshold: 99, time: 'Any', location: 'Lore Accurate Island' },
+            { name: "Speed Core", rarity: "Legendary", value: 769, speed: 15, volatility: 1.5, icon: '⚙️', weightMin: 1.2, weightMax: 1.3, luckThreshold: 99.5, time: 'Any', location: 'Lore Accurate Island' }
+        ];
+        const baits = {
+            'Wiggly Worms': { cost: 100, casts: 15, effect: { type: 'luck', value: 10 } },
+            'Shiny Minnows': { cost: 250, casts: 15, effect: { type: 'lure', value: 20 } },
+            'Rare Grubs': { cost: 500, casts: 3, effect: { type: 'luck', value: 30 } },
+            'Bagel': { cost: 50, casts: 10, effect: { type: 'luck', value: 5 } },
+            'Flakes': { cost: 80, casts: 20, effect: { type: 'lure', value: 5 } },
+            'Garbage': { cost: 5, casts: 5, effect: { type: 'luck', value: -10 } },
+            'Insect': { cost: 150, casts: 15, effect: { type: 'lure', value: 15 } },
+            'Lushworms': { cost: 300, casts: 10, effect: { type: 'luck', value: 25 } },
+            'Maggot': { cost: 40, casts: 20, effect: { type: 'lure', value: 10 } },
+            'Shrimp': { cost: 200, casts: 10, effect: { type: 'luck', value: 15 } },
+            'Seaweed': { cost: 120, casts: 15, effect: { type: 'lure', value: -5 } },
+        };
+        const quests = [
+            { id: 1, type: 'catchCount', target: 10, reward: 500, description: "Catch 10 fish." },
+            { id: 2, type: 'earnMoney', target: 1000, reward: 750, description: "Earn $1000 from fishing." },
+            { id: 3, type: 'catchRarity', rarity: 'Uncommon', target: 5, reward: 600, description: "Catch 5 Uncommon fish." },
+            { id: 4, type: 'catchRarity', rarity: 'Epic', target: 1, reward: 1000, description: "Catch an Epic fish." },
+        ];
+        const mutations = {
+            'Shiny': { multiplier: 2, chance: 0.05 }, 'Sparkling': { multiplier: 2.5, chance: 0.03 },
+            'Big': { multiplier: 3, chance: 0.015 }, 'Giant': { multiplier: 5, chance: 0.005 }
+        };
+        
+        // --- Game State ---
+        let money = 0;
+        let ancientRelics = 0;
+        let ownedRods = ['Training Rod'];
+        let equippedRod = 'Training Rod';
+        let rodEnchantments = {};
+        let isGamePaused = false;
+        let isFishing = false;
+        let currentTime = 'Day';
+        let currentWeather = 'Clear';
+        let eventLuckMultiplier = 1;
+        let caughtFish = {};
+        let fishInventory = [];
+        let dailyQuest = null;
+        let level = 1;
+        let xp = 0;
+        let xpToNextLevel = 100;
+        let baitInventory = {};
+        let selectedBait = 'None';
+        let aquariumUnlocked = false;
+        let unlockedLocations = ['Fluff Island'];
+        let currentLocation = 'Fluff Island';
+        let guaranteedNextCatch = null;
+        let isCatchGuaranteed = false;
+        let adminLuckBonus = 0;
+        let isMuted = false;
+        let fusionSlots = [];
+
+        // --- Minigame State ---
+        let minigame = {
+            active: false, progress: 0, timer: 10, fishX: 0, fishSpeedX: 2, fishDirectionX: 1, 
+            fishVolatility: 0.1, playerBarWidth: 192, currentFish: null, animationFrame: null,
+            momentumStacks: 0, chronosTimer: 0
+        };
+        
+        // --- Sound Engine ---
+        let audioCtx;
+        let musicGainNode;
+        let musicTracks = {};
+        
+        function initAudio() {
+            if (audioCtx) return;
+            try { 
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                musicGainNode = audioCtx.createGain();
+                musicGainNode.connect(audioCtx.destination);
+                
+                musicTracks = {
+                    islandDay: createMusic([{freq: 392, dur: 0.2, time: 0.4}, {freq: 440, dur: 0.2, time: 0.4}, {freq: 493, dur: 0.4, time: 0.8}, {freq: 392, dur: 0.4, time: 0.8}]),
+                    islandNight: createMusic([{freq: 196, dur: 0.6, time: 1}, {freq: 246, dur: 0.6, time: 1}, {freq: 293, dur: 0.8, time: 1.6}]),
+                    bayDay: createMusic([{freq: 440, dur: 0.2, time: 0.3}, {freq: 523, dur: 0.2, time: 0.3}, {freq: 587, dur: 0.4, time: 0.6}, {freq: 523, dur: 0.3, time: 0.6}]),
+                    bayNight: createMusic([{freq: 220, dur: 0.6, time: 1}, {freq: 261, dur: 0.6, time: 1}, {freq: 329, dur: 0.8, time: 1.6}]),
+                    swampDay: createMusic([{freq: 174, dur: 0.5, time: 0.7}, {freq: 220, dur: 0.3, time: 0.5}, {freq: 174, dur: 0.5, time: 0.7}, {freq: 261, dur: 0.6, time: 1}]),
+                    swampNight: createMusic([{freq: 130, dur: 0.8, time: 1.2}, {freq: 164, dur: 0.8, time: 1.2}, {freq: 196, dur: 1, time: 1.8}]),
+                    gardenDay: createMusic([{freq: 466, dur: 0.2, time: 0.3}, {freq: 523, dur: 0.2, time: 0.3}, {freq: 587, dur: 0.3, time: 0.6}, {freq: 698, dur: 0.4, time: 0.8}]),
+                    gardenNight: createMusic([{freq: 233, dur: 0.6, time: 1}, {freq: 277, dur: 0.6, time: 1}, {freq: 349, dur: 0.8, time: 1.6}]),
+                    ancientDay: createMusic([{freq: 146, dur: 0.7, time: 1}, {freq: 174, dur: 0.7, time: 1}, {freq: 220, dur: 0.9, time: 1.5}]),
+                    ancientNight: createMusic([{freq: 130, dur: 0.8, time: 1.2}, {freq: 155, dur: 0.8, time: 1.2}, {freq: 196, dur: 1, time: 1.8}]),
+                };
+
+                updateLocationUI(); // Start music after audio is initialized
+            } 
+            catch (e) { console.error("Web Audio API is not supported in this browser"); }
+        }
+        document.body.addEventListener('click', initAudio, { once: true });
+        
+        function playSound(type) {
+            if (!audioCtx || isMuted) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            switch (type) {
+                case 'cast': oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); oscillator.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3); gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3); break;
+                case 'hook': oscillator.type = 'triangle'; oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime); gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2); break;
+                case 'success': oscillator.type = 'square'; oscillator.frequency.setValueAtTime(600, audioCtx.currentTime); oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.1); oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime + 0.2); gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3); break;
+                case 'fail': oscillator.type = 'sawtooth'; oscillator.frequency.setValueAtTime(200, audioCtx.currentTime); oscillator.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.4); gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4); break;
+                case 'click': oscillator.type = 'triangle'; oscillator.frequency.setValueAtTime(500, audioCtx.currentTime); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1); break;
+            }
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 1);
+        }
+
+        function createMusic(notes) {
+            const sequence = [];
+            notes.forEach(note => {
+                sequence.push({ freq: note.freq, duration: note.dur, time: note.time });
+            });
+            return sequence;
+        }
+
+        let currentTrack;
+        let musicTimeout;
+
+        function playMusicSequence(sequence, index = 0) {
+            if (isMuted || !sequence || !audioCtx) return;
+            const note = sequence[index % sequence.length];
+            const osc = audioCtx.createOscillator();
+            osc.frequency.setValueAtTime(note.freq, audioCtx.currentTime);
+            osc.type = 'sine';
+            osc.connect(musicGainNode);
+            osc.start();
+            osc.stop(audioCtx.currentTime + note.duration);
+
+            musicTimeout = setTimeout(() => playMusicSequence(sequence, index + 1), note.time * 1000);
+        }
+
+        function switchMusic(trackName) {
+            clearTimeout(musicTimeout);
+            const newTrack = musicTracks[trackName];
+            if (newTrack) {
+                currentTrack = newTrack;
+                playMusicSequence(currentTrack);
+            }
+        }
+
+        muteButton.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if(isMuted) {
+                if (audioCtx) musicGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                clearTimeout(musicTimeout);
+                muteButton.textContent = '🔇';
+            } else {
+                initAudio();
+                if (audioCtx) {
+                    musicGainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    playMusicSequence(currentTrack);
+                }
+                muteButton.textContent = '🔊';
+            }
+        });
+        
+        // --- Save & Load ---
+        const obfuscationKey = "jayce-rich-fluff-store";
+
+        function obfuscate(str) {
+            let result = '';
+            for (let i = 0; i < str.length; i++) {
+                result += String.fromCharCode(str.charCodeAt(i) ^ obfuscationKey.charCodeAt(i % obfuscationKey.length));
+            }
+            return result;
+        }
+
+        function exportSave() {
+             const gameState = { 
+                m: money, ur: ownedRods, er: equippedRod, cf: caughtFish, bi: baitInventory, sb: selectedBait, 
+                dq: dailyQuest, l: level, x: xp, au: aquariumUnlocked, ul: unlockedLocations, cl: currentLocation,
+                ar: ancientRelics, re: rodEnchantments, fi: fishInventory
+            };
+            const jsonString = JSON.stringify(gameState);
+            const obfuscatedString = obfuscate(jsonString);
+            const dataStr = btoa(obfuscatedString);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'fluff-save.txt';
+        
+            let linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            fishStatus.textContent = "Save file exported!";
+        }
+
+        function importSave() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt';
+            input.onchange = e => { 
+                const file = e.target.files[0]; 
+                const reader = new FileReader();
+                reader.readAsText(file,'UTF-8');
+                reader.onload = readerEvent => {
+                    try {
+                        const content = readerEvent.target.result;
+                        const obfuscatedString = atob(content);
+                        const jsonString = obfuscate(obfuscatedString);
+                        const gameState = JSON.parse(jsonString);
+                        
+                        // Load state from file
+                        money = gameState.m || 0;
+                        ownedRods = gameState.ur || ['Training Rod'];
+                        equippedRod = gameState.er || 'Training Rod';
+                        caughtFish = gameState.cf || {};
+                        dailyQuest = gameState.dq || null;
+                        level = gameState.l || 1;
+                        xp = gameState.x || 0;
+                        baitInventory = gameState.bi || {};
+                        selectedBait = gameState.sb || 'None';
+                        aquariumUnlocked = gameState.au || false;
+                        unlockedLocations = gameState.ul || ['Fluff Island'];
+                        currentLocation = gameState.cl || 'Fluff Island';
+                        ancientRelics = gameState.ar || 0;
+                        rodEnchantments = gameState.re || {};
+                        fishInventory = gameState.fi || [];
+                        
+                        xpToNextLevel = calculateXpToNextLevel(level);
+                        if(aquariumUnlocked) aquariumButton.classList.remove('hidden');
+                        
+                        generateDailyQuest();
+                        updateUI();
+                        updateBaitUI();
+                        updateXpUI();
+                        updateLocationUI();
+                        fishStatus.textContent = "Save loaded successfully!";
+                        closeModal();
+
+                    } catch (error) {
+                        fishStatus.textContent = "Error loading save file.";
+                        console.error(error);
+                    }
+                }
+            }
+            input.click();
+        }
+
+        // --- UI Update ---
+        function updateUI() {
+            moneyEl.innerHTML = `💰 $${Math.floor(money)}`;
+            relicsEl.innerHTML = `💎 ${ancientRelics}`;
+        }
+        
+        // --- Leveling System ---
+        function calculateXpToNextLevel(lvl) { return Math.floor(100 * Math.pow(1.15, lvl - 1)); }
+        function addXp(amount) {
+            let finalAmount = amount;
+            const currentEnchantment = rodEnchantments[equippedRod];
+            if (currentEnchantment === 'Clever') {
+                finalAmount *= 2.25;
+            }
+            xp += finalAmount;
+            while (xp >= xpToNextLevel) { levelUp(); }
+            updateXpUI();
+        }
+        function levelUp() {
+            xp -= xpToNextLevel; level++;
+            xpToNextLevel = calculateXpToNextLevel(level);
+            fishStatus.textContent = `Level Up! You are now Level ${level}!`;
+            playSound('success');
+            if (level % 10 === 0) { grantLevelUpReward(); }
+            if (level >= 30 && !aquariumUnlocked) {
+                aquariumUnlocked = true;
+                fishStatus.textContent = `Level 30! Aquarium Unlocked!`;
+                aquariumButton.classList.remove('hidden');
+            }
+        }
+        function grantLevelUpReward() {
+            const roll = Math.random();
+            if (roll < 0.33) {
+                const moneyReward = 500 * (level / 10);
+                money += moneyReward; showMoneyPopup(moneyReward);
+                fishStatus.textContent = `Level ${level} Reward: +$${moneyReward}!`;
+            } else {
+                const baitTypes = Object.keys(baits);
+                const randomBait = baitTypes[Math.floor(Math.random() * baitTypes.length)];
+                addBaitToInventory(randomBait, 1);
+                fishStatus.textContent = `Level ${level} Reward: A stack of ${randomBait}!`;
+            }
+            updateUI();
+        }
+        function updateXpUI() {
+            levelEl.textContent = `Lvl ${level}`;
+            const percentage = Math.min(100, (xp / xpToNextLevel) * 100);
+            xpBar.style.width = `${percentage}%`;
+            xpBar.textContent = `${Math.floor(xp)} / ${xpToNextLevel}`;
+        }
+        
+        // --- Visual Feedback ---
+        function showMoneyPopup(amount) {
+            const popup = document.createElement('div');
+            popup.className = 'money-popup';
+            popup.textContent = `+$${Math.floor(amount)}`;
+            popupContainer.appendChild(popup);
+            setTimeout(() => popup.remove(), 2000);
+        }
+
+        function showAdminPopup(message) {
+            const popup = document.createElement('div');
+            popup.className = 'money-popup bg-blue-500'; // Different color for admin
+            popup.textContent = message;
+            popupContainer.appendChild(popup);
+            setTimeout(() => popup.remove(), 3000);
+        }
+
+        function showJayceMessage(message) {
+            const popup = document.createElement('div');
+            popup.className = 'money-popup bg-yellow-500';
+            popup.style.animation = 'jayce-float-up 6s ease-out forwards';
+            popup.innerHTML = `<strong>Jayce:</strong> ${message}`;
+            popupContainer.appendChild(popup);
+            setTimeout(() => popup.remove(), 6000);
+        }
+
+        function showItemPopup(message, icon) {
+            const popup = document.createElement('div');
+            popup.className = 'money-popup bg-purple-500'; // Purple for mythic items
+            popup.innerHTML = `${icon} ${message}`;
+            popupContainer.appendChild(popup);
+            setTimeout(() => popup.remove(), 3000);
+        }
+
+        function triggerScreenShake() {
+            gameContainer.classList.add('shake');
+            setTimeout(() => gameContainer.classList.remove('shake'), 500);
+        }
+        
+        // --- Modals (Generic) ---
+        function closeModal() {
+            isGamePaused = false;
+            modalContainer.innerHTML = '';
+            playSound('click');
+        }
+
+        // --- Location System ---
+        function showTravel() {
+            if (isFishing) return;
+            isGamePaused = true; playSound('click');
+
+            const now = new Date();
+            const currentMonth = now.getMonth(); // 0-11
+            const isHalloween = currentMonth === 9; // October is month 9
+
+            let content = Object.entries(locations).map(([name, data]) => {
+                if (data.isSeasonal && !isHalloween) {
+                    return ''; // Don't show seasonal locations out of season
+                }
+
+                const isUnlocked = unlockedLocations.includes(name);
+                const isCurrent = currentLocation === name;
+                let buttonHtml;
+                if(isCurrent) {
+                    buttonHtml = `<button class="shop-button bg-gray-400 text-white font-bold p-3 rounded-lg w-32" disabled>Current</button>`;
+                } else if (isUnlocked) {
+                    buttonHtml = `<button class="shop-button bg-blue-500 hover:bg-blue-600 text-white font-bold p-3 rounded-lg w-32" onclick="travelTo('${name}')">Travel</button>`;
+                } else {
+                    buttonHtml = `<button class="shop-button bg-green-500 hover:bg-green-600 text-white font-bold p-3 rounded-lg w-32" ${money >= data.cost ? '' : 'disabled'} onclick="unlockLocation('${name}')">Unlock $${data.cost}</button>`;
+                }
+                return `<div class="p-4 bg-gray-100 rounded-lg flex items-center justify-between"><h4 class="font-bold text-xl">${name} ${data.isSeasonal ? '🎃' : ''}</h4>${buttonHtml}</div>`;
+            }).join('');
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-lg max-h-[90vh] flex flex-col"><h2 class="text-4xl font-bold text-gray-800 mb-6 text-center">Travel</h2><div class="overflow-y-auto space-y-4 pr-4">${content}</div><button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button></div></div>`;
+        }
+
+        function unlockLocation(name) {
+            const locData = locations[name];
+            if (money >= locData.cost && !unlockedLocations.includes(name)) {
+                money -= locData.cost;
+                unlockedLocations.push(name);
+                updateUI();
+                
+                showTravel();
+            }
+        }
+
+        function travelTo(name) {
+            if(unlockedLocations.includes(name)) {
+                currentLocation = name;
+                
+                updateLocationUI();
+                closeModal();
+            }
+        }
+
+        function updateLocationUI() {
+            const locData = locations[currentLocation];
+            locationNameEl.textContent = currentLocation;
+            document.getElementById('banner').style.backgroundColor = locData.bannerColor;
+            
+            if (currentLocation === 'The Machine') {
+                fishButton.textContent = 'FUSE';
+                mainGameArea.classList.remove('hidden');
+                minigameArea.classList.add('hidden');
+            } else {
+                fishButton.textContent = 'FISH';
+            }
+
+            let musicTrackName = '';
+            if (currentLocation === 'Fluff Island') {
+                musicTrackName = currentTime === 'Day' ? 'islandDay' : 'islandNight';
+            } else if (currentLocation === 'Flufflet Bay') {
+                musicTrackName = currentTime === 'Day' ? 'bayDay' : 'bayNight';
+            } else if (currentLocation === 'The Panda Swamp') {
+                musicTrackName = currentTime === 'Day' ? 'swampDay' : 'swampNight';
+            } else if (currentLocation === 'Carrot Garden') {
+                 musicTrackName = currentTime === 'Day' ? 'gardenDay' : 'gardenNight';
+            } else if (currentLocation === 'Ancient Isles') {
+                 musicTrackName = currentTime === 'Day' ? 'ancientDay' : 'ancientNight';
+            }
+            
+            if(currentTime === 'Day') {
+                gameContainer.className = `game-container ${locData.dayClass} relative flex flex-col items-center justify-center p-8`;
+            } else {
+                gameContainer.className = `game-container ${locData.nightClass} relative flex flex-col items-center justify-center p-8`;
+            }
+            switchMusic(musicTrackName);
+        }
+        
+        // --- Fluff-o-pedia ---
+        function showPedia() {
+            if (isFishing) return; isGamePaused = true; playSound('click');
+
+            const discoveredCount = Object.keys(caughtFish).length;
+            const totalFish = fishData.filter(f => f.rarity !== 'Secret' || (f.rarity === 'Secret' && caughtFish.hasOwnProperty(f.name))).length;
+
+            let content = fishData.map(fish => {
+                 if (fish.rarity === 'Secret' && !caughtFish.hasOwnProperty(fish.name)) {
+                    return ''; // Don't show secret fish until caught
+                }
+                const isCaught = caughtFish.hasOwnProperty(fish.name);
+                const largestCatch = isCaught ? `Largest: ${caughtFish[fish.name].toFixed(1)}kg` : 'Not Caught Yet';
+                return `<div class="pedia-entry ${isCaught ? '' : 'locked'} p-4 bg-gray-100 rounded-lg flex items-center gap-4"><span class="text-4xl">${isCaught ? fish.icon : '❓'}</span><div class="flex-grow"><h4 class="font-bold text-xl">${isCaught ? fish.name : '??????'}</h4><p class="text-sm text-gray-600">${largestCatch}</p></div><span class="text-lg font-bold text-gray-700">${isCaught ? `$${fish.value}` : ''}</span></div>`;
+            }).join('');
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-2xl max-h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-bold text-gray-800 text-center">Fluff-o-pedia</h2>
+                    <span class="text-xl font-bold text-gray-600">${discoveredCount} / ${totalFish} Discovered</span>
+                </div>
+                <div class="overflow-y-auto space-y-2 pr-4">${content}</div>
+                <button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button>
+            </div></div>`;
+        }
+        
+        // --- Quests ---
+        function getDayIdentifier() { const now = new Date(); return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`; }
+        function generateDailyQuest() {
+            const dayId = getDayIdentifier();
+            if (!dailyQuest || dailyQuest.dayId !== dayId) {
+                const randomQuest = quests[Math.floor(Math.random() * quests.length)];
+                dailyQuest = { dayId: dayId, progress: 0, completed: false, ...randomQuest };
+            }
+        }
+        function updateQuestProgress(type, value) {
+            if (!dailyQuest || dailyQuest.completed) return;
+            const questInfo = quests.find(q => q.id === dailyQuest.id); if (!questInfo) return;
+            if (type === 'catch' && (questInfo.type === 'catchCount' || (questInfo.type === 'catchRarity' && value.rarity === questInfo.rarity))) { dailyQuest.progress++; } 
+            else if (type === 'earn' && questInfo.type === 'earnMoney') { dailyQuest.progress += value; }
+            if (dailyQuest.progress >= questInfo.target) {
+                dailyQuest.progress = questInfo.target;
+                if (!dailyQuest.completed) {
+                    dailyQuest.completed = true; money += questInfo.reward;
+                    fishStatus.textContent = `Quest Complete! +$${questInfo.reward}`;
+                    showMoneyPopup(questInfo.reward); playSound('success'); updateUI();
+                }
+            }
+            
+        }
+        function showQuests() {
+            if (isFishing) return; isGamePaused = true; playSound('click');
+            const questInfo = quests.find(q => q.id === dailyQuest.id);
+            const progressPercentage = Math.min(100, (dailyQuest.progress / questInfo.target) * 100);
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-lg flex flex-col"><h2 class="text-4xl font-bold text-gray-800 mb-6 text-center">Daily Quest</h2><div class="text-center"><p class="text-xl text-gray-700 mb-2">${questInfo.description}</p><div class="w-full bg-gray-200 rounded-full h-8"><div class="bg-green-500 h-8 rounded-full text-white flex items-center justify-center" style="width: ${progressPercentage}%">${dailyQuest.progress} / ${questInfo.target}</div></div><p class="text-2xl mt-4">Reward: <span class="font-bold text-yellow-500">$${questInfo.reward}</span></p>${dailyQuest.completed ? '<p class="text-green-600 font-bold mt-2">Completed!</p>' : ''}</div><button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button></div></div>`;
+        }
+        
+        // --- Bait System ---
+        function addBaitToInventory(name, amount = 1) {
+            const stackSize = baits[name].casts;
+            if (!baitInventory[name]) { baitInventory[name] = 0; }
+            baitInventory[name] += stackSize * amount;
+        }
+        function showBaitSelection() {
+            if (isFishing) return; isGamePaused = true; playSound('click');
+            let content = `<div onclick="selectBait('None')" class="p-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200"><h4 class="font-bold text-xl">No Bait</h4></div>`;
+            content += Object.entries(baitInventory).map(([name, count]) => {
+                if (count > 0) { return `<div onclick="selectBait('${name}')" class="p-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200"><h4 class="font-bold text-xl">${name} (${count})</h4></div>`; }
+                return '';
+            }).join('');
+             modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-md flex flex-col"><h2 class="text-4xl font-bold text-gray-800 mb-6 text-center">Select Bait</h2><div class="space-y-2">${content}</div></div></div>`;
+        }
+        function selectBait(name) {
+            selectedBait = name;
+            updateBaitUI();
+            closeModal();
+        }
+        function updateBaitUI() {
+            if (selectedBait !== 'None' && baitInventory[selectedBait] > 0) { baitSelector.textContent = `${selectedBait} (${baitInventory[selectedBait]})`; } 
+            else { selectedBait = 'None'; baitSelector.textContent = 'No Bait'; }
+        }
+        function buyBait(name) {
+            const bait = baits[name];
+            if (money >= bait.cost) {
+                money -= bait.cost; addBaitToInventory(name, 1); playSound('click');
+                updateUI();  showShop('Bait');
+            }
+        }
+
+        // --- Shop & Enchanting ---
+        function showShop(activeTab = 'Rods') {
+            if (isFishing) return; isGamePaused = true; playSound('click');
+            
+            let tabsHtml = `<div onclick="showShop('Rods')" class="shop-tab ${activeTab === 'Rods' ? 'active' : ''} py-2 px-4 cursor-pointer font-bold text-lg">Rods</div><div onclick="showShop('Bait')" class="shop-tab ${activeTab === 'Bait' ? 'active' : ''} py-2 px-4 cursor-pointer font-bold text-lg">Bait</div>`;
+            if (currentLocation === 'Ancient Isles') {
+                tabsHtml += `<div onclick="showShop('Enchant')" class="shop-tab ${activeTab === 'Enchant' ? 'active' : ''} py-2 px-4 cursor-pointer font-bold text-lg">Enchant</div>`;
+            }
+
+            const rodsForLocation = rods[currentLocation];
+            let rodsContent = rodsForLocation ? Object.entries(rodsForLocation).map(([name, stats]) => {
+                const isOwned = ownedRods.includes(name); const isEquipped = equippedRod === name; const canAfford = money >= stats.cost;
+                let buttonHtml;
+                if (isEquipped) buttonHtml = `<button class="shop-button bg-gray-400 text-white font-bold p-3 rounded-lg w-32" disabled>Equipped</button>`;
+                else if (isOwned) buttonHtml = `<button class="shop-button bg-blue-500 hover:bg-blue-600 text-white font-bold p-3 rounded-lg w-32" onclick="equipRod('${name}')">Equip</button>`;
+                else buttonHtml = `<button class="shop-button bg-green-500 hover:bg-green-600 text-white font-bold p-3 rounded-lg w-32" ${canAfford ? '' : 'disabled'} onclick="buyRod('${name}')">Buy $${stats.cost}</button>`;
+                return `<div class="flex items-center justify-between p-4 rounded-lg bg-gray-100 shadow-md"><div class="flex-1"><h3 class="text-xl font-bold">${name}</h3><div class="grid grid-cols-3 gap-x-4 text-sm mt-1"><span class="${stats.lure >= 0 ? 'stat-positive' : 'stat-negative'}">Lure: ${stats.lure}</span><span class="${stats.luck >= 0 ? 'stat-positive' : 'stat-negative'}">Luck: ${stats.luck}</span><span class="${stats.control >= 0 ? 'stat-positive' : 'stat-negative'}">Control: ${stats.control}</span><span class="${stats.resilience >= 0 ? 'stat-positive' : 'stat-negative'}">Resilience: ${stats.resilience}</span><span>Max KG: ${stats.maxKg}</span></div></div>${buttonHtml}</div>`;
+            }).join('') : '<p>No rods available in this location.</p>';
+
+            let baitContent = Object.entries(baits).map(([name, stats]) => {
+                const canAfford = money >= stats.cost;
+                return `<div class="flex items-center justify-between p-4 rounded-lg bg-gray-100 shadow-md"><div><h3 class="text-xl font-bold">${name}</h3><p class="text-sm text-gray-600">Casts: ${stats.casts}, ${stats.effect.type === 'luck' ? 'Luck' : 'Lure'} +${stats.effect.value}</p></div><button class="shop-button bg-green-500 hover:bg-green-600 text-white font-bold p-3 rounded-lg w-32" ${canAfford ? '' : 'disabled'} onclick="buyBait('${name}')">Buy $${stats.cost}</button></div>`;
+            }).join('');
+
+            const currentEnchantment = rodEnchantments[equippedRod];
+            let enchantContent = `
+                <div class="text-center p-4">
+                    <h3 class="text-2xl font-bold">Enchant Your Rod</h3>
+                    <p class="text-lg mt-2">Equipped: <span class="font-bold">${equippedRod}</span></p>
+                    <p class="text-lg">Relics: <span class="font-bold">💎 ${ancientRelics}</span></p>
+                    <div class="mt-4 p-4 bg-gray-200 rounded-lg min-h-[100px]">
+                        <h4 class="text-xl font-bold">Current Enchantment:</h4>
+                        ${currentEnchantment ? `<p class="text-lg text-purple-600">${currentEnchantment}</p><p class="text-gray-700">${enchantments[currentEnchantment].description}</p>` : '<p>None</p>'}
+                    </div>
+                    <button class="mt-4 w-full shop-button bg-purple-500 hover:bg-purple-600 text-white font-bold p-3 rounded-lg text-xl" ${ancientRelics >= 1 ? '' : 'disabled'} onclick="enchantRod()">
+                        ${currentEnchantment ? 'Re-roll Enchantment' : 'Enchant Rod'} (💎 1)
+                    </button>
+                </div>
+            `;
+
+
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-4xl max-h-[90vh] flex flex-col"><h2 class="text-4xl font-bold text-gray-800 mb-4 text-center">Shop</h2><div class="flex border-b mb-4">${tabsHtml}</div><div class="overflow-y-auto space-y-4 pr-4"><div class="${activeTab === 'Rods' ? '' : 'hidden'} space-y-4">${rodsContent}</div><div class="${activeTab === 'Bait' ? '' : 'hidden'} space-y-4">${baitContent}</div><div class="${activeTab === 'Enchant' ? '' : 'hidden'}">${enchantContent}</div></div><button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button></div></div>`;
+        }
+        function buyRod(name) {
+            const rodData = rods[currentLocation][name];
+            if (money >= rodData.cost && !ownedRods.includes(name)) {
+                money -= rodData.cost; ownedRods.push(name); updateUI(); showShop('Rods'); 
+            }
+        }
+        function equipRod(name) {
+            for(const loc in rods) {
+                if(rods[loc][name] && ownedRods.includes(name)) {
+                    equippedRod = name; 
+                    showShop('Rods');  
+                    return;
+                }
+            }
+        }
+        
+        function enchantRod() {
+            if (ancientRelics >= 1) {
+                ancientRelics -= 1;
+                const enchantmentKeys = Object.keys(enchantments);
+                const randomEnchantment = enchantmentKeys[Math.floor(Math.random() * enchantmentKeys.length)];
+                rodEnchantments[equippedRod] = randomEnchantment;
+                
+                updateUI();
+                showShop('Enchant');
+                playSound('success');
+            }
+        }
+
+        function getEquippedRodData() {
+            let baseRod;
+            for (const location in rods) {
+                if (rods[location][equippedRod]) {
+                    baseRod = { ...rods[location][equippedRod] };
+                    break;
+                }
+            }
+            if (!baseRod) {
+                 baseRod = { ...rods['Fluff Island']['Training Rod'] };
+            }
+
+            const enchantmentName = rodEnchantments[equippedRod];
+            if (enchantmentName) {
+                 switch (enchantmentName) {
+                    case 'Swift': baseRod.lure += 30; break;
+                    case 'Hasty': baseRod.lure += 55; break;
+                    case 'Lucky': baseRod.luck += 10; baseRod.lure += 15; break;
+                    case 'Divine': baseRod.luck += 25; baseRod.resilience += 20; baseRod.lure += 20; break;
+                    case 'Controlled': baseRod.control += 0.15; break;
+                    case 'Resilient': baseRod.resilience += 35; break;
+                    case 'Quality': baseRod.luck += 5; baseRod.resilience += 5; baseRod.lure += 15; break;
+                    case 'Unbreakable': baseRod.maxKg += 10000; baseRod.control += 0.1; break;
+                    case 'Blessed': baseRod.lure += 5; break;
+                }
+            }
+            return baseRod;
+        }
+
+        // --- Fish Mutations ---
+        function applyMutation(fish) {
+            let mutationChanceBonus = 0;
+            const currentEnchantment = rodEnchantments[equippedRod];
+            if (currentEnchantment === 'Lucky') { mutationChanceBonus += 0.40; }
+            if (currentEnchantment === 'Blessed') { mutationChanceBonus += 0.05; }
+            if (currentEnchantment === 'Mutated') { mutationChanceBonus += 0.90; }
+
+            const weatherEffect = weatherTypes[currentWeather] || { mutationMultiplier: 1 };
+            mutationChanceBonus *= weatherEffect.mutationMultiplier;
+
+            const roll = Math.random(); let cumulativeChance = 0;
+            for (const [name, props] of Object.entries(mutations)) {
+                cumulativeChance += props.chance + (props.chance * mutationChanceBonus);
+                if (roll < cumulativeChance) {
+                    fish.mutation = name; fish.originalValue = fish.value;
+                    fish.value = Math.floor(fish.value * props.multiplier);
+                    break;
+                }
+            }
+            return fish;
+        }
+
+        // --- Aquarium ---
+        function showAquarium() {
+            if (isFishing) return; isGamePaused = true; playSound('click');
+            const uniqueFishCount = Object.keys(caughtFish).length;
+            const moneyPerSecond = (uniqueFishCount * 0.5).toFixed(2);
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-lg flex flex-col items-center"><h2 class="text-4xl font-bold text-gray-800 mb-6">My Aquarium</h2><p class="text-xl text-gray-700">Unique Fish Caught: <span class="font-bold">${uniqueFishCount}</span></p><p class="text-3xl mt-4">Income: <span class="font-bold text-green-500">$${moneyPerSecond} / sec</span></p><button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button></div></div>`;
+        }
+        function updatePassiveIncome() {
+            if (aquariumUnlocked && !isGamePaused) {
+                const uniqueFishCount = Object.keys(caughtFish).length;
+                const income = uniqueFishCount * 0.5;
+                money += income / 10; // Grant income in smaller ticks
+                updateUI();
+            }
+        }
+        setInterval(updatePassiveIncome, 100);
+
+        // --- Inventory ---
+        function showInventory() {
+             if (isFishing) return; isGamePaused = true; playSound('click');
+             let totalValue = 0;
+             const groupedInventory = fishInventory.reduce((acc, fish) => {
+                const key = `${fish.name}-${fish.mutation || 'normal'}`;
+                if(!acc[key]){
+                    acc[key] = {...fish, count: 0, totalValue: 0};
+                }
+                acc[key].count++;
+                acc[key].totalValue += fish.value;
+                totalValue += fish.value;
+                return acc;
+             }, {});
+
+             let content = Object.values(groupedInventory).map(fish => {
+                 let name = fish.name;
+                 if(fish.mutation) name = `${fish.mutation} ${name}`;
+                return `<div class="p-4 bg-gray-100 rounded-lg flex items-center gap-4">
+                    <span class="text-4xl">${fish.icon}</span>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-xl">${name} (x${fish.count})</h4>
+                        <p class="text-sm text-gray-600">Total Value: $${fish.totalValue.toFixed(0)}</p>
+                    </div>
+                    <button class="shop-button bg-green-500 hover:bg-green-600 text-white font-bold p-2 rounded-lg" onclick="sellFish('${fish.name}', '${fish.mutation || 'normal'}')">Sell (x${fish.count})</button>
+                </div>`;
+            }).join('');
+
+            if(Object.keys(groupedInventory).length === 0){
+                content = `<p class="text-center text-gray-500">Your inventory is empty. Go catch some fish!</p>`;
+            }
+
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-3xl max-h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-4xl font-bold text-gray-800">Inventory</h2>
+                    <span class="text-2xl font-bold text-green-600">Total: $${totalValue.toFixed(0)}</span>
+                </div>
+                <div class="overflow-y-auto space-y-2 pr-4 flex-grow">${content}</div>
+                <div class="flex gap-4 mt-8 self-center">
+                    <button onclick="sellAllFish()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-8 rounded-full text-xl" ${fishInventory.length > 0 ? '' : 'disabled'}>Sell All</button>
+                    <button onclick="closeModal()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl">Close</button>
+                </div>
+            </div></div>`;
+        }
+
+        function sellFish(fishNameToSell, mutationToSell) {
+            let earnings = 0;
+            const remainingFish = [];
+            fishInventory.forEach(fish => {
+                const fishMutation = fish.mutation || 'normal';
+                if(fish.name === fishNameToSell && fishMutation === mutationToSell) {
+                    earnings += fish.value;
+                } else {
+                    remainingFish.push(fish);
+                }
+            });
+
+            if(earnings > 0){
+                money += earnings;
+                fishInventory = remainingFish;
+                updateQuestProgress('earn', earnings);
+                showMoneyPopup(earnings);
+                playSound('success');
+                updateUI();
+                showInventory();
+            }
+        }
+        
+        function sellAllFish() {
+            let earnings = 0;
+            fishInventory.forEach(fish => {
+                earnings += fish.value;
+            });
+
+            if (earnings > 0) {
+                money += earnings;
+                fishInventory = [];
+                updateQuestProgress('earn', earnings);
+                showMoneyPopup(earnings);
+                playSound('success');
+                updateUI();
+                showInventory();
+            }
+        }
+        
+        // --- Fishing Logic ---
+        fishButton.addEventListener('click', () => {
+            if (currentLocation === 'The Machine') {
+                showFusionMachine();
+                return;
+            }
+             if (isFishing) return; isFishing = true;
+             fishStatus.textContent = "Casting line..."; fishButton.disabled = true; playSound('cast');
+             
+             const currentEnchantment = rodEnchantments[equippedRod];
+             let consumeBait = true;
+             if (currentEnchantment === 'Scrapper' && Math.random() < 0.6) {
+                consumeBait = false;
+             }
+
+             if (selectedBait !== 'None' && consumeBait) {
+                if(baitInventory[selectedBait] > 0) { baitInventory[selectedBait]--; }
+                if(baitInventory[selectedBait] <= 0) { delete baitInventory[selectedBait]; selectedBait = 'None'; }
+                updateBaitUI(); 
+             }
+            const rod = getEquippedRodData();
+            let lureBonus = 0;
+            if (selectedBait !== 'None' && baits[selectedBait] && baits[selectedBait].effect.type === 'lure') { lureBonus = baits[selectedBait].effect.value; }
+            const baseWaitTime = 5000;
+            const lureEffect = baseWaitTime / (1 + (rod.lure + lureBonus) / 100);
+            const waitTime = Math.random() * (lureEffect / 2) + (lureEffect / 2);
+            setTimeout(() => {
+                const fish = determineFish();
+                if (fish) {
+                    minigame.currentFish = fish;
+                    fishStatus.textContent = `A ${fish.rarity} ${fish.name} is on the line!`;
+                    startMinigame(fish);
+                } else {
+                    fishStatus.textContent = "Nothing seems to be biting...";
+                    isFishing = false; fishButton.disabled = false;
+                }
+            }, Math.max(500, waitTime));
+        });
+
+        function determineFish() {
+            if (guaranteedNextCatch) {
+                const fish = fishData.find(f => f.name === guaranteedNextCatch);
+                guaranteedNextCatch = null; 
+                const weightRange = fish.weightMax - fish.weightMin;
+                let finalWeight = fish.weightMin + Math.random() * weightRange;
+                return { ...fish, weight: finalWeight };
+            }
+
+            const rod = getEquippedRodData();
+            let luckBonus = adminLuckBonus;
+            if (selectedBait !== 'None' && baits[selectedBait] && baits[selectedBait].effect.type === 'luck') { luckBonus += baits[selectedBait].effect.value; }
+            const luckRoll = (Math.random() * 100 + rod.luck + luckBonus) * eventLuckMultiplier;
+            
+            let possibleCatches = fishData.filter(fish => 
+                (fish.location === currentLocation || fish.location === 'Any') &&
+                fish.weightMin <= rod.maxKg &&
+                (fish.time === 'Any' || fish.time === currentTime)
+            );
+            if (possibleCatches.length === 0) return null;
+
+            let caughtFishType = null;
+            for (const fishType of possibleCatches) {
+                let effectiveThreshold = fishType.luckThreshold;
+                if (luckRoll >= effectiveThreshold) {
+                    caughtFishType = fishType;
+                    break;
+                }
+            }
+            if (!caughtFishType) {
+                let commonPool = possibleCatches.filter(f => f.luckThreshold <= luckRoll);
+                caughtFishType = commonPool.length > 0 ? commonPool[0] : possibleCatches[possibleCatches.length - 1];
+            }
+            const weightRange = caughtFishType.weightMax - caughtFishType.weightMin;
+            let finalWeight = caughtFishType.weightMin + Math.random() * weightRange;
+            finalWeight = Math.min(finalWeight, rod.maxKg);
+            return { ...caughtFishType, weight: finalWeight };
+        }
+
+        let hadProgress = false;
+        function startMinigame(fish) {
+            if (isCatchGuaranteed) {
+                endMinigame(true);
+                return;
+            }
+
+            const rod = getEquippedRodData();
+            mainGameArea.classList.add('hidden'); minigameArea.classList.remove('hidden'); minigameArea.classList.add('flex');
+            hadProgress = false; 
+            minigame.progress = 5; minigame.timer = 10;
+            minigame.fishSpeedX = fish.speed; minigame.fishVolatility = fish.volatility;
+            minigame.momentumStacks = 0;
+            minigame.chronosTimer = 0;
+            minigameFish.textContent = fish.icon; minigame.fishX = minigameTrack.offsetWidth / 2;
+            minigame.playerBarWidth = 192 * (1 + rod.control);
+            minigamePlayerBar.style.width = `${minigame.playerBarWidth}px`;
+            minigame.active = true;
+            minigame.animationFrame = requestAnimationFrame(minigameLoop);
+            if (['Epic', 'Legendary', 'Exotic', 'Fish God', 'Mythic', 'Secret'].includes(fish.rarity)) { triggerScreenShake(); }
+            playSound('hook');
+        }
+
+        function endMinigame(success) {
+            if (isCatchGuaranteed) {
+                isCatchGuaranteed = false;
+            }
+
+            cancelAnimationFrame(minigame.animationFrame); minigame.active = false;
+            if (success) {
+                // Relic check is now a separate bonus roll on any successful catch
+                const BASE_RELIC_CHANCE = 0.015; // 1.5% base chance
+                let relicChance = BASE_RELIC_CHANCE;
+                if (rodEnchantments[equippedRod] === 'Scavenger') {
+                    relicChance *= 3;
+                }
+                if (Math.random() < relicChance) {
+                    ancientRelics++;
+                    showItemPopup("+1 Ancient Relic", '💎');
+                    playSound('success');
+                }
+
+                let fish = { ...minigame.currentFish }; 
+                fish = applyMutation(fish);
+                
+                let statusText = `You caught a `;
+                if (fish.mutation) { statusText += `<span class="fish-${fish.mutation.toLowerCase()}">${fish.mutation} </span>`; }
+                statusText += `${fish.name}! (${fish.weight.toFixed(1)}kg)`;
+                fishStatus.innerHTML = statusText;
+                
+                fishInventory.push(fish);
+                
+                playSound('success');
+                addXp(fish.originalValue || fish.value);
+                if (!caughtFish[fish.name] || caughtFish[fish.name] < fish.weight) { caughtFish[fish.name] = fish.weight; }
+                updateQuestProgress('catch', fish);
+            } else {
+                fishStatus.textContent = "The fish got away..."; playSound('fail');
+            }
+            mainGameArea.classList.remove('hidden'); 
+            minigameArea.classList.add('hidden');
+            minigameArea.classList.remove('flex');
+            fishButton.disabled = false; 
+            isFishing = false;
+            updateUI();
+        }
+
+        let lastTime = 0;
+        function minigameLoop(timestamp) {
+            if (!minigame.active || isGamePaused) { lastTime = timestamp; minigame.animationFrame = requestAnimationFrame(minigameLoop); return; };
+            const deltaTime = (timestamp - lastTime) / 1000 || 0;
+            lastTime = timestamp;
+            minigame.timer -= deltaTime;
+
+            const rod = getEquippedRodData();
+            const currentEnchantment = rodEnchantments[equippedRod];
+            let fishSpeedMultiplier = 1;
+
+            if(currentEnchantment === 'Chronos'){
+                minigame.chronosTimer += deltaTime;
+                if(minigame.chronosTimer >= 5) {
+                    minigame.chronosTimer = 0;
+                    if(Math.random() < 0.5) {
+                        fishSpeedMultiplier = 0; // Freeze fish
+                        setTimeout(() => fishSpeedMultiplier = 1, 3000);
+                    }
+                }
+            }
+
+
+            if (minigame.timer <= 0) { endMinigame(false); return; }
+            const trackWidth = minigameTrack.offsetWidth; const fishWidth = minigameFish.offsetWidth;
+            if (Math.random() < minigame.fishVolatility) { minigame.fishDirectionX *= -1; }
+
+            const resilienceEffect = 1 + (rod.resilience / 100);
+            const effectiveFishSpeed = (minigame.fishSpeedX / resilienceEffect);
+
+            minigame.fishX += (effectiveFishSpeed * minigame.fishDirectionX) * (deltaTime * 60) * fishSpeedMultiplier;
+            
+            if (minigame.fishX <= 0) {
+                minigame.fishDirectionX = 1;
+                minigame.fishX = 5; // bounce back
+            }
+            if (minigame.fishX >= trackWidth - fishWidth) {
+                minigame.fishDirectionX = -1;
+                minigame.fishX = trackWidth - fishWidth - 5; // bounce back
+            }
+
+            minigameFish.style.left = `${minigame.fishX}px`;
+            const playerPos = minigamePlayerBar.offsetLeft;
+            
+            
+            let progressSpeedMultiplier = 1;
+            if (currentEnchantment === 'Swift' || currentEnchantment === 'Blessed' || currentEnchantment === 'Quality') { progressSpeedMultiplier *= 1.05; }
+            if (currentEnchantment === 'Steady') { progressSpeedMultiplier *= 1.20; }
+            if (currentEnchantment === 'Flashline') { progressSpeedMultiplier *= (Math.random() < 0.2 ? 1.90 : 1.10); }
+
+
+            const isOverlapping = (playerPos < minigame.fishX + fishWidth) && (playerPos + minigame.playerBarWidth > minigame.fishX);
+            if (isOverlapping) { minigame.progress += (deltaTime * 35) * progressSpeedMultiplier; hadProgress = true; } 
+            else { minigame.progress -= (deltaTime * 15); } // Resilience now affects speed, not progress loss
+            minigame.progress = Math.max(0, minigame.progress);
+            if (hadProgress && minigame.progress <= 0) { endMinigame(false); return; }
+            if (minigame.progress >= 100) { endMinigame(true); return; }
+            minigameProgressBarFill.style.width = `${minigame.progress}%`;
+            minigameTimerEl.textContent = minigame.timer.toFixed(2);
+            minigame.animationFrame = requestAnimationFrame(minigameLoop);
+        }
+
+        window.addEventListener('mousemove', e => {
+            if (!minigame.active || isGamePaused) return;
+            const trackRect = minigameTrack.getBoundingClientRect();
+            let mouseX = e.clientX - trackRect.left;
+            let newPos = mouseX - minigame.playerBarWidth / 2;
+            newPos = Math.max(0, Math.min(newPos, trackRect.width - minigame.playerBarWidth));
+            minigamePlayerBar.style.left = `${newPos}px`;
+        });
+
+        // --- Day/Night & Weather Cycle ---
+        const DAY_DURATION = 120000; const NIGHT_DURATION = 60000;
+        function updateToDay() {
+            currentTime = 'Day'; timeIndicator.textContent = '☀️';
+            updateLocationUI(); setTimeout(updateToNight, DAY_DURATION);
+        }
+        function updateToNight() {
+            currentTime = 'Night'; timeIndicator.textContent = '🌙';
+            updateLocationUI(); setTimeout(updateToDay, NIGHT_DURATION);
+        }
+
+        function changeWeather() {
+            const weatherKeys = Object.keys(weatherTypes);
+            currentWeather = weatherKeys[Math.floor(Math.random() * weatherKeys.length)];
+            updateWeatherUI();
+            const weatherDuration = Math.random() * 180000 + 120000; // 2-5 minutes
+            setTimeout(changeWeather, weatherDuration);
+        }
+
+        function updateWeatherUI(){
+            const weatherData = weatherTypes[currentWeather];
+            if(weatherData) {
+                weatherIndicator.textContent = weatherData.icon;
+                weatherIndicator.title = `${currentWeather} - Mutation Chance x${weatherData.mutationMultiplier}`;
+            }
+        }
+        
+        // --- Fusion Logic ---
+        function showFusionMachine() {
+            isGamePaused = true; playSound('click');
+            fusionSlots = []; // Reset slots
+            drawFusionUI();
+        }
+
+        function drawFusionUI() {
+            const groupedInventory = fishInventory.reduce((acc, fish, index) => {
+                fish.originalIndex = index; // Keep track of original position
+                const key = `${fish.name}-${fish.mutation || 'normal'}`;
+                if(!acc[key]){
+                    acc[key] = {...fish, count: 0, indices: []};
+                }
+                acc[key].count++;
+                acc[key].indices.push(index);
+                return acc;
+             }, {});
+
+            let inventoryContent = Object.values(groupedInventory).map(fish => {
+                 let name = fish.name;
+                 if(fish.mutation) name = `${fish.mutation} ${name}`;
+                 const fishDataString = JSON.stringify(fish).replace(/'/g, "\\'");
+                return `<div class="p-2 bg-gray-100 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-gray-200" onclick='addFishToFusion(${fishDataString})'>
+                    <span class="text-2xl">${fish.icon}</span>
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-md">${name} (x${fish.count})</h4>
+                        <p class="text-xs text-gray-600">Value: $${fish.value.toFixed(0)}</p>
+                    </div>
+                </div>`;
+            }).join('');
+             if(Object.keys(groupedInventory).length === 0){
+                inventoryContent = `<p class="text-center text-gray-500">Your inventory is empty.</p>`;
+            }
+
+            let slotContent = '';
+            for(let i=0; i<4; i++){
+                const fish = fusionSlots[i];
+                if(fish){
+                    let name = fish.name;
+                    if(fish.mutation) name = `${fish.mutation} ${name}`;
+                    slotContent += `<div class="p-2 bg-gray-300 rounded-lg flex items-center gap-2 cursor-pointer" onclick="removeFishFromFusion(${i})">
+                        <span class="text-2xl">${fish.icon}</span>
+                        <div class="flex-grow"><h4 class="font-bold text-md">${name}</h4></div>
+                    </div>`;
+                } else {
+                    slotContent += `<div class="p-2 bg-gray-200 rounded-lg flex items-center justify-center h-16"><span class="text-2xl">➕</span></div>`;
+                }
+            }
+            
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-4xl max-h-[90vh] flex flex-col">
+                <h2 class="text-4xl font-bold text-gray-800 text-center mb-6">Fusion Machine</h2>
+                <div class="grid grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4">Your Inventory</h3>
+                        <div class="overflow-y-auto space-y-2 pr-4 h-96">${inventoryContent}</div>
+                    </div>
+                    <div>
+                         <h3 class="text-2xl font-bold mb-4">Fusion Slots</h3>
+                         <div class="space-y-4">${slotContent}</div>
+                         <button class="mt-8 w-full shop-button bg-purple-500 hover:bg-purple-600 text-white font-bold p-3 rounded-lg text-xl" ${fusionSlots.length === 4 ? '' : 'disabled'} onclick="executeFusion()">FUSE!</button>
+                    </div>
+                </div>
+                <button onclick="closeModalAndResetFusion()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button>
+            </div></div>`;
+        }
+        
+        function closeModalAndResetFusion() {
+            fusionSlots.forEach(fish => fishInventory.push(fish));
+            fusionSlots = [];
+            closeModal();
+        }
+
+        function addFishToFusion(fish) {
+            if(fusionSlots.length >= 4) return;
+            
+            const inventoryIndex = fish.indices.pop();
+            const actualFish = fishInventory[inventoryIndex];
+            
+            // This is a bit complex, but we need to remove the exact fish from the inventory array
+            const fishToRemove = fishInventory.splice(inventoryIndex, 1)[0];
+            fusionSlots.push(fishToRemove);
+            
+            drawFusionUI();
+        }
+
+        function removeFishFromFusion(slotIndex) {
+            if(fusionSlots[slotIndex]) {
+                const fishToReturn = fusionSlots.splice(slotIndex, 1)[0];
+                fishInventory.push(fishToReturn);
+                drawFusionUI();
+            }
+        }
+        
+        function executeFusion() {
+            if (fusionSlots.length !== 4) return;
+
+            const totalValue = fusionSlots.reduce((sum, fish) => sum + fish.value, 0);
+            fusionSlots = []; // Consume the fish
+            
+            let resultFish;
+            const roll = Math.random();
+
+            if (totalValue > 250000) {
+                if (roll < 0.1) resultFish = "The Bay Harbor Butcher Kraken";
+                else if (roll < 0.3) resultFish = "Combination Fluffladon";
+                else resultFish = "Fluff La Granda";
+            } else if (totalValue > 100000) {
+                 if (roll < 0.2) resultFish = "Combination Fluffladon";
+                else if (roll < 0.5) resultFish = "Fluff La Granda";
+                else resultFish = "Fluff Combinations";
+            } else if (totalValue > 25000) {
+                if (roll < 0.3) resultFish = "Fluff La Granda";
+                else if (roll < 0.7) resultFish = "Fluff Combinations";
+                else resultFish = "Fluff Salmon";
+            } else if (totalValue > 5000) {
+                 if (roll < 0.5) resultFish = "Fluff Combinations";
+                else resultFish = "Fluff Salmon";
+            } else if (totalValue > 500) {
+                if(roll < 0.5) resultFish = "Fluff Salmon";
+                else resultFish = "Anchovy"; // Junk result
+            } else {
+                 resultFish = "Anchovy"; // Junk result
+            }
+            
+            const newFishData = fishData.find(f => f.name === resultFish);
+            if(newFishData) {
+                const weightRange = newFishData.weightMax - newFishData.weightMin;
+                const finalWeight = newFishData.weightMin + Math.random() * weightRange;
+                const newFish = { ...newFishData, weight: finalWeight };
+                fishInventory.push(newFish);
+                fishStatus.textContent = `Fusion successful! You created a ${newFish.name}!`;
+            }
+
+            closeModal();
+        }
+
+        // --- Admin Panel & Events ---
+        window.addEventListener('keydown', e => {
+            if(e.key === '-') {
+                showAdminLogin();
+            }
+        });
+
+        function showAdminLogin() {
+            if(isGamePaused) return;
+            isGamePaused = true;
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg flex flex-col items-center"><h2 class="text-3xl font-bold mb-4">Admin Login</h2><input id="adminPass" type="password" class="p-2 border rounded w-full mb-4" placeholder="Password"><button onclick="checkAdminPassword()" class="bg-blue-500 text-white p-2 rounded w-full">Login</button><button onclick="closeModal()" class="mt-4 text-sm text-gray-500">Cancel</button></div></div>`;
+        }
+        
+        function checkAdminPassword() {
+            const pass = document.getElementById('adminPass').value;
+            if (pass === 'DexterMorganGoat') {
+                showAdminPanel();
+            } else {
+                closeModal();
+            }
+        }
+
+        function showAdminPanel() {
+            const fishOptions = fishData.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+            modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-2xl max-h-[90vh] flex flex-col"><h2 class="text-3xl font-bold mb-4 text-center">Admin Panel</h2><div class="overflow-y-auto space-y-4 pr-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <input id="adminAmount" type="number" class="p-2 border rounded" placeholder="Amount"><button onclick="adminGiveMoney()" class="bg-green-500 text-white p-2 rounded">Give Money</button>
+                    <input id="adminXpAmount" type="number" class="p-2 border rounded" placeholder="Amount"><button onclick="adminGiveXp()" class="bg-yellow-500 text-white p-2 rounded">Give XP</button>
+                    <input id="adminRelicAmount" type="number" class="p-2 border rounded" placeholder="Amount"><button onclick="adminGiveRelics()" class="bg-blue-500 text-white p-2 rounded">Give Relics</button>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <input id="adminLuckAmount" type="number" class="p-2 border rounded" placeholder="Bonus Luck">
+                    <input id="adminLuckDuration" type="number" class="p-2 border rounded" placeholder="Duration (s)">
+                    <button onclick="adminSetLuck()" class="bg-purple-500 text-white p-2 rounded">Set Luck</button>
+                </div>
+                <div class="flex items-center gap-4"><select id="adminFishSelect" class="p-2 border rounded flex-grow">${fishOptions}</select><button onclick="adminSetGuaranteedCatch(null, true)" class="bg-cyan-500 text-white p-2 rounded">Guarantee Fish</button></div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <button onclick="adminUnlockRods()" class="bg-gray-500 text-white p-2 rounded">Unlock All Rods</button><button onclick="adminUnlockLocations()" class="bg-gray-500 text-white p-2 rounded">Unlock All Locations</button>
+                </div>
+                 <div class="mt-4">
+                    <button onclick="triggerFirstAdminAbuse()" class="bg-red-600 text-white p-2 rounded w-full">1st Admin Abuse</button>
+                </div>
+            </div><button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button></div></div>`;
+        }
+
+        function adminGiveMoney() {
+            const amount = parseInt(document.getElementById('adminAmount').value);
+            if(!isNaN(amount)) { money += amount; updateUI(); showAdminPopup(`+$${amount} Money`); }
+        }
+        function adminGiveXp() {
+            const amount = parseInt(document.getElementById('adminXpAmount').value);
+            if(!isNaN(amount)) { addXp(amount); showAdminPopup(`+${amount} XP`); }
+        }
+        function adminGiveRelics() {
+            const amount = parseInt(document.getElementById('adminRelicAmount').value);
+            if(!isNaN(amount)) { ancientRelics += amount; updateUI(); showAdminPopup(`+${amount} Relics`); }
+        }
+        function adminSetLuck() {
+            const amount = parseInt(document.getElementById('adminLuckAmount').value);
+            const duration = parseInt(document.getElementById('adminLuckDuration').value);
+            if(!isNaN(amount) && !isNaN(duration) && duration > 0) { 
+                adminLuckBonus = amount; 
+                showAdminPopup(`+${amount} Luck for ${duration}s`);
+                setTimeout(() => {
+                    adminLuckBonus = 0;
+                    showAdminPopup('Luck bonus expired.');
+                }, duration * 1000);
+            }
+        }
+        function adminSetGuaranteedCatch(fishName = null, showPopup = true) {
+            const name = fishName || document.getElementById('adminFishSelect').value;
+            guaranteedNextCatch = name;
+            isCatchGuaranteed = true;
+            if(showPopup) showAdminPopup(`Next catch: ${name} (Guaranteed)`);
+        }
+        function adminUnlockRods() {
+            ownedRods = [];
+            for(const loc in rods) {
+                ownedRods.push(...Object.keys(rods[loc]));
+            }
+            showAdminPopup('All rods unlocked');
+        }
+        function adminUnlockLocations() {
+            unlockedLocations = Object.keys(locations); 
+            showAdminPopup('All locations unlocked');
+        }
+        
+        function triggerFirstAdminAbuse() {
+            closeModal();
+            setTimeout(() => {
+                showJayceMessage("Yoo lets get this party started here is 50 new bagel bait to start you guys off");
+                addBaitToInventory('Bagel', 5); // 5 stacks of 10
+            }, 10000);
+
+            setTimeout(() => {
+                showJayceMessage("In the new update I added new fish and stuff and even a new rarity so have fun fishing for those");
+            }, 15000);
+
+            setTimeout(() => {
+                showJayceMessage("I will guarantee floopy it is from ancient isle");
+                adminSetGuaranteedCatch('Floppy', false);
+            }, 19000);
+
+            setTimeout(() => {
+                showJayceMessage("Thx so much for the support of the new game so for that here is 2x luck");
+                eventLuckMultiplier = 2;
+                setTimeout(() => {
+                    eventLuckMultiplier = 1;
+                    showAdminPopup("2x Luck event has ended.");
+                }, 30000);
+            }, 29000);
+
+            setTimeout(() => {
+                 showJayceMessage("Oh yeah btw new Halloween stuff too and here is a another floopy");
+                 adminSetGuaranteedCatch('Floppy', false);
+            }, 34000);
+            
+            setTimeout(() => {
+                showJayceMessage("I want to keep this short because I have to go to Taekwondo I am making this at 5pm");
+            }, 39000);
+
+            setTimeout(() => {
+                showJayceMessage("Ok going to keep this one short so here is a golden seahorse for your troubles");
+                adminSetGuaranteedCatch('Golden Seahorse', false);
+            }, 49000);
+        }
+        
+        function checkForAdminAbuseEvent() {
+            const eventDate = new Date('2025-09-10T10:40:00');
+            const now = new Date();
+            const timeUntilEvent = eventDate.getTime() - now.getTime();
+            if(timeUntilEvent > 0 && timeUntilEvent < 60000) { // If event is within the next minute
+                setTimeout(triggerFirstAdminAbuse, timeUntilEvent);
+            }
+        }
+
+        // --- Global Functions for onclick events ---
+        window.closeModal = closeModal; window.showShop = showShop;
+        window.buyRod = buyRod; window.equipRod = equipRod; window.buyBait = buyBait;
+        window.enchantRod = enchantRod;
+        window.showTravel = showTravel; window.travelTo = travelTo; window.unlockLocation = unlockLocation;
+        window.selectBait = selectBait; window.checkAdminPassword = checkAdminPassword;
+        window.sellFish = sellFish; window.sellAllFish = sellAllFish;
+        window.adminGiveMoney = adminGiveMoney; window.adminGiveXp = adminGiveXp; window.adminGiveRelics = adminGiveRelics; window.adminSetLuck = adminSetLuck;
+        window.adminSetGuaranteedCatch = adminSetGuaranteedCatch; window.adminUnlockRods = adminUnlockRods; window.adminUnlockLocations = adminUnlockLocations;
+        window.triggerFirstAdminAbuse = triggerFirstAdminAbuse;
+        window.addFishToFusion = addFishToFusion; 
+        window.removeFishFromFusion = removeFishFromFusion; 
+        window.executeFusion = executeFusion; 
+        window.closeModalAndResetFusion = closeModalAndResetFusion;
+
+
+        // --- Event Listeners ---
+        pediaButton.addEventListener('click', showPedia);
+        questButton.addEventListener('click', showQuests);
+        shopButton.addEventListener('click', () => showShop());
+        inventoryButton.addEventListener('click', showInventory);
+        baitSelector.addEventListener('click', showBaitSelection);
+        aquariumButton.addEventListener('click', showAquarium);
+        travelButton.addEventListener('click', showTravel);
+        saveButton.addEventListener('click', () => {
+             modalContainer.innerHTML = `<div class="modal-container"><div class="bg-white p-8 rounded-2xl shadow-lg w-11/12 max-w-lg flex flex-col items-center"><h2 class="text-3xl font-bold mb-6">Save Game</h2>
+                <div class="w-full space-y-4">
+                    <button onclick="exportSave()" class="bg-blue-500 text-white p-3 rounded-lg w-full text-xl">Export Save File</button>
+                    <button onclick="importSave()" class="bg-green-500 text-white p-3 rounded-lg w-full text-xl">Import Save File</button>
+                </div>
+             <button onclick="closeModal()" class="mt-8 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-8 rounded-full text-xl self-center">Close</button></div></div>`;
+             isGamePaused = true;
+        });
+
+        window.exportSave = exportSave;
+        window.importSave = importSave;
+        
+        // --- Initialization ---
+        function initializeRodStats() {
+            const rodStats = {
+                'Training Rod': { cost: 300, lure: 10, luck: 3, control: 0.2, resilience: 20, maxKg: 9 },
+                'Plastic Rod':  { cost: 900, lure: 10, luck: 15, control: 0, resilience: 10, maxKg: 100 },
+                'Carbon Rod':   { cost: 2000, lure: -10, luck: 25, control: 0.05, resilience: 10, maxKg: 600 },
+                'Fast Rod':     { cost: 4500, lure: 70, luck: 10, control: 0.05, resilience: -5, maxKg: 175 },
+                'Lucky Rod':    { cost: 5250, lure: 0, luck: 88, control: 0.07, resilience: 7, maxKg: 175 },
+                'Long Rod':     { cost: 4500, lure: 20, luck: 40, control: -0.1, resilience: 20, maxKg: 250 },
+                'Steady Rod': { cost: 7000, lure: -60, luck: 50, control: 0.05, resilience: 30, maxKg: 250000 },
+                'Fortune Rod':{ cost: 12000, lure: 10, luck: 100, control: 0.05, resilience: 0, maxKg: 3000 },
+                'Rapid Rod':  { cost: 14000, lure: 89, luck: 25, control: 0, resilience: 9, maxKg: 700 },
+                'Tryhard Rod':{ cost: 1000000000, lure: 80, luck: 500, control: -0.37, resilience: -500, maxKg: 999999999999999 },
+                'Fluffly Rod': { cost: 12000000, lure: 5, luck: 75, control: 0.7, resilience: 3, maxKg: 30000 },
+                'Scurvy Rod': { cost: 40000, lure: 15, luck: 25, control: 0, resilience: 15, maxKg: 2000 },
+                'Carrot Rod': { cost: 75000, lure: 85, luck: 65, control: 0.15, resilience: 25, maxKg: 10000 },
+                'Stone Rod': { cost: 3000, lure: -25, luck: 20, control: 0.2, resilience: 5, maxKg: 25000 },
+                'Phoenix Rod': { cost: 50000, lure: 55, luck: 40, control: 0.02, resilience: 15, maxKg: 8000 },
+                '67 Mustard Rod': { cost: 67000000, lure: 90, luck: 65, control: 0.2, resilience: 20, maxKg: Infinity },
+                'Wildflower Rod': { cost: 7000, lure: 70, luck: 35, control: 0.17, resilience: 17, maxKg: 700 },
+                'Magnet Rod': { cost: 15000, lure: -10, luck: 0, control: 0.05, resilience: 0, maxKg: 10000 },
+            };
+            for(const location in rods){
+                for(const rodName in rods[location]){
+                    if(rodStats[rodName]) {
+                        rods[location][rodName] = rodStats[rodName];
+                    }
+                }
+            }
+        }
+
+        initializeRodStats();
+        xpToNextLevel = calculateXpToNextLevel(level);
+        generateDailyQuest();
+        updateUI();
+        updateBaitUI();
+        updateXpUI();
+        updateLocationUI();
+        changeWeather();
+        checkForAdminAbuseEvent();
+        fishStatus.textContent = "";
+        fishButton.disabled = false;
+        updateToDay(); // Start cycle immediately for visuals
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Invasion Animator</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- D3.js and TopoJSON -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Firebase SDKs (Compat version for simple monolithic script integration) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #a4c3d2; font-family: 'Inter', sans-serif; touch-action: none; }
+        #mapCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; cursor: crosshair; }
+        .ui-layer { position: relative; z-index: 10; pointer-events: none; }
+        .ui-panel { pointer-events: auto; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #ffffff; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+        .tool-btn.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+        
+        .color-grid::-webkit-scrollbar { width: 6px; }
+        .color-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .color-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        
+        /* Menu Styles */
+        .menu-overlay { position: fixed; inset: 0; z-index: 100; background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .hidden-menu { display: none !important; }
+    </style>
+</head>
+<body class="text-gray-100 selection:bg-blue-500 selection:text-white">
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="menu-overlay">
+        <h1 class="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-blue-500 mb-8"><i class="ph-fill ph-map-trifold mr-4 text-blue-500"></i>Invasion Animator</h1>
+        <div class="flex flex-col gap-4 w-64">
+            <button id="btn-start-play" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-2xl font-bold shadow-lg transition-transform hover:scale-105">Play</button>
+            <button id="btn-open-workshop" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xl font-bold shadow-lg transition-transform hover:scale-105"><i class="ph ph-cloud-arrow-down mr-2"></i>Workshop</button>
+        </div>
+    </div>
+
+    <!-- Map Selection Menu -->
+    <div id="map-select-menu" class="menu-overlay hidden-menu">
+        <h2 class="text-4xl font-bold text-white mb-8">Select Map</h2>
+        <div class="flex gap-6">
+            <div class="map-card cursor-pointer bg-gray-800 border-2 border-gray-700 hover:border-blue-500 p-6 rounded-2xl flex flex-col items-center transition-all hover:scale-105" data-map="modern">
+                <i class="ph-fill ph-globe-hemisphere-west text-6xl text-blue-400 mb-4"></i>
+                <h3 class="text-xl font-bold text-white">Modern Day</h3>
+                <p class="text-sm text-gray-400 mt-2 text-center max-w-[200px]">Current world borders and nations.</p>
+            </div>
+            <div class="map-card cursor-pointer bg-gray-800 border-2 border-gray-700 hover:border-red-500 p-6 rounded-2xl flex flex-col items-center transition-all hover:scale-105" data-map="ww1">
+                <i class="ph-fill ph-sword text-6xl text-red-400 mb-4"></i>
+                <h3 class="text-xl font-bold text-white">World War I</h3>
+                <p class="text-sm text-gray-400 mt-2 text-center max-w-[200px]">Simulated 1914 borders using modern provinces.</p>
+            </div>
+            <div class="bg-gray-800/50 border-2 border-gray-700/50 p-6 rounded-2xl flex flex-col items-center opacity-70 cursor-not-allowed">
+                <i class="ph-fill ph-hourglass-high text-6xl text-gray-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-gray-400">More Maps</h3>
+                <p class="text-sm text-gray-500 mt-2 text-center max-w-[200px]">Coming soon...</p>
+            </div>
+        </div>
+        <button id="btn-back-map" class="mt-8 px-6 py-2 text-gray-400 hover:text-white transition-colors">Back</button>
+    </div>
+
+    <!-- Workshop Browser Menu -->
+    <div id="workshop-menu" class="menu-overlay hidden-menu p-8">
+        <div class="w-full max-w-4xl h-full flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-4xl font-bold text-white"><i class="ph ph-cloud-arrow-down mr-2 text-purple-400"></i>Community Workshop</h2>
+                <button id="btn-back-workshop" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white">Back to Menu</button>
+            </div>
+            <div id="workshop-list" class="flex-1 bg-gray-900 rounded-2xl border border-gray-700 p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+                <!-- Workshop items injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- City Modal -->
+    <div id="city-modal" class="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm hidden-menu flex items-center justify-center">
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded-2xl shadow-2xl w-80">
+            <h3 class="text-lg font-bold text-white mb-4">Add New City</h3>
+            <input type="text" id="city-name-input" placeholder="City Name" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white mb-4 outline-none focus:border-blue-500">
+            <div class="flex justify-end gap-2">
+                <button id="btn-city-cancel" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                <button id="btn-city-add" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-medium">Add City</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Editor UI -->
+    <div id="app-ui" class="ui-layer w-full h-full flex flex-col justify-between p-4 md:p-6 hidden-menu">
+        
+        <!-- Top Left: Floating Toolbar -->
+        <div class="ui-panel w-72 bg-gray-900/80 backdrop-blur-md border border-gray-700 shadow-2xl rounded-2xl p-5 flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
+            <div>
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-blue-400">
+                    <i class="ph-fill ph-map-trifold mr-2 text-blue-400"></i>Invasion Animator
+                </h1>
+            </div>
+
+            <!-- Anim Mode Switcher -->
+            <div class="flex bg-gray-800 rounded-lg p-1 gap-1">
+                <button id="btn-anim-live" class="anim-btn active flex-1 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white transition-all shadow-sm">
+                    Live Paint
+                </button>
+                <button id="btn-anim-key" class="anim-btn flex-1 py-1.5 rounded-md text-xs font-semibold text-gray-400 hover:text-white transition-all">
+                    Keyframes (Adv)
+                </button>
+            </div>
+
+            <!-- Mode Switcher -->
+            <div class="grid grid-cols-2 bg-gray-800 rounded-lg p-1 gap-1">
+                <button id="btn-mode-draw" class="tool-btn active py-2 rounded-md text-sm font-medium flex items-center justify-center gap-1 transition-all">
+                    <i class="ph ph-paint-brush text-lg"></i> Draw
+                </button>
+                <button id="btn-mode-fill" class="tool-btn py-2 rounded-md text-sm font-medium text-gray-400 hover:text-white flex items-center justify-center gap-1 transition-all">
+                    <i class="ph ph-paint-bucket text-lg"></i> Fill
+                </button>
+                <button id="btn-mode-border" class="tool-btn py-2 rounded-md text-sm font-medium text-gray-400 hover:text-white flex items-center justify-center gap-1 transition-all">
+                    <i class="ph ph-polygon text-lg"></i> Border
+                </button>
+                <button id="btn-mode-city" class="tool-btn py-2 rounded-md text-sm font-medium text-gray-400 hover:text-white flex items-center justify-center gap-1 transition-all">
+                    <i class="ph ph-map-pin text-lg"></i> City
+                </button>
+                <button id="btn-mode-pan" class="tool-btn py-2 rounded-md text-sm font-medium text-gray-400 hover:text-white flex items-center justify-center gap-1 transition-all col-span-2">
+                    <i class="ph ph-hand-grabbing text-lg"></i> Pan
+                </button>
+            </div>
+
+            <!-- Drawing Tools -->
+            <div id="drawing-tools" class="flex flex-col gap-4">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider block">Faction Color</label>
+                        <button id="btn-eyedropper" class="text-gray-400 hover:text-white transition-colors" title="Pick color from map">
+                            <i class="ph ph-eyedropper text-lg"></i>
+                        </button>
+                    </div>
+                    <div class="color-grid grid grid-cols-5 gap-2 max-h-24 overflow-y-auto pr-1">
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110 active-color" style="background-color: #ef4444;" data-color="#ef4444"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #22c55e;" data-color="#22c55e"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #eab308;" data-color="#eab308"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #a855f7;" data-color="#a855f7"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #f97316;" data-color="#f97316"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #14b8a6;" data-color="#14b8a6"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #64748b;" data-color="#64748b"></button>
+                        <button class="color-btn w-full aspect-square rounded-full shadow-inner border-2 border-transparent transition-all hover:scale-110" style="background-color: #111827;" data-color="#111827"></button>
+                        <div class="relative w-full aspect-square rounded-full overflow-hidden shadow-inner cursor-pointer border border-gray-600">
+                            <input type="color" id="custom-color" value="#ffffff" class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Brush Size</label>
+                        <span id="brush-size-display" class="text-xs text-gray-300">12px</span>
+                    </div>
+                    <input type="range" id="brush-size" min="4" max="40" value="12" class="w-full">
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-2 pt-4 border-t border-gray-700 flex justify-between items-center">
+                <button id="btn-clear" class="text-sm text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
+                    <i class="ph ph-trash"></i> Clear All
+                </button>
+                <button id="btn-publish" class="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors font-semibold">
+                    <i class="ph ph-upload-simple"></i> Publish
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom: Timeline and Playback Controls -->
+        <div class="ui-panel self-center w-full max-w-3xl bg-gray-900/80 backdrop-blur-md border border-gray-700 shadow-2xl rounded-2xl p-4 flex items-center gap-4">
+            <button id="btn-play" class="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 flex-shrink-0">
+                <i id="play-icon" class="ph-fill ph-play text-2xl ml-1"></i>
+            </button>
+            <div class="flex-1 w-full flex flex-col gap-2">
+                <div class="flex justify-between items-center text-xs font-mono text-gray-400 px-1">
+                    <span>Start</span>
+                    <span id="time-display" class="text-blue-300 font-bold">Frame: 0 / 0</span>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-add-frame" class="hidden px-2 py-0.5 rounded bg-blue-600/30 text-blue-400 hover:bg-blue-600/50 transition-colors cursor-pointer border border-blue-500/30" title="Add 10 Frames">
+                            +10 Frm
+                        </button>
+                        <span>End</span>
+                    </div>
+                </div>
+                <input type="range" id="timeline" min="0" max="0" value="0" class="w-full">
+            </div>
+            <div class="flex flex-col gap-1 w-32 flex-shrink-0">
+                <label class="text-[10px] text-gray-400 uppercase tracking-wider text-center">Speed</label>
+                <div class="flex bg-gray-800 rounded-md p-1 justify-between">
+                    <button class="speed-btn active-speed px-2 py-1 rounded text-xs text-gray-300 hover:text-white transition-colors" data-speed="1">1x</button>
+                    <button class="speed-btn px-2 py-1 rounded text-xs text-gray-300 hover:text-white transition-colors" data-speed="3">3x</button>
+                    <button class="speed-btn px-2 py-1 rounded text-xs text-gray-300 hover:text-white transition-colors" data-speed="10">10x</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The Map Canvas -->
+    <canvas id="mapCanvas"></canvas>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWctWNPG0hOAwkIlfqnkr9ptQtJfqmwKQ",
+            authDomain: "banana-clicker1.firebaseapp.com",
+            projectId: "banana-clicker1",
+            storageBucket: "banana-clicker1.firebasestorage.app",
+            messagingSenderId: "722609375434",
+            appId: "1:722609375434:web:18e42db075766f8e180c33",
+            measurementId: "G-LZBRKETM2S"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        firebase.auth().signInAnonymously().catch((error) => {
+            console.error("Firebase Auth Error:", error.message);
+        });
+
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        const state = {
+            animMode: 'live', mode: 'draw', color: '#ef4444', brushSize: 12,
+            isDrawing: false, paths: [], currentPath: null, isDraggingPoint: null, 
+            mapData: null, projection: null, transform: d3.zoomIdentity,
+            currentMapType: 'modern', globalTime: 0, playbackTime: 0, 
+            isPlaying: false, playbackSpeed: 1, lastDrawPos: null, pendingCityCoords: null
+        };
+
+        const countryColors = ['#e4c1b9', '#d4e0b3', '#a7c6b4', '#99b8c0', '#b6a9c4', '#d9b6c0', '#e5d7a3', '#c0c9aa', '#d2c5b3', '#b3c5d2', '#c5d2b3', '#d2b3c5'];
+        
+        const ww1Empires = {
+            "United Kingdom": "#d98b99", "Ireland": "#d98b99", "Canada": "#d98b99", "Australia": "#d98b99", "New Zealand": "#d98b99", "India": "#d98b99", "Pakistan": "#d98b99", "Bangladesh": "#d98b99", "South Africa": "#d98b99", "Egypt": "#d98b99", "Sudan": "#d98b99", "Nigeria": "#d98b99", "Kenya": "#d98b99", "Uganda": "#d98b99", "Tanzania": "#d98b99", "Zambia": "#d98b99", "Zimbabwe": "#d98b99", "Botswana": "#d98b99", "Namibia": "#d98b99", "Guyana": "#d98b99", "Papua New Guinea": "#d98b99", "Oman": "#d98b99", "Yemen": "#d98b99", "Malaysia": "#d98b99", "Myanmar": "#d98b99",
+            "France": "#7c93c1", "Algeria": "#7c93c1", "Morocco": "#7c93c1", "Tunisia": "#7c93c1", "Mali": "#7c93c1", "Niger": "#7c93c1", "Chad": "#7c93c1", "Mauritania": "#7c93c1", "Senegal": "#7c93c1", "Guinea": "#7c93c1", "Côte d'Ivoire": "#7c93c1", "Madagascar": "#7c93c1", "Vietnam": "#7c93c1", "Laos": "#7c93c1", "Cambodia": "#7c93c1", "Central African Rep.": "#7c93c1", "Republic of the Congo": "#7c93c1", "Gabon": "#7c93c1", "Djibouti": "#7c93c1",
+            "Russia": "#8ba889", "Finland": "#8ba889", "Poland": "#8ba889", "Estonia": "#8ba889", "Latvia": "#8ba889", "Lithuania": "#8ba889", "Belarus": "#8ba889", "Ukraine": "#8ba889", "Moldova": "#8ba889", "Georgia": "#8ba889", "Armenia": "#8ba889", "Azerbaijan": "#8ba889", "Kazakhstan": "#8ba889", "Uzbekistan": "#8ba889", "Turkmenistan": "#8ba889", "Kyrgyzstan": "#8ba889", "Tajikistan": "#8ba889",
+            "Germany": "#6e6e6e", "Austria": "#8a7d65", "Hungary": "#8a7d65", "Czechia": "#8a7d65", "Slovakia": "#8a7d65", "Slovenia": "#8a7d65", "Croatia": "#8a7d65", "Bosnia and Herz.": "#8a7d65", 
+            "Turkey": "#9b8d7a", "Syria": "#9b8d7a", "Iraq": "#9b8d7a", "Lebanon": "#9b8d7a", "Palestine": "#9b8d7a", "Israel": "#9b8d7a", "Jordan": "#9b8d7a", "Saudi Arabia": "#9b8d7a", "Kuwait": "#9b8d7a", "Qatar": "#9b8d7a", "United Arab Emirates": "#9b8d7a",
+            "Italy": "#7b9c7a", "Libya": "#7b9c7a", "Somalia": "#7b9c7a", "Eritrea": "#7b9c7a",
+            "United States of America": "#8ca4b5", "Philippines": "#8ca4b5",
+            "Japan": "#b86565", "North Korea": "#b86565", "South Korea": "#b86565", "Taiwan": "#b86565",
+            "China": "#d4c88c", "Spain": "#c4b57a", "Portugal": "#9e8568", "Angola": "#9e8568", "Mozambique": "#9e8568", "Belgium": "#c4a37a", "Dem. Rep. Congo": "#c4a37a", "Netherlands": "#d48c8c", "Indonesia": "#d48c8c"
+        };
+
+        const worldCities = [
+            {name: "Washington D.C.", lon: -77.0369, lat: 38.9072}, {name: "New York", lon: -74.0060, lat: 40.7128},
+            {name: "London", lon: -0.1276, lat: 51.5074}, {name: "Paris", lon: 2.3522, lat: 48.8566},
+            {name: "Berlin", lon: 13.4050, lat: 52.5200}, {name: "Moscow", lon: 37.6173, lat: 55.7558}
+        ];
+
+        function rgbToHex(r, g, b) { return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1); }
+
+        function updateCursor() {
+            if (state.mode === 'draw') {
+                const size = Math.max(4, state.brushSize);
+                const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size+2}" height="${size+2}" viewBox="0 0 ${size+2} ${size+2}">
+                    <circle cx="${size/2 + 1}" cy="${size/2 + 1}" r="${size/2}" fill="none" stroke="#ffffff" stroke-width="1.5" />
+                    <circle cx="${size/2 + 1}" cy="${size/2 + 1}" r="${size/2}" fill="none" stroke="#000000" stroke-width="0.5" stroke-dasharray="2,2" />
+                </svg>`;
+                const url = `data:image/svg+xml;base64,${btoa(svg)}`;
+                canvas.style.cursor = `url(${url}) ${size/2 + 1} ${size/2 + 1}, crosshair`;
+            } else if (state.mode === 'eyedropper') {
+                canvas.style.cursor = 'crosshair';
+            } else if (state.mode === 'fill' || state.mode === 'border' || state.mode === 'city') {
+                canvas.style.cursor = 'cell';
+            } else {
+                canvas.style.cursor = 'grab';
+            }
+        }
+
+        // Calculate dynamic font sizes for country names
+        function updateMapMetrics() {
+            if (!state.mapData || !state.projection) return;
+            const pathGen = d3.geoPath().projection(state.projection);
+            
+            state.mapData.features.forEach(f => {
+                const name = f.properties.name || '';
+                f.properties.centroid = pathGen.centroid(f);
+                
+                if (!isNaN(f.properties.centroid[0]) && name.length > 0) {
+                    const bounds = pathGen.bounds(f);
+                    const width = bounds[1][0] - bounds[0][0];
+                    f.properties.fontSize = Math.min(Math.max(width / (name.length * 0.65), 1.5), 12);
+                }
+            });
+        }
+
+        async function initMap(mapType) {
+            state.currentMapType = mapType;
+            document.getElementById('main-menu').classList.add('hidden-menu');
+            document.getElementById('map-select-menu').classList.add('hidden-menu');
+            document.getElementById('workshop-menu').classList.add('hidden-menu');
+            document.getElementById('app-ui').classList.remove('hidden-menu');
+
+            try {
+                const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json');
+                const topo = await res.json();
+                state.mapData = topojson.feature(topo, topo.objects.countries);
+                
+                state.mapData.features.forEach((f, i) => {
+                    f.properties = f.properties || {};
+                    if (mapType === 'ww1') {
+                        const name = f.properties.name || '';
+                        f.properties.color = ww1Empires[name] || '#dcd3b6'; // Fallback for unmatched modern states
+                    } else {
+                        f.properties.color = countryColors[i % countryColors.length];
+                    }
+                });
+
+                window.addEventListener('resize', () => { 
+                    canvas.width = window.innerWidth; 
+                    canvas.height = window.innerHeight; 
+                    if(state.mapData) {
+                        state.projection = d3.geoMercator().fitSize([canvas.width, canvas.height], state.mapData);
+                        updateMapMetrics();
+                        render(); 
+                    }
+                });
+                
+                canvas.width = window.innerWidth; 
+                canvas.height = window.innerHeight;
+                state.projection = d3.geoMercator().fitSize([canvas.width, canvas.height], state.mapData);
+                
+                updateMapMetrics();
+                updateCursor();
+                render();
+            } catch (error) {
+                console.error("Failed to load map data:", error);
+            }
+        }
+
+        function render() {
+            if (!state.mapData || !state.projection) return;
+            
+            // 1. Background
+            ctx.fillStyle = '#a4c3d2'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save(); ctx.translate(state.transform.x, state.transform.y); ctx.scale(state.transform.k, state.transform.k);
+            
+            const pathGen = d3.geoPath().projection(state.projection).context(ctx);
+            const currentFills = {};
+            
+            state.paths.forEach(p => {
+                if (p.type === 'fill' && p.time <= state.playbackTime) currentFills[p.featureIndex] = p.color;
+            });
+
+            // 2. Base Map Geometry
+            state.mapData.features.forEach((feature, index) => {
+                ctx.beginPath(); pathGen(feature);
+                
+                const isUserFilled = currentFills[index] !== undefined;
+                ctx.fillStyle = currentFills[index] || feature.properties.color || '#ebd4a5';
+                ctx.fill();
+                
+                if (state.currentMapType === 'ww1' && !isUserFilled) {
+                    ctx.strokeStyle = feature.properties.color || '#ebd4a5';
+                    ctx.lineWidth = 1.5 / state.transform.k; 
+                } else {
+                    ctx.strokeStyle = '#c6b187'; 
+                    ctx.lineWidth = 1 / state.transform.k;
+                }
+                ctx.stroke();
+            });
+
+            // 3. Country Names (Watermark)
+            ctx.textAlign = 'center'; 
+            ctx.textBaseline = 'middle';
+            
+            state.mapData.features.forEach((feature) => {
+                const props = feature.properties;
+                if (props.name && props.centroid && !isNaN(props.centroid[0]) && props.fontSize) {
+                    ctx.font = `bold ${props.fontSize}px 'Inter', sans-serif`;
+                    ctx.lineWidth = 1.5 / state.transform.k; 
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.strokeText(props.name.toUpperCase(), props.centroid[0], props.centroid[1]);
+                    
+                    ctx.fillStyle = 'rgba(50, 50, 50, 0.4)'; 
+                    ctx.fillText(props.name.toUpperCase(), props.centroid[0], props.centroid[1]);
+                }
+            });
+
+            // 4. Drawn Paths and Borders
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            state.paths.forEach((p) => {
+                if (p.time > state.playbackTime && p.type !== 'draw') return;
+                
+                if (p.type === 'border') {
+                    if (p.time <= state.playbackTime) {
+                        const f = state.mapData.features[p.featureIndex];
+                        if (f) {
+                            ctx.beginPath(); pathGen(f);
+                            ctx.lineWidth = 3 / state.transform.k; ctx.strokeStyle = '#000000'; ctx.stroke();
+                        }
+                    }
+                } else if (p.type === 'draw') {
+                    const activePoints = p.points.filter(pt => pt.time <= state.playbackTime);
+                    if (activePoints.length >= 2) {
+                        ctx.beginPath(); ctx.moveTo(activePoints[0].x, activePoints[0].y);
+                        for (let i = 1; i < activePoints.length; i++) ctx.lineTo(activePoints[i].x, activePoints[i].y);
+                        ctx.strokeStyle = p.color; ctx.lineWidth = p.size; ctx.stroke();
+                    }
+                    if (state.animMode === 'key' && !state.isPlaying) {
+                        p.points.forEach((pt) => {
+                            if (pt.time <= state.playbackTime) {
+                                ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(pt.x, pt.y, 4/state.transform.k, 0, 2*Math.PI); 
+                                ctx.fill(); ctx.lineWidth = 1/state.transform.k; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+                            }
+                        });
+                    }
+                }
+            });
+
+            // 5. Cities
+            const markerRadius = 1.5 / state.transform.k; const fontSize = 8 / state.transform.k;
+            ctx.font = `600 ${Math.max(fontSize, 0.1)}px 'Inter', sans-serif`;
+
+            worldCities.forEach(city => {
+                const coords = state.projection([city.lon, city.lat]);
+                if (coords) {
+                    const [x, y] = coords;
+                    ctx.beginPath(); ctx.arc(x, y, markerRadius, 0, 2 * Math.PI); ctx.fillStyle = '#1f2937'; ctx.fill();
+                    ctx.lineWidth = 0.5 / state.transform.k; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
+                    
+                    const labelY = y - (markerRadius * 2);
+                    ctx.lineWidth = 2 / state.transform.k; ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; ctx.strokeText(city.name, x, labelY);
+                    ctx.fillStyle = '#374151'; ctx.fillText(city.name, x, labelY);
+                }
+            });
+            ctx.restore(); updateTimelineUI();
+        }
+
+        function getTransformedPoint(e) {
+            let cx = e.clientX, cy = e.clientY;
+            if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+            return { x: (cx - state.transform.x) / state.transform.k, y: (cy - state.transform.y) / state.transform.k };
+        }
+
+        function handleInteractionStart(e) {
+            if (state.isPlaying) stopPlayback();
+            const pt = getTransformedPoint(e);
+
+            if (state.animMode === 'key') {
+                let foundPoint = false;
+                for (let i = state.paths.length - 1; i >= 0; i--) {
+                    const p = state.paths[i];
+                    if (p.type === 'draw') {
+                        for (let j = 0; j < p.points.length; j++) {
+                            const ptIn = p.points[j];
+                            if (ptIn.time <= state.playbackTime && Math.hypot(pt.x - ptIn.x, pt.y - ptIn.y) < 12 / state.transform.k) {
+                                state.isDraggingPoint = ptIn; foundPoint = true; break;
+                            }
+                        }
+                    }
+                    if (foundPoint) break;
+                }
+                if (foundPoint) return;
+            }
+
+            if (state.mode === 'eyedropper') {
+                const rect = canvas.getBoundingClientRect();
+                const pixel = ctx.getImageData(e.clientX - rect.left, e.clientY - rect.top, 1, 1).data;
+                const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
+                updateColor(hex, null); document.getElementById('custom-color').value = hex; setMode('draw');
+                return;
+            }
+
+            if (state.mode === 'fill' || state.mode === 'border') {
+                if (state.projection) {
+                    const lonLat = state.projection.invert([pt.x, pt.y]);
+                    if (lonLat) {
+                        const featureIndex = state.mapData.features.findIndex(f => d3.geoContains(f, lonLat));
+                        if (featureIndex !== -1) {
+                            if (state.animMode === 'live') { state.globalTime += 10; state.playbackTime = state.globalTime; }
+                            state.paths.push({ type: state.mode, color: state.color, featureIndex: featureIndex, time: state.playbackTime });
+                            updateTimelineRange(); render();
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (state.mode === 'city') {
+                if (state.projection) {
+                    const lonLat = state.projection.invert([pt.x, pt.y]);
+                    if (lonLat) {
+                        state.pendingCityCoords = { lon: lonLat[0], lat: lonLat[1] };
+                        document.getElementById('city-modal').classList.remove('hidden-menu');
+                        document.getElementById('city-name-input').focus();
+                    }
+                }
+                return;
+            }
+
+            if (state.mode === 'draw') {
+                state.isDrawing = true; state.lastDrawPos = pt;
+                if (state.animMode === 'live') { state.globalTime++; state.playbackTime = state.globalTime; }
+                state.currentPath = { type: 'draw', color: state.color, size: state.brushSize / state.transform.k, points: [{ x: pt.x, y: pt.y, time: state.playbackTime }] };
+                state.paths.push(state.currentPath); updateTimelineRange(); render();
+            }
+        }
+
+        function handleInteractionMove(e) {
+            if (state.isDraggingPoint) {
+                const pt = getTransformedPoint(e); state.isDraggingPoint.x = pt.x; state.isDraggingPoint.y = pt.y; render(); return;
+            }
+            if (!state.isDrawing || state.mode !== 'draw') return;
+            const pt = getTransformedPoint(e);
+            const dx = pt.x - state.lastDrawPos.x, dy = pt.y - state.lastDrawPos.y;
+            if (dx*dx + dy*dy > (4 / state.transform.k)) { 
+                if (state.animMode === 'live') { state.globalTime++; state.playbackTime = state.globalTime; }
+                state.currentPath.points.push({ x: pt.x, y: pt.y, time: state.playbackTime });
+                state.lastDrawPos = pt; updateTimelineRange(); render();
+            }
+        }
+
+        function handleInteractionEnd() { state.isDraggingPoint = null; state.isDrawing = false; state.currentPath = null; }
+
+        canvas.addEventListener('mousedown', handleInteractionStart); window.addEventListener('mousemove', handleInteractionMove); window.addEventListener('mouseup', handleInteractionEnd);
+        canvas.addEventListener('touchstart', (e) => { if(state.mode !== 'pan') e.preventDefault(); handleInteractionStart(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { if(state.mode !== 'pan') e.preventDefault(); handleInteractionMove(e); }, {passive: false});
+        window.addEventListener('touchend', handleInteractionEnd);
+
+        const zoom = d3.zoom().scaleExtent([0.5, 15]).filter(function(event) {
+            if (state.mode !== 'pan' && (event.type === 'mousedown' || event.type === 'touchstart')) return false; 
+            return (!event.ctrlKey || event.type === 'wheel') && !event.button;
+        }).on('zoom', (e) => { state.transform = e.transform; render(); });
+        d3.select(canvas).call(zoom);
+
+        let animationFrameId; const timeline = document.getElementById('timeline'); const timeDisplay = document.getElementById('time-display');
+        function updateTimelineRange() { timeline.max = state.globalTime; }
+        
+        function updateTimelineUI() {
+            if (!state.isPlaying) timeline.value = state.playbackTime;
+            timeDisplay.textContent = `Frame: ${Math.floor(state.playbackTime)} / ${state.globalTime}`;
+        }
+        
+        function animationLoop() {
+            if (!state.isPlaying) return;
+            if (state.playbackTime < state.globalTime) {
+                state.playbackTime += state.playbackSpeed;
+                if (state.playbackTime > state.globalTime) state.playbackTime = state.globalTime;
+                render(); animationFrameId = requestAnimationFrame(animationLoop);
+            } else stopPlayback();
+        }
+        
+        function startPlayback() {
+            if (state.globalTime === 0) return;
+            state.isPlaying = true; document.getElementById('play-icon').classList.replace('ph-play', 'ph-pause');
+            if (state.playbackTime >= state.globalTime) state.playbackTime = 0;
+            canvas.style.cursor = 'default'; animationLoop();
+        }
+        
+        function stopPlayback() {
+            state.isPlaying = false; document.getElementById('play-icon').classList.replace('ph-pause', 'ph-play');
+            cancelAnimationFrame(animationFrameId); updateCursor(); render();
+        }
+        
+        document.getElementById('btn-play').addEventListener('click', () => { if (state.isPlaying) stopPlayback(); else startPlayback(); });
+        timeline.addEventListener('input', (e) => { stopPlayback(); state.playbackTime = parseInt(e.target.value); render(); });
+
+        document.getElementById('btn-start-play').addEventListener('click', () => {
+            document.getElementById('main-menu').classList.add('hidden-menu');
+            document.getElementById('map-select-menu').classList.remove('hidden-menu');
+        });
+        document.getElementById('btn-back-map').addEventListener('click', () => {
+            document.getElementById('map-select-menu').classList.add('hidden-menu');
+            document.getElementById('main-menu').classList.remove('hidden-menu');
+        });
+        document.querySelectorAll('.map-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if(!e.currentTarget.classList.contains('cursor-not-allowed')){
+                    initMap(e.currentTarget.dataset.map);
+                }
+            });
+        });
+
+        // City Modal
+        document.getElementById('btn-city-cancel').addEventListener('click', () => {
+            document.getElementById('city-modal').classList.add('hidden-menu'); state.pendingCityCoords = null;
+        });
+        document.getElementById('btn-city-add').addEventListener('click', () => {
+            const name = document.getElementById('city-name-input').value.trim();
+            if (name && state.pendingCityCoords) { worldCities.push({ name: name, lon: state.pendingCityCoords.lon, lat: state.pendingCityCoords.lat }); render(); }
+            document.getElementById('city-modal').classList.add('hidden-menu'); document.getElementById('city-name-input').value = '';
+            state.pendingCityCoords = null; setMode('draw'); 
+        });
+
+        // Tool Modes
+        const btnDraw = document.getElementById('btn-mode-draw'); const btnFill = document.getElementById('btn-mode-fill');
+        const btnBorder = document.getElementById('btn-mode-border'); const btnCity = document.getElementById('btn-mode-city');
+        const btnPan = document.getElementById('btn-mode-pan'); const btnEyedropper = document.getElementById('btn-eyedropper');
+        const drawingTools = document.getElementById('drawing-tools');
+
+        function setMode(newMode) {
+            state.mode = newMode;
+            [btnDraw, btnFill, btnBorder, btnCity, btnPan].forEach(btn => { btn.classList.remove('active', 'bg-blue-600', 'bg-purple-600', 'bg-orange-600', 'bg-green-600', 'bg-gray-700', 'text-white'); btn.classList.add('text-gray-400'); });
+            btnEyedropper.classList.remove('text-blue-400'); drawingTools.style.opacity = '1'; drawingTools.style.pointerEvents = 'auto';
+
+            if (newMode === 'draw') btnDraw.classList.add('active', 'bg-blue-600', 'text-white');
+            else if (newMode === 'fill') btnFill.classList.add('active', 'bg-purple-600', 'text-white');
+            else if (newMode === 'border') btnBorder.classList.add('active', 'bg-orange-600', 'text-white');
+            else if (newMode === 'city') btnCity.classList.add('active', 'bg-green-600', 'text-white');
+            else if (newMode === 'pan') { btnPan.classList.add('active', 'bg-gray-700', 'text-white'); drawingTools.style.opacity = '0.5'; drawingTools.style.pointerEvents = 'none'; }
+            else if (newMode === 'eyedropper') { btnDraw.classList.add('active', 'bg-blue-600', 'text-white'); btnEyedropper.classList.add('text-blue-400'); }
+            updateCursor();
+        }
+        btnDraw.addEventListener('click', () => setMode('draw')); btnFill.addEventListener('click', () => setMode('fill'));
+        btnBorder.addEventListener('click', () => setMode('border')); btnCity.addEventListener('click', () => setMode('city'));
+        btnPan.addEventListener('click', () => setMode('pan')); btnEyedropper.addEventListener('click', () => setMode('eyedropper'));
+
+        // Anim Mode
+        const btnAnimLive = document.getElementById('btn-anim-live'); const btnAnimKey = document.getElementById('btn-anim-key'); const btnAddFrame = document.getElementById('btn-add-frame');
+        function setAnimMode(mode) {
+            state.animMode = mode;
+            if (mode === 'live') {
+                btnAnimLive.classList.add('bg-blue-600', 'text-white', 'active'); btnAnimLive.classList.remove('text-gray-400');
+                btnAnimKey.classList.remove('bg-gray-700', 'text-white', 'active'); btnAnimKey.classList.add('text-gray-400');
+                btnAddFrame.classList.add('hidden');
+            } else {
+                btnAnimKey.classList.add('bg-gray-700', 'text-white', 'active'); btnAnimKey.classList.remove('text-gray-400');
+                btnAnimLive.classList.remove('bg-blue-600', 'text-white', 'active'); btnAnimLive.classList.add('text-gray-400');
+                btnAddFrame.classList.remove('hidden');
+            }
+            render();
+        }
+        btnAnimLive.addEventListener('click', () => setAnimMode('live')); btnAnimKey.addEventListener('click', () => setAnimMode('key'));
+        btnAddFrame.addEventListener('click', () => { stopPlayback(); state.globalTime += 10; state.playbackTime = state.globalTime; updateTimelineRange(); render(); });
+
+        // Setup Controls
+        const colorBtns = document.querySelectorAll('.color-btn'); const customColor = document.getElementById('custom-color');
+        function updateColor(color, btnElement) {
+            state.color = color; colorBtns.forEach(btn => { btn.style.borderColor = 'transparent'; btn.classList.remove('scale-110'); });
+            if (btnElement) { btnElement.style.borderColor = '#ffffff'; btnElement.classList.add('scale-110'); }
+        }
+        colorBtns.forEach(btn => btn.addEventListener('click', (e) => { updateColor(e.target.dataset.color, e.target); customColor.parentElement.style.borderColor = '#4b5563'; }));
+        customColor.addEventListener('input', (e) => { updateColor(e.target.value, null); customColor.parentElement.style.borderColor = '#ffffff'; });
+        const brushSlider = document.getElementById('brush-size'); const brushDisplay = document.getElementById('brush-size-display');
+        brushSlider.addEventListener('input', (e) => { state.brushSize = parseInt(e.target.value); brushDisplay.textContent = state.brushSize + 'px'; updateCursor(); });
+        const speedBtns = document.querySelectorAll('.speed-btn');
+        speedBtns.forEach(btn => btn.addEventListener('click', (e) => {
+            state.playbackSpeed = parseFloat(e.target.dataset.speed);
+            speedBtns.forEach(b => b.classList.remove('active-speed', 'bg-gray-600', 'text-white')); e.target.classList.add('active-speed', 'bg-gray-600', 'text-white');
+        }));
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            stopPlayback(); state.paths = []; state.globalTime = 0; state.playbackTime = 0; updateTimelineRange();
+            d3.select(canvas).transition().duration(750).call(zoom.transform, d3.zoomIdentity); render();
+        });
+
+
+        document.getElementById('btn-publish').addEventListener('click', async () => {
+            if (state.paths.length === 0) return alert("Nothing to publish! Draw some paths first.");
+            
+            const title = prompt("Enter a title for your animation to publish to the Workshop:");
+            if (!title) return;
+            
+            const publishBtn = document.getElementById('btn-publish');
+            const originalHTML = publishBtn.innerHTML;
+            publishBtn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Publishing...';
+            
+            try {
+                await db.collection("workshop").add({
+                    title: title,
+                    mapType: state.currentMapType,
+                    globalTime: state.globalTime,
+                    paths: JSON.stringify(state.paths),
+                    cities: JSON.stringify(worldCities),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("Successfully published to the Workshop!");
+            } catch (e) {
+                console.error("Error publishing to Firestore: ", e);
+                alert("Failed to publish. Check your console for details (make sure Firestore rules are set to allow read/write).");
+            } finally {
+                publishBtn.innerHTML = originalHTML;
+            }
+        });
+
+        document.getElementById('btn-open-workshop').addEventListener('click', async () => {
+            document.getElementById('main-menu').classList.add('hidden-menu');
+            document.getElementById('workshop-menu').classList.remove('hidden-menu');
+            
+            const listEl = document.getElementById('workshop-list');
+            listEl.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10"><i class="ph ph-spinner animate-spin text-4xl mb-4"></i><p>Fetching Workshop...</p></div>';
+            
+            try {
+                const snapshot = await db.collection("workshop").orderBy("timestamp", "desc").limit(20).get();
+                listEl.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    listEl.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10">No animations found in the Workshop yet!</div>';
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const card = document.createElement('div');
+                    card.className = "bg-gray-800 p-5 rounded-xl cursor-pointer hover:bg-gray-700 hover:border-purple-500 border-2 border-gray-700 transition-all shadow-md group flex flex-col justify-between";
+                    const dateStr = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : 'Just now';
+                    
+                    card.innerHTML = `
+                        <div>
+                            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">${data.title}</h3>
+                            <div class="flex gap-2 mb-2">
+                                <span class="text-xs px-2 py-1 bg-gray-900 rounded text-gray-400 capitalize">Map: ${data.mapType}</span>
+                                <span class="text-xs px-2 py-1 bg-gray-900 rounded text-gray-400">Frames: ${data.globalTime}</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex justify-between items-end">
+                            <span class="text-xs text-gray-500">${dateStr}</span>
+                            <button class="bg-purple-600 px-3 py-1 rounded text-white text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Play <i class="ph-fill ph-play ml-1"></i></button>
+                        </div>
+                    `;
+                    card.onclick = () => loadWorkshopAnimation(data);
+                    listEl.appendChild(card);
+                });
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = '<div class="col-span-full text-center text-red-400 py-10">Failed to load workshop data. Have you enabled Firestore?</div>';
+            }
+        });
+
+        document.getElementById('btn-back-workshop').addEventListener('click', () => {
+            document.getElementById('workshop-menu').classList.add('hidden-menu');
+            document.getElementById('main-menu').classList.remove('hidden-menu');
+        });
+
+        async function loadWorkshopAnimation(data) {
+            state.paths = JSON.parse(data.paths);
+            
+            const customCities = JSON.parse(data.cities);
+            worldCities.length = 0; 
+            customCities.forEach(c => worldCities.push(c));
+            
+            state.globalTime = data.globalTime;
+            state.playbackTime = 0;
+            
+            await initMap(data.mapType);
+            
+            updateTimelineRange();
+            startPlayback(); 
+        }
+
+    </script>
+</body>
+</html>

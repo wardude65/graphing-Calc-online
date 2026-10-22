@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Five Nights at Fluff's Series</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for Inter Font and Dark/Horror Styling -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Overall dark, industrial gray */
+            background-color: #1a1a1a; 
+        }
+        
+        /* --- FNAF 1 Aesthetic CSS --- */
+        
+        /* Grungy, repeating dark red texture for the header */
+        .header-bg-fnaf1 {
+            background-color: #3d0000;
+            background-image: repeating-linear-gradient(45deg, #4d0000, #4d0000 10px, #3d0000 10px, #3d0000 20px);
+        }
+
+        /* Shadow reflecting the low-power monitor glow (red/orange) */
+        .fnaf1-glow-shadow {
+            box-shadow: 0 0 10px rgba(255, 69, 0, 0.5), 0 0 20px rgba(139, 0, 0, 0.4);
+        }
+
+        /* Style for the individual game cards */
+        .fnaf1-card {
+            background-color: #262626; /* Dark, dirty wall gray */
+            transition: all 0.3s ease;
+        }
+
+        .fnaf1-card:hover {
+            transform: scale(1.02);
+            /* Subtle glow on hover */
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.7);
+        }
+        /* --- END FNAF 1 Aesthetic CSS --- */
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'fnaf1-red': '#8b0000', // Darker, blood red
+                        'fnaf1-accent': '#ffcc00', // Muted yellow/gold for monitor light
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-gray-200 min-h-screen">
+
+    <!-- Header / Hero Section -->
+    <header class="header-bg-fnaf1 py-16 md:py-24 border-b-4 border-fnaf1-red fnaf1-glow-shadow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            
+            <h1 class="text-6xl md:text-8xl font-extrabold text-white tracking-tight mb-4">
+                <span class="text-fnaf1-red">Five Nights</span> at Fluff's
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto mb-8">
+                Welcome to Fluff's Entertainment! The doors are sealed, the lights are flickering, and they are waiting.
+            </p>
+            
+            <!-- Back to Main Hub Button (Darker, metallic accent) -->
+            <a href="index.html" class="inline-block bg-neutral-800 hover:bg-neutral-700 text-fnaf1-accent font-extrabold py-3 px-8 rounded-lg shadow-lg transition duration-300 transform hover:scale-105 text-lg border-2 border-fnaf1-accent">
+                &larr; Return to Safety (Fluff's Games Hub)
+            </a>
+            
+        </div>
+    </header>
+
+    <!-- Series Overview Section -->
+    <main class="py-12 md:py-16" id="games">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl font-bold text-center mb-10 text-fnaf1-accent">The Series Timeline (Low Power Mode)</h2>
+
+            <!-- Game Card Grid (1 column on mobile, 2 on tablet, 3 on desktop) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                <!-- Game Card 1: FNAF 1 -->
+                <a href="FNAF1.html" class="block">
+                    <div class="fnaf1-card p-6 rounded-xl shadow-xl hover:shadow-red-700 transition duration-300 transform border-b-4 border-red-700">
+                        <h3 class="text-3xl font-bold mb-2 text-fnaf1-accent">FNAF 1</h3>
+                        <p class="text-gray-400 mb-4">The classic horror experience. Monitor Fluff and the gang from your lonely office with limited power.</p>
+                        <span class="inline-block text-sm font-medium text-red-400 border border-red-400 rounded-full px-3 py-1">Survival Horror</span>
+                        <span class="inline-block text-sm font-medium text-gray-500 bg-gray-700 rounded-full px-3 py-1 ml-2">Original</span>
+                    </div>
+                </a>
+
+                <!-- Game Card 2: FNAF 2 -->
+                <a href="FN@F_2.html" class="block">
+                    <div class="fnaf1-card p-6 rounded-xl shadow-xl hover:shadow-fnaf1-accent transition duration-300 transform border-b-4 border-fnaf1-accent">
+                        <h3 class="text-3xl font-bold mb-2 text-white">FNAF 2</h3>
+                        <p class="text-gray-400 mb-4">A prequel featuring the Toy animatronics. No doors, just a flashlight and a Fluff mask!</p>
+                        <span class="inline-block text-sm font-medium text-yellow-400 border border-yellow-400 rounded-full px-3 py-1">Pre-Sequel</span>
+                        <span class="inline-block text-sm font-medium text-gray-500 bg-gray-700 rounded-full px-3 py-1 ml-2">Mask Mechanic</span>
+                    </div>
+                </a>
+
+                <!-- Game Card 3: FNAF 3 -->
+                <a href="FN@F_3.html" class="block">
+                    <div class="fnaf1-card p-6 rounded-xl shadow-xl hover:shadow-green-700 transition duration-300 transform border-b-4 border-green-700">
+                        <h3 class="text-3xl font-bold mb-2 text-white">FNAF 3</h3>
+                        <p class="text-gray-400 mb-4">Set 30 years later in a horror attraction. You only have to worry about one terrifying enemy... and errors.</p>
+                        <span class="inline-block text-sm font-medium text-green-400 border border-green-400 rounded-full px-3 py-1">Atmospheric</span>
+                        <span class="inline-block text-sm font-medium text-gray-500 bg-gray-700 rounded-full px-3 py-1 ml-2">Phantoms</span>
+                    </div>
+                </a>
+                
+                <!-- Game Card 4: FNAF: Sister Location -->
+                <a href="FN@F_SL.html" class="block">
+                    <div class="fnaf1-card p-6 rounded-xl shadow-xl hover:shadow-cyan-700 transition duration-300 transform border-b-4 border-cyan-700">
+                        <h3 class="text-3xl font-bold mb-2 text-white">FNAF: Sister Location</h3>
+                        <p class="text-gray-400 mb-4">Go underground to Fluff's Rental & Party World. Enjoy new mechanics and a deep narrative.</p>
+                        <span class="inline-block text-sm font-medium text-cyan-400 border border-cyan-400 rounded-full px-3 py-1">Narrative Driven</span>
+                        <span class="inline-block text-sm font-medium text-gray-500 bg-gray-700 rounded-full px-3 py-1 ml-2">Funtime Fluff</span>
+                    </div>
+                </a>
+
+                <!-- Game Card 5 (Coming Soon - Grayed Out) -->
+                <a href="#" onclick="return false;" class="block cursor-not-allowed">
+                    <div class="fnaf1-card p-6 rounded-xl shadow-lg transition duration-300 opacity-60 border-b-4 border-gray-600">
+                        <h3 class="text-3xl font-bold mb-2 text-white/80">FNAF: Security Breach</h3>
+                        <p class="text-gray-500 mb-4">Explore the massive Mega Pizzaplex in this new free-roam adventure. (Coming Soon!)</p>
+                        <span class="inline-block text-sm font-medium text-gray-500 border border-gray-500 rounded-full px-3 py-1">Open World</span>
+                        <span class="inline-block text-sm font-medium text-gray-600 bg-gray-800 rounded-full px-3 py-1 ml-2">In Development</span>
+                    </div>
+                </a>
+                
+                <!-- Game Card 6 (Coming Soon - Grayed Out) -->
+                <a href="#" onclick="return false;" class="block cursor-not-allowed">
+                    <div class="fnaf1-card p-6 rounded-xl shadow-lg transition duration-300 opacity-60 border-b-4 border-gray-600">
+                        <h3 class="text-3xl font-bold mb-2 text-white/80">Ultimate Custom Fluff</h3>
+                        <p class="text-gray-500 mb-4">Mix and match over 50 Fluff characters for the ultimate customizable challenge. (Planned)</p>
+                        <span class="inline-block text-sm font-medium text-gray-500 border border-gray-500 rounded-full px-3 py-1">Customizable</span>
+                        <span class="inline-block text-sm font-medium text-gray-600 bg-gray-800 rounded-full px-3 py-1 ml-2">To Be Made</span>
+                    </div>
+                </a>
+
+            </div>
+            <!-- End Game Card Grid -->
+            
+            <div class="mt-16 text-center">
+                <p class="text-2xl font-semibold text-fnaf1-red">Are you ready for the final night? <span class="text-fnaf1-accent">Check your power level.</span></p>
+            </div>
+            
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-black border-t-4 border-fnaf1-red mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-600 text-sm">
+            <p>&copy; 2025 [fluffgaming123]. Fluff's Entertainment is not responsible for injury, death, or dismemberment.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

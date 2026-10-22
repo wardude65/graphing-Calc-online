@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steal The Brainrot Tycoon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #1f2937; color: #e0e0e0; overflow: hidden; }
+        .game-container { background-color: #374151; box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+        .conveyor-belt-container { background-color: #4b5563; }
+        .conveyor-belt { background-image: linear-gradient(45deg, #374151 25%, #4b5563 25%, #4b5563 50%, #374151 50%, #374151 75%, #4b5563 75%, #4b5563 100%); background-size: 60px 60px; animation: slide 4s linear infinite; }
+        .paused { animation-play-state: paused; }
+        @keyframes slide { from { background-position: 0 0; } to { background-position: -120px 0; } }
+        .belt-item-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s ease; user-select: none; top: 50%; transform: translateY(-50%); }
+        .belt-item-wrapper:hover { transform: scale(1.1) translateY(-50%); z-index: 20; }
+        .belt-item-label { background-color: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 6px; font-size: 10px; margin-bottom: 2px; text-align: center; line-height: 1.2; width: 80px; white-space: normal; }
+        .belt-item { width: 50px; height: 50px; font-size: 24px; border-radius: 50%; background-color: rgba(0,0,0,0.5); border-width: 2px; transition: box-shadow 0.2s ease; position: relative; display: flex; align-items: center; justify-content: center; }
+        .belt-item-wrapper:hover .belt-item { box-shadow: 0 0 15px var(--glow-color, #fff); }
+        .base-container { background-color: #4b5563; }
+        .base-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+        .base-slot { border: 2px dashed #6b7280; background-color: rgba(0,0,0,0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color 0.2s ease; aspect-ratio: 1/1; position: relative; }
+        .base-slot:hover { background-color: #4b5563; }
+        .base-slot.sell-mode:hover { background-color: rgba(239, 68, 68, 0.4); border-color: #ef4444; }
+        .base-item { width: 80%; height: 80%; font-size: 22px; border-radius: 50%; pointer-events: none; position: relative; display: flex; align-items: center; justify-content: center; }
+        .mutation-icon, .trait-icon { position: absolute; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 1px solid #fff; user-select: none; z-index: 1; }
+        .mutation-icon { top: -5px; left: -5px; }
+        .trait-icon { bottom: -5px; right: -5px; font-size: 14px; }
+        .base-slot.selectable { cursor: pointer; }
+        .base-slot.selectable:hover { background-color: #4b5563 !important; }
+        .base-slot.selectable.selected { background-color: #16a34a; border-color: #4ade80; }
+        .base-slot.selectable.selected:hover { background-color: #15803d; }
+        .btn { padding: 6px 12px; border-radius: 8px; font-weight: 600; transition: all 0.2s ease; border: none; font-size: 12px; }
+        .btn-blue { background-color: #3b82f6; color: white; } .btn-blue:hover { background-color: #2563eb; }
+        .btn-green { background-color: #22c55e; color: white; } .btn-green:hover { background-color: #16a34a; }
+        .btn-gray { background-color: #6b7280; color: white; } .btn-gray:hover { background-color: #4b5563; }
+        .btn-purple { background-color: #8b5cf6; color: white; } .btn-purple:hover:not(:disabled) { background-color: #7c3aed; } .btn-purple:disabled { background-color: #6b7280; color: #d1d5db; cursor: not-allowed; }
+        .btn-red { background-color: #ef4444; color: white; } .btn-red:hover:not(:disabled) { background-color: #dc2626; }
+        .btn-yellow { background-color: #eab308; color: white; } .btn-yellow:hover:not(:disabled) { background-color: #ca8a04; }
+        .btn-cyan { background-color: #06b6d4; color: white; } .btn-cyan:hover:not(:disabled) { background-color: #0891b2; }
+        .btn-orange { background-color: #f97316; color: white; } .btn-orange:hover:not(:disabled) { background-color: #ea580c; }
+        .btn-pink { background-color: #ec4899; color: white; } .btn-pink:hover:not(:disabled) { background-color: #db2777; }
+        .btn-black { background-color: #111827; color: white; border: 1px solid #374151; } .btn-black:hover:not(:disabled) { background-color: #000; border-color: #ef4444; color: #ef4444; }
+        .btn.active { box-shadow: inset 0 0 10px rgba(0,0,0,0.5); transform: scale(0.95); }
+        .btn-pulse { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background-color: #374151; border-radius: 16px; width: 90%; max-width: 1000px; max-height: 90vh; padding: 24px; display: flex; flex-direction: column; box-shadow: 0 0 25px rgba(0,0,0,0.6); }
+        .small-modal-content { max-width: 500px; max-height: auto; }
+        .index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 16px; padding: 16px; }
+        .index-item { background-color: #374151; border-radius: 8px; padding: 8px; aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border: 2px solid #6b7280; }
+        .index-item.undiscovered { background-color: #1f2937; color: #6b7280; }
+        .index-item-icon { font-size: 32px; }
+        .index-item-name { font-size: 12px; margin-top: 4px; font-weight: 600;}
+        .requirement-met { color: #4ade80; } .requirement-not-met { color: #f87171; }
+        .admin-input { background-color: #4b5563; color: white; border: 1px solid #6b7280; border-radius: 6px; padding: 4px 8px; }
+        .admin-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .admin-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        #notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #1f2937; color: white; padding: 12px 24px; border-radius: 8px; z-index: 2000; border: 2px solid; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s, top 0.3s; }
+        #loading-spinner { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 8px solid #4b5563; border-top: 8px solid #3b82f6; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; z-index: 9999; }
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        .leaderboard-table { width: 100%; border-collapse: collapse; }
+        .leaderboard-table th, .leaderboard-table td { padding: 8px; text-align: left; border-bottom: 1px solid #4b5563; }
+        .leaderboard-table th { background-color: #374151; color: #9ca3af; font-weight: 600; }
+        .rank-1 { color: #fcd34d; font-weight: bold; } .rank-2 { color: #d1d5db; font-weight: bold; } .rank-3 { color: #b45309; font-weight: bold; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen text-sm sm:text-base">
+    <div id="loading-spinner"></div>
+    <div id="game-root" class="game-container w-full max-w-6xl h-[95vh] p-4 rounded-2xl flex flex-col gap-2 hidden">
+        <header class="flex flex-wrap justify-between items-center pb-1">
+            <h1 class="text-xl sm:text-2xl font-bold text-white">Steal The Brainrot</h1>
+            <nav class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <button id="pause-button" class="btn btn-blue">Pause</button>
+                <button id="save-button" class="btn btn-green">Cloud Save</button>
+                <button id="load-button" class="btn btn-green">Cloud Load</button>
+                <button id="save-file-button" class="btn btn-gray">Save File</button>
+                <button id="load-file-button" class="btn btn-gray">Load File</button>
+                <button id="index-button" class="btn btn-gray">Index <span id="index-counter">(0/0)</span></button>
+                <button id="open-leaderboard-button" class="btn btn-yellow">🏆 Leaderboard</button>
+                <button id="open-rebirth-button" class="btn btn-purple">Rebirth</button>
+                <button id="toggle-sound-button" class="btn btn-gray">🔊</button>
+                <!-- New Limited Button -->
+                <button id="open-limited-button" class="btn btn-red btn-pulse hidden">🔥 Limited Stock (<span id="limited-stock-count-btn">0</span>)</button>
+            </nav>
+        </header>
+        <div class="flex justify-between items-center bg-gray-800 p-2 rounded-lg">
+            <div><div class="text-lg font-bold text-green-400">Money: $<span id="money">100</span></div><div class="text-xs text-gray-400">per second: $<span id="mps">0</span></div></div>
+            <div class="text-center"><div class="text-base font-semibold text-yellow-300">Next spawn in: <span id="timer-display">00:00</span></div><div id="active-events-list" class="flex gap-1 justify-center mt-1 h-4"></div><div class="text-xs text-gray-400">Rebirths: <span id="rebirth-display">0</span></div></div>
+            <div class="text-lg font-semibold text-gray-300">Base: <span id="base-count">0 / 10</span></div>
+        </div>
+        <div class="flex gap-2 justify-center flex-wrap">
+            <button id="open-normal-fuse-button" class="btn btn-cyan">Fuse</button>
+            <button id="open-taco-fuse-button" class="btn btn-yellow hidden">Taco Fuse</button>
+            <button id="open-craft-machine-button" class="btn btn-orange">Craft</button>
+            <button id="open-ritual-button" class="btn btn-red">Ritual</button>
+            <button id="open-trader-button" class="btn btn-blue">Trader</button> 
+            <!-- Corruptor Removed -->
+            <button id="santa-fuse-button" class="btn btn-red border border-white">🎅 Santa Fuse</button>
+            <button id="fish-button" class="btn btn-cyan hidden">🎣 Fish (10s)</button>
+        </div>
+        <main class="flex-grow flex flex-col gap-2 overflow-hidden">
+            <div id="conveyor-belt" class="h-1/3 conveyor-belt-container rounded-lg relative overflow-hidden"></div>
+            <div class="h-2/3 flex flex-col base-container p-2 rounded-lg">
+                <div class="flex justify-between items-center mb-1"><h2 class="text-lg font-bold text-white">Your Base</h2><div class="flex gap-2"><button id="sell-button" class="btn btn-blue">Sell</button></div></div>
+                <div id="base" class="base-grid gap-2 sm:gap-2 flex-grow p-2 rounded-md overflow-y-auto"></div>
+            </div>
+        </main>
+    </div>
+    <div id="index-modal" class="modal-overlay hidden"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Brainrot Index</h2><button id="close-index-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="index-grid-container" class="flex-grow overflow-y-auto bg-gray-800 rounded-lg p-2"></div></div></div>
+    <div id="rebirth-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Rebirth</h2><button id="close-rebirth-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="rebirth-info" class="bg-gray-800 rounded-lg p-4 space-y-3"></div><div class="mt-6 flex flex-col items-center"><p class="text-center text-gray-400 mb-2">Rewards: +1 Base Slot, +2% MPS, +Slight Luck</p><button id="confirm-rebirth-button" class="btn btn-purple text-lg w-full" disabled>Confirm Rebirth</button></div></div></div>
+    <div id="jayce-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content overflow-y-auto"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Jayce Panel</h2><button id="close-jayce-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="jayce-password-screen"><p class="mb-2">Enter Jayce's Password:</p><input type="password" id="jayce-password-input" class="admin-input w-full mb-2"><button id="jayce-login-button" class="btn btn-blue w-full">Login</button><p id="jayce-error" class="text-red-500 text-sm mt-2"></p></div><div id="jayce-command-screen" class="hidden space-y-4"><div class="flex items-center gap-2"><input id="jayce-display-name" placeholder="Display Name" class="admin-input flex-grow"><button id="jayce-send-chat" class="btn btn-blue">Send</button></div><div class="flex items-center gap-2"><input id="jayce-chat-input" placeholder="Global Jayce Message" class="admin-input flex-grow"></div><hr class="border-gray-600"><div class="flex items-center gap-2"><input type="number" id="jayce-money-input" placeholder="Amount of money" class="admin-input flex-grow"><button id="jayce-give-money" class="btn btn-green">Give (Self)</button></div><div class="admin-grid-2"><select id="jayce-spawn-mutation" class="admin-input"></select><select id="jayce-spawn-trait" class="admin-input"></select></div><div class="flex items-center gap-2"><select id="jayce-spawn-select" class="admin-input flex-grow"></select><button id="jayce-spawn-button" class="btn btn-blue">Spawn (Global)</button></div><div class="admin-grid-2"><select id="jayce-give-mutation" class="admin-input"></select><select id="jayce-give-trait" class="admin-input"></select></div><div class="flex items-center gap-2"><select id="jayce-give-select" class="admin-input flex-grow"></select><button id="jayce-give-button" class="btn btn-blue">Give (Self)</button></div><div class="flex items-center gap-2"><input type="number" id="jayce-rebirth-input" placeholder="Rebirth Level" class="admin-input flex-grow"><button id="jayce-give-rebirth" class="btn btn-purple">Set (Self)</button></div><div class="flex items-center gap-2"><input type="number" id="jayce-luck-input" placeholder="Additional Luck" class="admin-input flex-grow"><button id="jayce-give-luck" class="btn btn-purple">Add (Self)</button></div><button id="jayce-unlock-index" class="btn btn-gray w-full">Unlock Index (Self)</button><hr class="border-gray-600"><h3 class="text-lg font-bold">Global Events</h3><div class="admin-grid-2"><select id="jayce-event-select" class="admin-input"></select><button id="jayce-event-run-global" class="btn btn-blue">Run Global</button></div><div class="admin-grid-3"><button id="jayce-event-taco" class="btn btn-yellow">Taco Time</button><button id="jayce-event-run-all" class="btn btn-green">Run All</button><button id="jayce-event-stop-all" class="btn btn-red">Stop All</button></div>
+    <button id="jayce-spawn-santa-gift" class="btn btn-red w-full mt-2 border border-white">🎁 Spawn Santa Gift</button>
+    <hr class="border-gray-600"><h3 class="text-lg font-bold">Limited Quantity</h3><div class="bg-gray-900 p-2 rounded space-y-2"><div class="flex justify-between items-center"><select id="jayce-limited-select" class="admin-input flex-grow text-xs"></select><span id="admin-limited-stock-display" class="text-sm text-gray-400 ml-2">Qty: ?</span></div><div class="flex gap-2"><input type="number" id="jayce-limited-stock-input" class="admin-input w-20" placeholder="Qty" value="3"><button id="jayce-set-limited-stock" class="btn btn-green flex-grow">Set Stock</button><button id="jayce-remove-limited-stock" class="btn btn-red">Remove</button></div></div><hr class="border-gray-600"><h3 class="text-lg font-bold">Live Stock Control</h3><div class="grid grid-cols-2 gap-2 mb-2"><button id="jayce-force-refresh-trader" class="btn btn-blue w-full">Force Refresh Trader</button><button id="jayce-force-refresh-craft" class="btn btn-orange w-full">Force Refresh Craft</button></div><div class="flex flex-col gap-1 bg-gray-900 p-2 rounded"><div class="text-xs font-bold text-gray-400">Trader Setup:</div><div class="flex items-center gap-2"><select id="jayce-add-trader-select" class="admin-input flex-grow"></select><span class="text-xs">for</span></div><div class="flex items-center gap-2"><input type="number" id="jayce-trader-cost-amount" class="admin-input w-12 text-center" value="1" min="1"><select id="jayce-trader-cost-type" class="admin-input w-24 text-xs"><option value="Rarity">Rarity</option><option value="Item">Item</option></select><select id="jayce-trader-cost-target" class="admin-input flex-grow text-xs"></select></div><button id="jayce-add-trader-btn" class="btn btn-blue w-full mt-1">Add Custom Trade</button></div><div class="flex flex-col gap-1 bg-gray-900 p-2 rounded mt-2"><div class="text-xs font-bold text-gray-400">Craft Setup:</div><div class="flex items-center gap-2 mb-2"><span class="text-xs w-16">Result:</span><select id="jayce-add-craft-select" class="admin-input flex-grow"></select></div><div id="jayce-craft-ingredients-container" class="space-y-1 mb-2"><div class="flex items-center gap-1"><input type="number" class="admin-input w-10 text-center ingredient-count" value="1" min="1"><select class="admin-input flex-grow ingredient-name text-xs"></select></div><div class="flex items-center gap-1"><input type="number" class="admin-input w-10 text-center ingredient-count" value="1" min="1"><select class="admin-input flex-grow ingredient-name text-xs"></select></div><div class="flex items-center gap-1"><input type="number" class="admin-input w-10 text-center ingredient-count" value="1" min="1"><select class="admin-input flex-grow ingredient-name text-xs"></select></div><div class="flex items-center gap-1"><input type="number" class="admin-input w-10 text-center ingredient-count" value="1" min="1"><select class="admin-input flex-grow ingredient-name text-xs"></select></div></div><button id="jayce-add-craft-btn" class="btn btn-orange w-full">Add Custom Craft</button></div><button id="jayce-logout-button" class="btn btn-gray w-full mt-4">Logout</button></div></div></div>
+    <div id="ritual-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Rituals</h2><button id="close-ritual-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="ritual-list" class="flex-grow overflow-y-auto bg-gray-800 rounded-lg p-4 space-y-4"></div></div></div>
+    <div id="craft-machine-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Crafting <span id="craft-timer" class="text-sm font-normal text-gray-400 ml-2"></span></h2><button id="close-craft-machine-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="craft-machine-list" class="flex-grow overflow-y-auto bg-gray-800 rounded-lg p-4 space-y-4"></div></div></div>
+    <div id="fuse-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 id="fuse-modal-title" class="text-2xl font-bold">Fuse</h2><button id="close-fuse-modal-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="fuse-modal-list" class="flex-grow overflow-y-auto bg-gray-800 rounded-lg p-4 space-y-4"></div></div></div>
+    <div id="trader-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Trader <span id="trader-timer" class="text-sm font-normal text-gray-400 ml-2"></span></h2><button id="close-trader-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="trader-list" class="flex-grow overflow-y-auto bg-gray-800 rounded-lg p-4 space-y-4"></div></div></div>
+    <div id="corruptor-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">The Corruptor ☣️</h2><button id="close-corruptor-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div class="text-center mb-4"><p class="text-red-400 font-bold">Cost: $100,000,000</p><p class="text-sm text-gray-300">20% Glitch (6x, Risk) | 30% Mutation | 50% Destroy</p></div><div id="corruptor-list" class="base-grid gap-2 sm:gap-2 flex-grow p-2 rounded-md overflow-y-auto bg-gray-800" style="grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));"></div></div></div>
+    <div id="leaderboard-modal" class="modal-overlay hidden"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">🏆 Global Leaderboard</h2><button id="close-leaderboard-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div class="flex gap-2 mb-4"><input id="leaderboard-name-input" type="text" placeholder="Enter Your Name" class="admin-input flex-grow" maxlength="15"><button id="set-name-button" class="btn btn-blue">Set Name</button></div><div class="flex gap-2 mb-2 border-b border-gray-600 pb-2"><button id="lb-tab-money" class="btn btn-blue flex-1">Richest</button><button id="lb-tab-rebirths" class="btn btn-gray flex-1">Most Rebirths</button></div><div id="leaderboard-content" class="flex-grow overflow-y-auto bg-gray-800 rounded-lg p-2 h-96"><p class="text-center text-gray-400 mt-4">Loading...</p></div></div></div>
+    <div id="selection-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 id="selection-modal-title" class="text-2xl font-bold">Select Items</h2><button id="close-selection-modal-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><p id="selection-modal-prompt" class="mb-2"></p><div id="selection-modal-grid" class="base-grid gap-2 sm:gap-2 flex-grow p-2 rounded-md overflow-y-auto bg-gray-800" style="grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));"></div><div class="mt-4 flex gap-2"><button id="selection-modal-confirm" class="btn btn-green w-full" disabled>Confirm</button><button id="selection-modal-cancel" class="btn btn-gray w-full">Cancel</button></div></div></div>
+    <div id="limited-item-modal" class="modal-overlay hidden"><div class="modal-content small-modal-content"><div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold text-red-500">🔥 Limited Offer</h2><button id="close-limited-item-button" class="text-3xl font-bold leading-none px-2 rounded-full hover:bg-gray-600">&times;</button></div><div id="limited-item-content" class="space-y-4"></div></div></div>
+    <div id="global-tooltip" class="hidden fixed bg-black bg-opacity-80 text-white text-xs rounded-md p-2 pointer-events-none z-[9999]"></div>
+    <div id="notification"></div>
+    <input type="file" id="load-file-input" accept=".json" class="hidden">
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where, addDoc, getDocs, runTransaction, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const SoundManager = {
+            ctx: null, enabled: true,
+            sounds: {},
+            init: function() { 
+                try { 
+                    const AudioContext = window.AudioContext || window.webkitAudioContext; 
+                    this.ctx = new AudioContext(); 
+                    this.preloadSounds();
+                } catch (e) { 
+                    console.warn("Web Audio API not supported"); 
+                } 
+            },
+            toggle: function() { this.enabled = !this.enabled; return this.enabled; },
+            preloadSounds: function() {
+                const soundMap = {
+                    'Strawberry Elephant': 'https://www.dropbox.com/scl/fi/fzvz8hwen6gm0re6g37fr/Strawberry_Elephanta.mp3.mpeg?rlkey=1g9it59301toau5cc0f9us5op&st=oj0jmx57&dl=1',
+                    'Meowl': 'https://www.dropbox.com/scl/fi/ngavallakow7swa32g0cs/Meowlsound.mp3.mpeg?rlkey=v341lb3jed6hkfb3b642d6sw1&st=asql7nqx&dl=1',
+                    'Fluff': 'https://www.dropbox.com/scl/fi/nvqtck1al10dbjo1f9in8/Recording-7.m4a?rlkey=tdk5lmu99cpx4hckbhjzc5ayf&st=4m7basdv&dl=1',
+                    'John Pork': 'https://www.dropbox.com/scl/fi/iv2j9qu9e89spv69ld1b2/Jp.mp3.mpeg?rlkey=26drbc99c68ao847b0azuew4f&st=jlnh1phe&dl=1',
+                    'Smurf Cat': 'https://www.dropbox.com/scl/fi/2diw6xqs4t9iqlg9n7xej/XRecorder_20250929_03.mp3.mpeg?rlkey=3us1qvbugx6mnxvro9jnia9d1&st=1h9jk508&dl=1'
+                };
+                for(let key in soundMap) {
+                    this.sounds[key] = new Audio(soundMap[key]);
+                }
+            },
+            playTone: function(freq, type, duration, vol = 0.3) { if (!this.enabled || !this.ctx) return; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime); gain.gain.setValueAtTime(vol, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration); osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + duration); },
+            playBuy: function() { this.playTone(400, 'square', 0.1, 0.2); },
+            playSell: function() { this.playTone(800, 'sine', 0.1, 0.2); this.playTone(1200, 'sine', 0.1, 0.2); },
+            playSpawn: function(rarity, name) { 
+                if (!this.enabled) return;
+                
+                // Check for custom sound first
+                if (name && this.sounds[name]) {
+                    this.sounds[name].currentTime = 0;
+                    this.sounds[name].play().catch(e => console.log('Audio play failed', e));
+                    return;
+                }
+
+                // Fallback to rarity sounds
+                if (!this.ctx) return; 
+                if (rarity === 'Brainrot God') { this.playTone(300, 'sine', 0.3, 0.5); setTimeout(() => this.playTone(400, 'sine', 0.3, 0.5), 100); setTimeout(() => this.playTone(500, 'sine', 0.6, 0.5), 200); } 
+                else if (rarity === 'Secret') { this.playTone(600, 'triangle', 0.4, 0.4); setTimeout(() => this.playTone(800, 'triangle', 0.4, 0.4), 150); setTimeout(() => this.playTone(1000, 'triangle', 0.8, 0.4), 300); } 
+                else if (rarity === 'OG') { this.playTone(150, 'sawtooth', 1.0, 0.6); setTimeout(() => this.playTone(200, 'square', 0.8, 0.5), 100); setTimeout(() => this.playTone(100, 'sawtooth', 1.5, 0.6), 200); } 
+            },
+            playFish: function() { if (!this.enabled || !this.ctx) return; this.playTone(100, 'sawtooth', 0.2, 0.3); setTimeout(() => this.playTone(150, 'sawtooth', 0.2, 0.3), 50); },
+            playRebirth: function() { if (!this.enabled || !this.ctx) return; this.playTone(200, 'sawtooth', 1.0, 0.4); setTimeout(() => this.playTone(300, 'sawtooth', 1.0, 0.4), 100); setTimeout(() => this.playTone(400, 'sawtooth', 1.0, 0.4), 200); setTimeout(() => this.playTone(600, 'sawtooth', 2.0, 0.4), 400); },
+            playCorruptSuccess: function() { if (!this.enabled || !this.ctx) return; this.playTone(800, 'square', 0.1, 0.3); setTimeout(() => this.playTone(1000, 'square', 0.1, 0.3), 100); setTimeout(() => this.playTone(1200, 'square', 0.2, 0.3), 200); },
+            playCorruptFail: function() { if (!this.enabled || !this.ctx) return; this.playTone(200, 'sawtooth', 0.5, 0.4); setTimeout(() => this.playTone(100, 'sawtooth', 0.5, 0.4), 200); }
+        };
+
+        const JAYCE_PASSWORD = "Imaginehackingstb"; const SELL_MULTIPLIER = 0.5;
+        const rarities = { 'Common': { color: '#9ca3af', weight: 900, glow: '#9ca3af' }, 'Rare': { color: '#2563eb', weight: 80, glow: '#2563eb' }, 'Epic': { color: '#9333ea', weight: 60, glow: '#9333ea' }, 'Legendary': { color: '#f97316', weight: 40, glow: '#f97316' }, 'Mythic': { color: '#ef4444', weight: 35, glow: '#ef4444' }, 'Brainrot God': { color: '#fde047', weight: 5, glow: '#fde047' }, 'Secret': { color: '#ffffff', weight: 1, glow: '#a855f7' }, 'OG': { color: '#ff00ff', weight: 0.1, glow: '#ff00ff' }, 'Lucky Block': { color: '#facc15', weight: 0, glow: '#facc15' }, 'Limited': { color: '#00ffff', weight: 0, glow: '#00ffff' } };
+        const mutations = { 'None': { name: 'None', multiplier: 1 }, 'Gold': { name: 'Gold', icon: 'G', color: '#fde047', multiplier: 1.5, chance: 0.05 }, 'Diamond': { name: 'Diamond', icon: 'D', color: '#3b82f6', multiplier: 3, chance: 0.02 }, 'Rainbow': { name: 'Rainbow', icon: 'R', color: 'linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet)', multiplier: 7, chance: 0.005 } };
+        const weatherEvents = { 'Meowl': { name: 'Meowl', duration: 300, multiplier: 7, icon: '🐱', color: '#fb923c' }, 'Witching Hour': { name: 'Witching Hour', duration: 300, multiplier: 4.5, icon: '🧙', color: '#a855f7' }, 'Rain': { name: 'Rain', duration: 300, multiplier: 2.5, icon: '🌧️', color: '#60a5fa' }, 'Snowy': { name: 'Snowy', duration: 300, multiplier: 3, icon: '❄️', color: '#ffffff' }, 'Starfall': { name: 'Starfall', duration: 300, multiplier: 3.5, icon: '⭐', color: '#facc15' }, 'Hat': { name: 'Hat', duration: 300, multiplier: 4.5, icon: '🎩', color: '#374151' }, 'Water': { name: 'Water', duration: 300, multiplier: 4, icon: '💧', color: '#3b82f6' }, 'Galactic': { name: 'Galactic', duration: 300, multiplier: 4, icon: '🌌', color: '#6d28d9' }, 'Bombardiro': { name: 'Bombardiro', duration: 300, multiplier: 4, icon: '💣', color: '#ef4444' }, 'Extinct': { name: 'Extinct', duration: 300, multiplier: 4, icon: '☄️', color: '#f97316' }, 'Spider': { name: 'Spider', duration: 300, multiplier: 4.5, icon: '🕷️', color: '#4b5563' }, 'Paint': { name: 'Paint', duration: 300, multiplier: 6, icon: '🎨', color: '#ec4899' }, 'Tie': { name: 'Tie', duration: 300, multiplier: 4.75, icon: '👔', color: '#14b8a6' }, 'Strawberry': { name: 'Strawberry', duration: 300, multiplier: 8, icon: '🍓', color: '#f43f5e' }, 'Taco': { name: 'Taco', duration: 300, multiplier: 3, icon: '🌮', color: '#f59e0b' }, 'Tung Tung Attack': { name: 'Tung Tung Attack', duration: 300, multiplier: 5, icon: '🎶', color: '#fde047' }, 'Indonesia': { name: 'Indonesia', duration: 300, multiplier: 2, icon: '🇮🇩', color: '#ef4444' }, 'Crab Rave': { name: 'Crab Rave', duration: 300, multiplier: 5, icon: '🦀', color: '#f97316' }, 'Rap Concert': { name: 'Rap Concert', duration: 300, multiplier: 5, icon: '🎤', color: '#a855f7' }, 'Mexico': { name: 'Mexico', duration: 300, multiplier: 5, icon: '🇲🇽', color: '#22c55e' }, 'Glitch': { name: 'Glitch', duration: 300, multiplier: 6, icon: '👾', color: '#ec4899' }, 'Fire': { name: 'Fire', duration: 300, multiplier: 6, icon: '🔥', color: '#f97316' }, 'Fireworks': { name: 'Fireworks', duration: 300, multiplier: 6, icon: '🎆', color: '#f43f5e' }, 'Nyan': { name: 'Nyan', duration: 300, multiplier: 6, icon: '🌈', color: '#3b82f6' }, '10B': { name: '10B', duration: 300, multiplier: 4, icon: '🔟', color: '#fde047' }, 'Bloodmoon': { name: 'Bloodmoon', duration: 300, multiplier: 4, icon: '🩸', color: '#dc2626' }, 'Brazil': { name: 'Brazil', duration: 300, multiplier: 6, icon: '🇧🇷', color: '#22c55e' }, 'Bubblegum': { name: 'Bubblegum', duration: 300, multiplier: 4, icon: '🍬', color: '#ec4899' }, 'Bloodrot': { name: 'Bloodrot', duration: 300, multiplier: 2, icon: '🦇', color: '#7f1d1d' }, 'Candy': { name: 'Candy', duration: 300, multiplier: 4, icon: '🍭', color: '#f472b6' }, 'Lava': { name: 'Lava', duration: 300, multiplier: 6, icon: '🌋', color: '#f97316' }, 'Galaxy': { name: 'Galaxy', duration: 300, multiplier: 7, icon: '✨', color: '#6d28d9' }, 'YinYang': { name: 'YinYang', duration: 300, multiplier: 7.5, icon: '☯️', color: '#ffffff' }, 'UFO': { name: 'UFO', duration: 300, multiplier: 3, icon: '🛸', color: '#84cc16' }, 'Sleepy': { name: 'Sleepy', duration: 300, multiplier: 0.5, icon: '😴', color: '#6b7280' }, '2x Luck': { name: '2x Luck', duration: 900, multiplier: 1, luck: 2, icon: '🍀' }, '4x Luck': { name: '4x Luck', duration: 900, multiplier: 1, luck: 4, icon: '🍀' }, '6x Luck': { name: '6x Luck', duration: 300, multiplier: 1, luck: 6, icon: '🍀' }, '8x Luck': { name: '8x Luck', duration: 300, multiplier: 1, luck: 8, icon: '🍀' }, '10x Luck': { name: '10x Luck', duration: 300, multiplier: 1, luck: 10, icon: '🍀' }, '999x Luck': { name: '999x Luck', duration: 5, multiplier: 1, luck: 999, icon: '🍀' }, 'Fuse Luck': { name: 'Fuse Luck', duration: 900, multiplier: 1, luck: 5, icon: '⚙️' }, 'Witch Luck': { name: 'Witch Luck', duration: 900, multiplier: 1, luck: 5, icon: '🔮' }, 'Rainbow Machine': { name: 'Rainbow Machine', duration: 300, multiplier: 1, rainbow: true, icon: '🌈' }, 'Matteo': { name: 'Matteo', duration: 1, multiplier: 1, spawn: 'Matteo', icon: '👨‍🦱' }, 'Radioactive': { name: 'Radioactive', duration: 300, multiplier: 8.5, icon: '☢️', color: '#10b981' }, 'Fishing': { name: 'Fishing', duration: 300, multiplier: 1, icon: '🎣', color: '#0ea5e9' }, 'Piñata Party': { name: 'Piñata Party', duration: 300, multiplier: 1, icon: '🪅', color: '#ff00ff' }, '12x Luck': { name: '12x Luck', duration: 180, multiplier: 1, luck: 12, icon: '🍀' }, '20x Luck': { name: '20x Luck', duration: 90, multiplier: 1, luck: 20, icon: '🍀' }, 'Fishing Luck': { name: 'Fishing Luck', duration: 10, multiplier: 1, luck: 5, icon: '🎣🍀' }, 'Santa Fuse Luck': { name: 'Santa Fuse Luck', duration: 900, multiplier: 1, luck: 8, icon: '🎅' } };
+        
+        // Slightly buffed fishing
+        const fishingLootTable = [{ name: 'Trippi Troppi', weight: 55 }, { name: 'Trulimero Trulicina', weight: 45 }, { name: 'Bananita Dolphinita', weight: 45 }, { name: 'Blueberrinni Octopusini', weight: 40 }, { name: 'Tralalero Tralala', weight: 35 }, { name: 'Orcalero Orcala', weight: 35 }, { name: 'Tralalita Tralala', weight: 35 }, { name: 'Trippi Troppi Troppa Trippa', weight: 35 }, { name: 'Crabbo Limonetta', weight: 25 }, { name: 'Los Orcalitos', weight: 25 }, { name: 'Orcalita Orcala', weight: 25 }, { name: 'Squalanana', weight: 25 }, { name: 'Belula Beluga', weight: 25 }, { name: 'Tentacolo Tecnico', weight: 25 }, { name: 'Extinct Tralalero', weight: 20 }, { name: 'Los Tralaleritos', weight: 20 }, { name: 'Zombie Tralala', weight: 20 }, { name: 'Boatito Auratito', weight: 20 }, { name: 'Las Tralaleritas', weight: 20 }, { name: 'Graipuss Medussi', weight: 15 }, { name: 'Tralaledon', weight: 5 }, { name: 'Los Primos', weight: 2 }, { name: 'Eviledon', weight: 2 }, { name: 'Capitano Moby', weight: 1 }, { name: 'Belulaledon', weight: 2 }];
+
+        const luckyBlockManifest = {
+            'Mythic Lucky Block': { icon: '🟥', color: '#ef4444', weight: 5, lootTable: [{ name: 'Spioniro Golubiro', chance: 37 }, { name: 'Zibra Zubra Zibralini', chance: 30 }, { name: 'Tigrilini Watermelini', chance: 20 }, { name: 'Carrotini Brainini', chance: 10 }, { name: 'Bananito Bandito', chance: 3 }] },
+            'Brainrot God Lucky Block': { icon: '🟨', color: '#fde047', weight: 2, lootTable: [{ name: 'Tigroligre Frutonni', chance: 54 }, { name: 'Orcalero Orcala', chance: 30 }, { name: 'Bulbito Bandito Traktorito', chance: 10 }, { name: 'Mastodontico Telepiedone', chance: 5 }, { name: 'Pop Pop Sahur', chance: 1 }] },
+            'Secret Lucky Block': { icon: '⬜', color: '#ffffff', weight: 0.5, lootTable: [{ name: 'Torrtuginni Dragonfrutini', chance: 74.5 }, { name: 'Pot Hotspot', chance: 21 }, { name: 'Esok Sekolah', chance: 3 }, { name: 'Spaghetti Tualetti', chance: 1 }, { name: 'La Secret Combinasion', chance: 0.5 }] },
+            'Taco Lucky Block': { icon: '🌮', color: '#f59e0b', weight: 0, lootTable: [{ name: 'Chihuanini Taconini', chance: 49.5 }, { name: 'Gattito Tacoto', chance: 32 }, { name: 'Los Tipi Tacos', chance: 10 }, { name: 'Quesadilla Crocodila', chance: 5 }, { name: 'Los Nooo My Hotspotsitos', chance: 3 }, { name: 'Burrito Bandito', chance: 0.5 }] },
+            'Los Taco Lucky Block': { icon: '🌮🎉', color: '#d97706', weight: 0, lootTable: [{ name: 'Los Chihuahinis', chance: 75 }, { name: 'Los Gattitos', chance: 15 }, { name: 'Los Cucarachas', chance: 5 }, { name: 'Los Quesadillos', chance: 4.5 }, { name: 'Los Burritos', chance: 0.5 }] },
+            'Admin Lucky Block': { icon: '🛡️', color: '#06b6d4', weight: 0, lootTable: [{ name: 'Carloo', chance: 30 }, { name: 'Los Bombinitos', chance: 30 }, { name: 'Alessio', chance: 20 }, { name: 'Crabbo Limonetta', chance: 10 }, { name: 'Blackhole Goat', chance: 5 }, { name: 'Guerriro Digitale', chance: 3 }, { name: '67', chance: 1 }, { name: 'La Grande Combinasion', chance: 1 }] },
+            'Los Lucky Block': { icon: '🎱', color: '#a855f7', weight: 0, lootTable: [{ name: 'Los Bombinitos', chance: 40 }, { name: 'Los Tungtungtungcitos', chance: 25 }, { name: 'Los Orcalitos', chance: 15 }, { name: 'Los Tipi Tacos', chance: 10 }, { name: 'Los Tortus', chance: 5 }, { name: 'Los Jobcitos', chance: 3.5 }, { name: 'Los Combinasionas', chance: 1 }, { name: 'Los 67', chance: 0.5 }] },
+            'Spooky Lucky Block': { icon: '🎃', color: '#f97316', weight: 0, lootTable: [{ name: 'Mummy Ambalabu', chance: 32.7 }, { name: 'Cappuccino Clownino', chance: 32.5 }, { name: 'Jackorilla', chance: 19.5 }, { name: 'Pumpkini Spyderini', chance: 9 }, { name: 'Trickolino', chance: 3 }, { name: 'Telemorte', chance: 2 }, { name: 'Los Spooky Combinasionas', chance: 1 }, { name: 'La Casa Boo', chance: 0.3 }] },
+            'Secret Halloween Lucky Block': { icon: '👻', color: '#581c87', weight: 0, lootTable: [{ name: 'Vampira Cappucina', chance: 80 }, { name: 'Zombie Tralala', chance: 50 }, { name: 'Frankentteo', chance: 20 }, { name: 'La Vacca Jacko Linterino', chance: 5 }, { name: 'La Spooky Grande', chance: 1 }] },
+            'OP Lucky Block': { icon: '💎', color: '#3b82f6', weight: 0.1, isMultiLoot: true, lootTable: [{ name: 'Odin Din Din Dun', chance: 90 }, { name: 'Job Job Job Sahur', chance: 50 }, { name: 'Tax Tax Tax Sahur', chance: 15 }, { name: 'Mieteteira Bicicleteira', chance: 10 }, { name: 'Spooky and Pumpky', chance: 3 }, { name: 'Baby Jayce', chance: 0.0001 }] },
+            'Aquatic Lucky Block': { icon: '🌊', color: '#0ea5e9', weight: 0, lootTable: [{ name: 'Tralalero Tralala', chance: 53 }, { name: 'Los Tralaleritos', chance: 26 }, { name: 'Graipuss Medussi', chance: 18 }, { name: 'Tralaledon', chance: 2 }, { name: 'Los Primos', chance: 0.75 }, { name: 'Capitano Moby', chance: 0.25 }] },
+            'Los Secret Lucky Block': { icon: '🤫', color: '#1e1b4b', weight: 0, lootTable: [{ name: 'Los Tortus', chance: 80 }, { name: 'Los Nooo My Hotspotsitos', chance: 15 }, { name: 'Los Esoks', chance: 8.5 }, { name: 'Los Spaghetties', chance: 3 }, { name: 'Los Secret Combinations', chance: 0.1 }] },
+            'Piñata': { icon: '🪅', color: '#ff00ff', weight: 0, lootTable: [{ type: 'Money', range: [300000, 20000000], chance: 80 }, { name: 'Corn Corn Corn Sahur', chance: 25 }, { name: 'Mariachi Corazoni', chance: 1 }] },
+            'Santa Gift': { icon: '🎁', color: '#ef4444', weight: 0, lootTable: [{ name: 'Ballerina Peppermintina', chance: 25 }, { name: 'Reindeer Tralala', chance: 25 }, { name: 'Santteo', chance: 25 }, { name: 'List List List Sahur', chance: 25 }] },
+            'Festive Lucky Block': { 
+                icon: '🎄🎁', 
+                color: '#16a34a', 
+                weight: 0, 
+                lootTable: [
+                    { name: 'Chrismasmamat', chance: 45 },
+                    { name: 'Pandanini Frostini', chance: 35 },
+                    { name: 'Triplito Tralaleritos', chance: 10 },
+                    { name: 'Santa Hotspot', chance: 5 },
+                    { name: 'Chimnino', chance: 2.5 },
+                    { name: 'Los 25', chance: 1 },
+                    { name: 'La Ginger Sekolah', chance: 0.5 },
+                    { name: 'Reinito Sleighito', chance: 0.1 }
+                ] 
+            }
+        };
+
+        const brainrotManifest = {
+            'Common': [{ name: 'Noobini Pizzanini', icon: '🍕', cost: 10, mps: 1 }, { name: 'Lirilì Larilà', icon: '🎵', cost: 12, mps: 1.2 }, { name: 'Tim Cheese', icon: '🧀', cost: 15, mps: 1.5 }, { name: 'Fluriflura', icon: '🌸', cost: 18, mps: 1.9 }, { name: 'Talpa Di Fero', icon: '🔩', cost: 22, mps: 2.3 }, { name: 'Svinina Bombardino', icon: '💣', cost: 25, mps: 2.6 }, { name: 'Pipi Kiwi', icon: '🥝', cost: 30, mps: 3.1 }, { name: 'Pipi Corni', icon: '🌽', cost: 32, mps: 3.3 }, { name: 'Pipi Avocado', icon: '🥑', cost: 35, mps: 3.5 }, { name: 'Tartaragno', icon: '🕷️', cost: 40, mps: 4 }, { name: 'Pasta Pollo', icon: '🍗🍝', cost: 45, mps: 4.5 }, { name: 'Formaggio Finto', icon: '🧀🚫', cost: 48, mps: 4.8 }, { name: 'Limone Ladro', icon: '🍋🦹', cost: 50, mps: 5 }, { name: 'Biscotto Borbotto', icon: '🍪😠', cost: 55, mps: 5.5 }],
+            'Rare': [{ name: 'Trippi Troppi', icon: '😵', cost: 250, mps: 20 }, { name: 'Gangster Footera', icon: '⚽', cost: 275, mps: 22 }, { name: 'Bandito Bobritto', icon: '🤠', cost: 300, mps: 25 }, { name: 'Boneca Ambalabu', icon: '💃', cost: 330, mps: 28 }, { name: 'Cacto Hipopotamo', icon: '🌵', cost: 360, mps: 32 }, { name: 'Ta Ta Ta Ta Sahur', icon: '🥁', cost: 400, mps: 36 }, { name: 'Tric-Trac-Baraboom', icon: '💥', cost: 450, mps: 41 }, { name: 'Matteo', icon: '👨‍🦱', cost: 500, mps: 45 }, { name: 'Pinealotto Fruttarino', icon: '🍍', cost: 550, mps: 50 }, { name: 'Melanzane Maniaco', icon: '🍆🤪', cost: 600, mps: 55 }, { name: 'Arancino Armato', icon: '🍙🔫', cost: 650, mps: 60 }, { name: 'Zucchino Zuzzurro', icon: '🥒🤪', cost: 700, mps: 65 }],
+            'Epic': [{ name: 'Cappuccino Assassino', icon: '☕', cost: 1000, mps: 100 }, { name: 'Brr Brr Patapim', icon: '🥶', cost: 1100, mps: 110 }, { name: 'Avocadini Antilopini', icon: '🥑', cost: 1200, mps: 122 }, { name: 'Trulimero Trulicina', icon: '🐔', cost: 1300, mps: 135 }, { name: 'Bambini Crostini', icon: '🍞', cost: 1450, mps: 150 }, { name: 'Bananita Dolphinita', icon: '🐬', cost: 1600, mps: 165 }, { name: 'Perochello Lemonchello', icon: '🍋', cost: 1750, mps: 182 }, { name: 'Brri Brri Bicus Dicus Bombicus', icon: '💣', cost: 1900, mps: 200 }, { name: 'Avocadini Guffo', icon: '🦉', cost: 2100, mps: 225 }, { name: 'Salamino Penguino', icon: '🐧', cost: 2300, mps: 245 }, { name: 'Sammyni Spyderini', icon: '🕷️', cost: 2500, mps: 260 }, { name: 'Ti Ti Ti Sahur', icon: '🕰️', cost: 2600, mps: 270 }, { name: 'Penguino Cocosino', icon: '🥥', cost: 2700, mps: 280 }, { name: 'Cocosini Mama', icon: '👩‍👧', cost: 2800, mps: 290 }, { name: 'Frogato Pirato', icon: '🐸', cost: 3000, mps: 310 }, { name: 'Mummio Rappitto', icon: '🧟', cost: 3200, mps: 330 }, { name: 'Karkerkar Kurkur', icon: '🚗', cost: 3500, mps: 340 }],
+            'Legendary': [{ name: 'Burbaloni Loliloli', icon: '🍭', cost: 5000, mps: 500 }, { name: 'Chimpanzini Bananini', icon: '🐒', cost: 5500, mps: 555 }, { name: 'Ballerina Cappuccina', icon: '👯', cost: 6000, mps: 610 }, { name: 'Chef Crabracadabra', icon: '🦀', cost: 6600, mps: 670 }, { name: 'Lionel Cactuseli', icon: '🌵', cost: 7200, mps: 730 }, { name: 'Glorbo Fruttodrillo', icon: '🐊', cost: 7900, mps: 800 }, { name: 'Quivioli Ameleonni', icon: '🥝', cost: 8600, mps: 875 }, { name: 'Blueberrinni Octopusini', icon: '🐙', cost: 9400, mps: 950 }, { name: 'Pipi Potato', icon: '🥔', cost: 10200, mps: 1050 }, { name: 'Strawberrelli Flamingelli', icon: '🍓', cost: 11000, mps: 1150 }, { name: 'Pandaccini Bananini', icon: '🐼', cost: 12000, mps: 1250 }, { name: 'Sigma Boy', icon: '🗿', cost: 13000, mps: 1400 }, { name: 'dul dul dul', icon: '🔎', cost: 15000, mps: 1500 }, { name: 'Quackula', icon: '🦆', cost: 16000, mps: 1600 }, { name: 'Buho De Fuego', icon: '🔥', cost: 17000, mps: 1700 }],
+            'Mythic': [{ name: 'Frigo Camelo', icon: '🐫', cost: 25000, mps: 2100 }, { name: 'Orangutini Ananassini', icon: '🍍', cost: 27000, mps: 2300 }, { name: 'Rhino Toasterino', icon: '🦏', cost: 30000, mps: 2600 }, { name: 'Bombardiro Crocodilo', icon: '💣', cost: 33000, mps: 2900 }, { name: 'Spioniro Golubiro', icon: '🕊️', cost: 36000, mps: 3250 }, { name: 'Bombombini Gusini', icon: '🐛', cost: 40000, mps: 3600 }, { name: 'Cavallo Virtuoso', icon: '🐴', cost: 44000, mps: 4000 }, { name: 'Gorillo Watermelondrillo', icon: '🍉', cost: 48000, mps: 4400 }, { name: 'Lerulerulerule', icon: '👅', cost: 52000, mps: 4800 }, { name: 'Te Te Te Sahur', icon: '🥁', cost: 57000, mps: 5300 }, { name: 'Tracoducotulu Delapeladustuz', icon: '🐉', cost: 62000, mps: 5900 }, { name: 'Toiletto Focaccino', icon: '🚽', cost: 68000, mps: 6600 }, { name: 'Pi Pi Watermelon', icon: '🍉', cost: 70000, mps: 6800 }, { name: 'Avocadorilla', icon: '🦍', cost: 72000, mps: 7000 }, { name: 'Tob Tobi Tobi', icon: '🐶', cost: 75000, mps: 7200 }, { name: 'Ganganzelli Trulala', icon: '🎶', cost: 78000, mps: 7500 }, { name: 'Magi Ribbitini', icon: '🪄', cost: 80000, mps: 7800 }, { name: 'Jacko Spaventosa', icon: '🎃', cost: 82000, mps: 8000 }],
+            'Brainrot God': [
+                { name: 'Cocofanto Elefanto', icon: '🐘', cost: 1.5e6, mps: 20000 }, { name: 'Girafa Celestre', icon: '🦒', cost: 1.8e6, mps: 35000 }, { name: 'Tralalero Tralala', icon: '🎶', cost: 2.2e6, mps: 50000 }, { name: 'Odin Din Din Dun', icon: '⚡', cost: 2.7e6, mps: 75000 }, { name: 'Tralalita Tralala', icon: '🎤', cost: 3.3e6, mps: 100000 }, { name: 'Trenostruzzo Turbo 3000', icon: '🚂', cost: 4e6, mps: 150000 }, { name: 'Trippi Troppi Troppa Trippa', icon: '😵', cost: 4.8e6, mps: 200000 }, { name: 'Ballerino Lololo', icon: '🕺', cost: 5.5e6, mps: 275000 }, { name: 'Pakrahmatmamat', icon: '📦', cost: 6.2e6, mps: 350000 }, { name: 'Piccione Macchina', icon: '🕊️', cost: 7e6, mps: 450000 }, { name: 'Tractoro Dinosauro', icon: '🦖', cost: 8e6, mps: 550000 }, { name: 'Los Orcalitos', icon: '🐋', cost: 9e6, mps: 625000 }, { name: 'Cacasito Satalito', icon: '🛰️', cost: 10e6, mps: 675000 }, { name: 'Tartaruga Cisterna', icon: '🐢', cost: 12e6, mps: 700000 }, { name: 'Los Dart Goblins', icon: '🎯', cost: 15e6, mps: 800000 }, { name: 'Gob Gob Gob Giant', icon: '👺', cost: 18e6, mps: 900000 },
+                { name: 'Pizza Papale', icon: '🍕👑', cost: 20e6, mps: 1e6 }, { name: 'Linguine Leviatano', icon: '🍝🐉', cost: 22e6, mps: 1.1e6 }, { name: 'Parmigiano Primordiale', icon: '🧀🦖', cost: 25e6, mps: 1.2e6 }, { name: 'Noo La Skifidol', icon: '🤮', cost: 30e6, mps: 1.5e6 },
+                { name: 'Corn Corn Corn Sahur', icon: '🌽👑', cost: 40e6, mps: 2e6, isExclusive: true },
+                { name: 'Pop Pop Sahara', icon: '🏜️🍿', cost: 50e6, mps: 2.5e6, isExclusive: true }, { name: 'TV TV TV Sahur', icon: '📺👑', cost: 55e6, mps: 2.7e6, isExclusive: true },
+                { name: 'Yeti Claus', icon: '❄️🎅', cost: 60e6, mps: 3e6, isExclusive: true }, { name: 'Ginger Globo', icon: '🍪🎈', cost: 65e6, mps: 3.2e6, isExclusive: true }, { name: 'Ginger Cisterna', icon: '🍪🚚', cost: 70e6, mps: 3.5e6, isExclusive: true },
+                { name: 'Ballerina Peppermintina', icon: '💃🍬', cost: 80e6, mps: 4e6, isExclusive: true },
+                { name: 'Chrismasmamat', icon: '📦🎄', cost: 80e6, mps: 4e6, isExclusive: true },
+                { name: 'Pandanini Frostini', icon: '🐼❄️', cost: 85e6, mps: 4.2e6, isExclusive: true }
+            ],
+            'Secret': [
+                { name: 'Bisonte Giuppitere', icon: '🐃', cost: 1e9, mps: 500e6 }, { name: 'La Vacca Saturno Saturnita', icon: '🐄', cost: 1.5e9, mps: 800e6 }, { name: 'Los Tralaleritos', icon: '👨‍🎤', cost: 2e9, mps: 1.2e9 }, { name: 'Las Tralaleritas', icon: '👩‍🎤', cost: 2.8e9, mps: 1.5e9 }, { name: 'Job Job Job Sahur', icon: '💼', cost: 3.5e9, mps: 2e9 }, { name: 'Graipuss Medussi', icon: '🍇', cost: 4.5e9, mps: 2.5e9 }, { name: 'Chicleteira Bicicleteira', icon: '🚲', cost: 6e9, mps: 3e9 }, { name: 'Garama and Madundung', icon: '🤷', cost: 8e9, mps: 3.5e9 }, { name: 'To To Sahur', icon: '🥁', cost: 9e9, mps: 4e9 }, { name: 'Nuclearo Dinossauro', icon: '☢️', cost: 10e9, mps: 4.5e9 }, { name: 'Money Money Puggy', icon: '🤑', cost: 11e9, mps: 5e9 }, { name: 'Ketupat Kepat', icon: ' K ', cost: 12e9, mps: 5.5e9 }, { name: 'Tictac Sahur', icon: '⏰', cost: 13e9, mps: 6e9 }, { name: 'Ketchuru and Musturu', icon: '🌭', cost: 14e9, mps: 6.5e9 }, { name: 'Burguro And Fryuro', icon: '🍔', cost: 15e9, mps: 7e9 }, { name: 'Dragon Cannelloni', icon: '🐉', cost: 16e9, mps: 8e9 }, { name: 'Mega Mega Mega Knight Sahur', icon: '🛡️', cost: 200e12, mps: 500e12 }, { name: 'Boss Boss Boss Boss Bandit', icon: '🤠👑', cost: 50e9, mps: 20e9 }, { name: 'Italiano Reset', icon: '🇮🇹🔄', cost: 200e9, mps: 100e9 },
+                { name: 'Mariachi Corazoni', icon: '🎸', cost: 5e9, mps: 10e9, isExclusive: true },
+                { name: 'Nooooo my Batteria', icon: '🔋', cost: 6e9, mps: 12e9, isExclusive: true }, { name: 'Los sigmas', icon: '🗿👥', cost: 7e9, mps: 15e9, isExclusive: true }, { name: 'Pizza Pizza Pizzaaa Sahur', icon: '🍕🍕', cost: 8e9, mps: 18e9, isExclusive: true }, { name: 'Las Combinasionas', icon: '🔄', cost: 10e9, mps: 25e9, isExclusive: true }, { name: 'Pencili and Paperini', icon: '📝', cost: 12e9, mps: 30e9, isExclusive: true },
+                { name: 'La Vacca Prese Presente', icon: '🐄🎁', cost: 15e9, mps: 35e9, isExclusive: true }, { name: 'Ho Ho Ho Sahur', icon: '🎅🥁', cost: 18e9, mps: 40e9, isExclusive: true }, { name: 'Chicleteira Noelteira', icon: '🚲🎄', cost: 20e9, mps: 45e9, isExclusive: true },
+                { name: 'La Gingerbread Kepat', icon: '🍪 K ', cost: 22e9, mps: 50e9, isExclusive: true }, { name: 'Cooki and Milki', icon: '🍪🥛', cost: 25e9, mps: 55e9, isExclusive: true },
+                { name: 'Reindeer Tralala', icon: '🦌🎶', cost: 30e9, mps: 60e9, isExclusive: true }, { name: 'Santteo', icon: '🎅👨‍🦱', cost: 35e9, mps: 70e9, isExclusive: true }, { name: 'List List List Sahur', icon: '📜🥁', cost: 40e9, mps: 80e9, isExclusive: true },
+                { name: 'Triplito Tralaleritos', icon: '🎶🎅', cost: 10e9, mps: 5e9, isExclusive: true },
+                { name: 'Santa Hotspot', icon: '🎅🔥', cost: 15e9, mps: 10e9, isExclusive: true },
+                { name: 'Chimnino', icon: '🏠🎅', cost: 50e9, mps: 50e9, isExclusive: true },
+                { name: 'Los 25', icon: '📅', cost: 100e9, mps: 100e9, isExclusive: true },
+                { name: 'La Ginger Sekolah', icon: '🍪🏫', cost: 500e9, mps: 500e9, isExclusive: true },
+                { name: 'Reinito Sleighito', icon: '🦌🛷', cost: 1e12, mps: 1e12, isExclusive: true },
+                { name: 'Los Candies', icon: '🍬👥', cost: 25e9, mps: 125e6, isExclusive: true }
+            ],
+            'OG': [{ name: 'Strawberry Elephant', icon: '🍓🐘', cost: 1e18, mps: 5e15, event: 'Strawberry' }, { name: 'Meowl', icon: '🐱', cost: 2e18, mps: 10e15, event: 'Meowl' }, { name: 'Tung Tung Sahur', icon: '🎶🥁', cost: 5e18, mps: 25e15, event: 'Tung Tung Attack' }, { name: 'Fluff', icon: '☁️', cost: 1e21, mps: 5e18 },
+                { name: 'Smurf Cat', icon: '🐱🍄', cost: 5e17, mps: 2e15 }, { name: 'John Pork', icon: '🐷📱', cost: 8e17, mps: 3.5e15 },
+                { name: 'Santa Claus', icon: '🎅👑', cost: 2e18, mps: 1e17, isExclusive: true }
+            ]
+        };
+        
+        const santaFuseExclusives = {}; 
+        
+        const luckyBlockExclusives = {
+            'Zibra Zubra Zibralini': { icon: '🦓', rarity: 'Mythic', cost: 40e3, mps: 3700 }, 'Tigrilini Watermelini': { icon: '🐅', rarity: 'Mythic', cost: 45e3, mps: 4100 }, 'Carrotini Brainini': { icon: '🥕', rarity: 'Mythic', cost: 50e3, mps: 4500 }, 'Bananito Bandito': { icon: '🍌', rarity: 'Mythic', cost: 55e3, mps: 5000 }, 'Tigroligre Frutonni': { icon: '🐯', rarity: 'Brainrot God', cost: 7e6, mps: 480000 }, 'Orcalero Orcala': { icon: '🐳', rarity: 'Brainrot God', cost: 8e6, mps: 560000 }, 'Bulbito Bandito Traktorito': { icon: '💡', rarity: 'Brainrot God', cost: 9e6, mps: 630000 }, 'Mastodontico Telepiedone': { icon: '🦣', rarity: 'Brainrot God', cost: 10e6, mps: 680000 }, 'Pop Pop Sahur': { icon: '🍿', rarity: 'Brainrot God', cost: 11e6, mps: 690000 }, 'Torrtuginni Dragonfrutini': { icon: '🐢', rarity: 'Secret', cost: 2e9, mps: 400e6 }, 'Pot Hotspot': { icon: '냄', rarity: 'Secret', cost: 3e9, mps: 800e6 }, 'Esok Sekolah': { icon: '🏫', rarity: 'Secret', cost: 4e9, mps: 1.5e9 }, 'Spaghetti Tualetti': { icon: '🍝', rarity: 'Secret', cost: 5e9, mps: 2e9 }, 'La Secret Combinasion': { icon: '🤫', rarity: 'Secret', cost: 10e9, mps: 6e9 }, 'Chihuanini Taconini': { icon: '🌮', rarity: 'Brainrot God', cost: 15e6, mps: 800000 }, 'Gattito Tacoto': { icon: '🐈', rarity: 'Brainrot God', cost: 18e6, mps: 900000 }, 'Los Tipi Tacos': { icon: '💃', rarity: 'Brainrot God', cost: 20e6, mps: 1e6 }, 'Quesadilla Crocodila': { icon: '🐊', rarity: 'Secret', cost: 12e9, mps: 70e6 }, 'Los Nooo My Hotspotsitos': { icon: '🔥', rarity: 'Secret', cost: 15e9, mps: 80e6 }, 'Burrito Bandito': { icon: '🌯', rarity: 'Secret', cost: 50e9, mps: 200e6 }, 'Carloo': { icon: '👨‍🎨', rarity: 'Mythic', cost: 100e3, mps: 8000 }, 'Los Bombinitos': { icon: '💣', rarity: 'Brainrot God', cost: 25e6, mps: 1.2e6 }, 'Alessio': { icon: '👨‍💻', rarity: 'Brainrot God', cost: 30e6, mps: 1.5e6 }, 'Crabbo Limonetta': { icon: '🦀', rarity: 'Brainrot God', cost: 35e6, mps: 1.8e6 }, 'Blackhole Goat': { icon: '🐐', rarity: 'Secret', cost: 20e9, mps: 100e6 }, 'Guerriro Digitale': { icon: '👾', rarity: 'Secret', cost: 25e9, mps: 120e6 }, '67': { icon: '6️⃣7️⃣', rarity: 'Secret', cost: 50e9, mps: 200e6 }, 'La Grande Combinasion': { icon: '🤯', rarity: 'Secret', cost: 500e6, mps: 5e6 }, 'Los Tungtungtungcitos': { icon: '🎶', rarity: 'Brainrot God', cost: 40e6, mps: 2e6 }, 'Los Tortus': { icon: '🐢', rarity: 'Secret', cost: 30e9, mps: 140e6 }, 'Los Jobcitos': { icon: '💼', rarity: 'Secret', cost: 35e9, mps: 160e6 }, 'Los Combinasionas': { icon: '🤔', rarity: 'Secret', cost: 60e9, mps: 250e6 }, 'Los 67': { icon: '🇲🇽', rarity: 'Secret', cost: 70e9, mps: 300e6 }, 'Baby Jayce': { icon: '👶', rarity: 'Secret', cost: 1e20, mps: 1e17 }, 'Taco Baby Jayce': { icon: '👶🌮', rarity: 'Secret', cost: 1e20, mps: 1e17 }, 'Ghost Baby Jayce': { icon: '👻👶', rarity: 'Secret', cost: 1e20, mps: 1e17 }, 'Vampira Cappucina': { icon: '🧛', rarity: 'Mythic', cost: 90e3, mps: 8500 }, 'Zombie Tralala': { icon: '🧟', rarity: 'Mythic', cost: 95e3, mps: 9000 }, 'Frankentteo': { icon: '🧟‍♂️', rarity: 'Brainrot God', cost: 50e6, mps: 2.5e6 }, 'La Vacca Jacko Linterino': { icon: '🎃🐄', rarity: 'Secret', cost: 50e9, mps: 210e6 }, 'La Spooky Grande': { icon: '👻🤯', rarity: 'Secret', cost: 80e9, mps: 400e6 }, 'Mummy Ambalabu': { icon: '🧟💃', rarity: 'Brainrot God', cost: 45e6, mps: 2.2e6 }, 'Cappuccino Clownino': { icon: '🤡☕', rarity: 'Brainrot God', cost: 48e6, mps: 2.4e6 }, 'Jackorilla': { icon: '🦍🎃', rarity: 'Secret', cost: 55e9, mps: 230e6 }, 'Pumpkini Spyderini': { icon: '🎃🕷️', rarity: 'Secret', cost: 60e9, mps: 250e6 }, 'Trickolino': { icon: '🍬', rarity: 'Secret', cost: 65e9, mps: 280e6 }, 'Telemorte': { icon: '📺💀', rarity: 'Secret', cost: 70e9, mps: 300e6 }, 'Los Spooky Combinasionas': { icon: '👻🤔', rarity: 'Secret', cost: 75e9, mps: 350e6 }, 'La Casa Boo': { icon: '🏚️👻', rarity: 'Secret', cost: 90e9, mps: 450e6 }, 'Tax Tax Tax Sahur': { icon: '🧾', rarity: 'Secret', cost: 50e9, mps: 200e6 },
+            'Los Chihuahinis': { icon: '🌮🐕', rarity: 'Brainrot God', cost: 500e6, mps: 20e6 }, 'Los Gattitos': { icon: '🌮🐈', rarity: 'Brainrot God', cost: 800e6, mps: 30e6 }, 'Los Cucarachas': { icon: '🪳', rarity: 'Secret', cost: 50e9, mps: 250e6 }, 'Los Quesadillos': { icon: '🧀🐊', rarity: 'Secret', cost: 100e9, mps: 500e6 }, 'Los Burritos': { icon: '🌯✨', rarity: 'Secret', cost: 1e12, mps: 5e9 },
+            'Los Esoks': { icon: '🏫👑', rarity: 'Secret', cost: 25e9, mps: 5e9 }, 'Los Secret Combinations': { icon: '🤫👑', rarity: 'Secret', cost: 200e9, mps: 20e9 }
+        };
+        
+        const traderExclusives = { 'Cupcake Koala': { icon: '🐨', rarity: 'Rare', cost: 800, mps: 70 }, 'Doi Doi Do': { icon: '🦜', rarity: 'Epic', cost: 4000, mps: 400 }, 'Clickerino Crabo': { icon: '🦀', rarity: 'Legendary', cost: 20000, mps: 2200 }, 'Stoppo Luminio': { icon: '🛑', rarity: 'Mythic', cost: 150000, mps: 18000 }, 'Money Money Man': { icon: '🤑', rarity: 'Brainrot God', cost: 10e6, mps: 900000 }, 'Noo la Polizia': { icon: '👮', rarity: 'Brainrot God', cost: 12e6, mps: 1.1e6 }, 'Pirulitoita Bicicleteria': { icon: '🍭🚲', rarity: 'Secret', cost: 50e9, mps: 300e6 }, 'Los Puggies': { icon: '🐶🐶', rarity: 'Secret', cost: 75e9, mps: 500e6 }, 'Los Spaghetties': { icon: '🍝🍝', rarity: 'Secret', cost: 100e9, mps: 750e6 }, 'Fragrama and Chocrama': { icon: '🍓🍫', rarity: 'Secret', cost: 500e9, mps: 4e9 }, 'Swag Soda': { icon: '🥤', rarity: 'Secret', cost: 3e9, mps: 10e6 }, 'Orcaledon': { icon: '🐋🦖', rarity: 'Secret', cost: 4e9, mps: 15e6 }, 'Centrucci Nuclucci': { icon: '☢️', rarity: 'Mythic', cost: 60000, mps: 6000 }, 'Belula Beluga': { icon: '🐳', rarity: 'Brainrot God', cost: 9e6, mps: 450000 }, 'Squalanana': { icon: '🦈🍌', rarity: 'Brainrot God', cost: 8.5e6, mps: 420000 }, 'Piccionetta Machina': { icon: '🐦🤖', rarity: 'Brainrot God', cost: 7.5e6, mps: 400000 }, 'La Grande Combinasion': { icon: '🤯', rarity: 'Secret', cost: 100e9, mps: 500e6 }, 'Pickle Jayce': { icon: '🥒', rarity: 'Secret', cost: 8e9, mps: 20e6 }, 'Los Ratos': { icon: '🐀', rarity: 'Brainrot God', cost: 13e6, mps: 950000 }, 'Los Noobinis': { icon: '👶', rarity: 'Mythic', cost: 120000, mps: 15000 }, 'Los Ta Ta Ta Sahurs': { icon: '🥁', rarity: 'Brainrot God', cost: 14e6, mps: 1e6 }, 'Baby Fluff': { icon: '☁️👶', rarity: 'Secret', cost: 120e9, mps: 600e6 }, 'Da Fluff Car': { icon: '☁️🚗', rarity: 'Secret', cost: 150e9, mps: 800e6 }, 'No La Pompiere': { icon: '🚒', rarity: 'Brainrot God', cost: 11e6, mps: 850000 }, 'edificio': { icon: '🏢', rarity: 'Secret', cost: 200e9, mps: 1e9 }, 'controller dell\'Xbox Sahur': { icon: '🎮', rarity: 'Brainrot God', cost: 16e6, mps: 1.1e6 }, 'Remoto Sahur': { icon: '📺', rarity: 'Secret', cost: 15e9, mps: 70e6 },
+            'Belulaledon': { icon: '🐳🦖', rarity: 'Secret', cost: 80e9, mps: 350e6 },
+            'Cuadramat and Pakrahmatmamat': { icon: '🟦📦', rarity: 'Secret', cost: 110e9, mps: 220e6 }
+        };
+        
+        const fishingExclusives = { 'Extinct Tralalero': { icon: '🦖🎶', rarity: 'Secret', cost: 1.2e10, mps: 6e7 }, 'Boatito Auratito': { icon: '⛵✨', rarity: 'Secret', cost: 2.5e10, mps: 1.2e8 }, 'Capitano Moby': { icon: '🐋👮', rarity: 'Secret', cost: 5e14, mps: 900e12 }, 'Orcalita Orcala': { icon: '🐋🎀', rarity: 'Brainrot God', cost: 12e6, mps: 750000 } };
+        const ritualExclusives = { 'Los Matteos': { icon: '👨‍👨‍👦', cost: 20e9, mps: 110e6, rarity: 'Secret' }, 'Los Spyderinis': { icon: '🕸️', cost: 22e9, mps: 115e6, rarity: 'Secret' }, 'Las Vaquitas Saturnitas': { icon: '🐄🐄', cost: 25e9, mps: 125e6, rarity: 'Secret' }, 'Los Chicleteiras': { icon: '🚲🚲', cost: 30e9, mps: 150e6, rarity: 'Secret' }, 'Yes my examine': { icon: '👍', cost: 40e9, mps: 180e6, rarity: 'Secret' }, 'No my examine': { icon: '👎', cost: 50e9, mps: 220e6, rarity: 'Secret' }, 'Los Cocodillitos': { icon: '🐊🐊', cost: 18e9, mps: 90e6, rarity: 'Secret' }, 'Los Orcalitos (Ritual)': { name: 'Los Orcalitos', icon: '🐋🐋', cost: 30e9, mps: 150e6, rarity: 'Secret' }, '1x1x1x1': { icon: '1️⃣', cost: 100e9, mps: 500e6, rarity: 'Secret' }, 'Guest 666': { icon: 'Guest', cost: 200e9, mps: 1e9, rarity: 'Secret' },
+            'Los Cannelonis': { icon: '🐉🐉', cost: 50e9, mps: 250e6, rarity: 'Secret' }
+        };
+        const ritualRecipes = { 'Los Matteos': { ingredients: { 'Matteo': 3 } }, 'Los Spyderinis': { ingredients: { 'Sammyni Spyderini': 4 } }, 'Las Vaquitas Saturnitas': { ingredients: { 'La Vacca Saturno Saturnita': 4 } }, 'Los Chicleteiras': { ingredients: { 'Chicleteira Bicicleteira': 2 } }, 'Yes my examine': { ingredients: { 'dul dul dul': 4 } }, 'No my examine': { ingredients: { 'dul dul dul': 6 } }, 'Los Cocodillitos': { ingredients: { 'Bombardiro Crocodilo': 4 } }, 'Los Orcalitos (Ritual)': { ingredients: { 'Orcalero Orcala': 3 } }, '1x1x1x1': { ingredients: { 'Guerriro Digitale': 4 } }, 'Guest 666': { ingredients: { 'Guerriro Digitale': 10 } },
+            'Los Cannelonis': { ingredients: { 'Dragon Cannelloni': 3 } }
+        };
+        const craftRecipes = { 'Las Cappuchinas': { ingredients: { 'Ballerina Cappuccina': 2, 'Tralalita Tralala': 2 } }, 'Belula Beluga': { ingredients: { 'Tralalita Tralala': 2, 'Matteo': 1, 'Alessio': 1 } }, 'Fragola La La La': { ingredients: { 'Odin Din Din Dun': 3, 'Sammyni Spyderini': 1 } }, 'La Karkerkar Combinasion': { ingredients: { 'Karkerkar Kurkur': 2 } }, 'La Sahur Combinasion': { ingredients: { 'Ta Ta Ta Ta Sahur': 1, 'Te Te Te Sahur': 1, 'Graipuss Medussi': 1, 'Job Job Job Sahur': 1 } }, 'Las Sis': { ingredients: { 'Las Cappuchinas': 1, 'Las Tralaleritas': 2 } }, 'Celularcini Viciosini': { ingredients: { 'Pot Hotspot': 1, 'Job Job Job Sahur': 1, 'La Grande Combinasion': 2 } }, 'Los Bros': { ingredients: { 'Los Tungtungtungcitos': 1, 'Los Combinasionas': 1, 'La Grande Combinasion': 1, 'Los Tralaleritos': 1 } }, 'Tralaledon': { ingredients: { 'Tralalero Tralala': 3, 'Nuclearo Dinossauro': 1 } }, 'Los Tacoritas': { ingredients: { 'Tacorita Bicicleta': 2 } }, 'Los Primos': { ingredients: { 'Los Orcalitos': 1, '67': 1, 'Los Bros': 1, 'Los Tralaleritos': 1 } }, 'Los Fluffs': { ingredients: { 'Burrito Bandito': 1, 'Los Puggies': 1, 'Los Tralaleritos': 1 } }, 'Napole Horse Horse': { ingredients: { 'Centrucci Nuclucci': 2, 'Odin Din Din Dun': 1, 'Money Money Man': 1 } }, 'La La La La La La La La Craft Combination': { ingredients: { 'Chicleteira Bicicleteira': 1, 'Blackhole Goat': 2, 'Agarrini La Palini': 1 } }, 'Supreme Taco Combination': { ingredients: { 'La Supreme Combinasion': 1, 'Tacorita Bicicleta': 1, 'Burrito Bandito': 1 } }, 'Los Burritos Gang': { ingredients: { 'Los Burritos': 4 } }, 'Trash Combination': { ingredients: { 'Agarrini La Palini': 1, 'Bisonte Giuppitere': 1, 'La Vacca Saturno Saturnita': 1, 'Torrtuginni Dragonfrutini': 1 } }, 'NOooo My Laaaptop': { ingredients: { 'Los Nooo My Hotspotsitos': 1, 'Guerriro Digitale': 3, 'Celularcini Viciosini': 1 } }, 'Tralaleritos Gang': { ingredients: { 'Los Tralaleritos': 4 } }, 'Job Gang': { ingredients: { 'Los Jobcitos': 4 } }, 'Spooky and Pumpky Gang': { ingredients: { 'Spooky and Pumpky': 4 } }, 'Rich Rich Man': { ingredients: { 'Money Money Man': 3 } },
+            'La Mobill Combination': { ingredients: { 'Los Nooo My Hotspotsitos': 1, 'Pot Hotspot': 1, 'Celularcini Viciosini': 1, 'La Grande Combinasion': 1 } },
+            'La Meal Combination': { ingredients: { 'Ketchuru and Musturu': 1, 'Garama and Madundung': 1, 'Burguro And Fryuro': 1 } },
+            'Los Bicicletas': { ingredients: { 'Tacorita Bicicleta': 1, 'Chicleteira Bicicleteira': 1 } },
+            'Los Siblings': { ingredients: { 'Las Sis': 1, 'Los Bros': 1 } },
+            'Los ketupatsitos': { ingredients: { 'Ketupat Kepat': 1, 'Los 67': 1, 'Job Job Job Sahur': 1 } },
+            'Tacorini Cowboini': { ingredients: { 'Tacorita Bicicleta': 1, 'Napole Horse Horse': 1 } },
+            'La aquatic combination': { ingredients: { 'Graipuss Medussi': 1, 'Tralalero Tralala': 2, 'Eviledon': 1 } },
+            'La Mega Combination': { ingredients: { 'La Grande Combinasion': 1, 'Los Combinasionas': 1 } }
+        };
+        const craftExclusives = { 'Las Cappuchinas': { icon: '👯☕', rarity: 'Brainrot God', cost: 8e6, mps: 400000 }, 'Belula Beluga': { icon: '🐳🐈', rarity: 'Brainrot God', cost: 9e6, mps: 450000 }, 'Fragola La La La': { icon: '🍓🎶', rarity: 'Secret', cost: 5e9, mps: 25e6 }, 'La Karkerkar Combinasion': { icon: '🚗🤯', rarity: 'Secret', cost: 7e9, mps: 35e6 }, 'La Sahur Combinasion': { icon: '🥁🤯', rarity: 'Secret', cost: 15e9, mps: 70e6 }, 'Las Sis': { icon: '👯‍♀️', rarity: 'Secret', cost: 20e9, mps: 90e6 }, 'Celularcini Viciosini': { icon: '📱😵', rarity: 'Secret', cost: 30e9, mps: 150e6 }, 'Los Bros': { icon: '😎👊', rarity: 'Secret', cost: 50e9, mps: 250e6 }, 'Tralaledon': { icon: '🎶🦖', rarity: 'Secret', cost: 40e9, mps: 200e6 }, 'Los Tacoritas': { icon: '🌮🚲', rarity: 'Secret', cost: 25e9, mps: 120e6 }, 'Los Primos': { icon: '👨‍👦‍👦', rarity: 'Secret', cost: 100e9, mps: 500e6 }, 'Napole Horse Horse': { icon: '🐴🎩', rarity: 'Brainrot God', cost: 20e6, mps: 950000 }, 'Rich Rich Man': { icon: '💰🤑', rarity: 'Brainrot God', cost: 35e6, mps: 2.5e6 }, 'Los Fluffs': { icon: '☁️👑', rarity: 'Secret', cost: 10e9, mps: 60e6 }, 'La La La La La La La La Craft Combination': { icon: '🎶🤯', rarity: 'Secret', cost: 40e9, mps: 180e6 }, 'Supreme Taco Combination': { icon: '🌮👑', rarity: 'Secret', cost: 60e9, mps: 250e6 }, 'Los Burritos Gang': { icon: '🌯👥', rarity: 'Secret', cost: 80e9, mps: 350e6 }, 'Trash Combination': { icon: '🗑️✨', rarity: 'Secret', cost: 30e9, mps: 120e6 }, 'NOooo My Laaaptop': { icon: '💻🔥', rarity: 'Secret', cost: 90e9, mps: 400e6 }, 'Tralaleritos Gang': { icon: '👨‍🎤👥', rarity: 'Secret', cost: 70e9, mps: 300e6 }, 'Job Gang': { icon: '💼👥', rarity: 'Secret', cost: 75e9, mps: 320e6 }, 'Spooky and Pumpky Gang': { icon: '👻🎃👥', rarity: 'Secret', cost: 100e9, mps: 450e6 },
+            'La Mobill Combination': { icon: '📱🔥', rarity: 'Secret', cost: 50e9, mps: 300e6 }, 'La Meal Combination': { icon: '🍔🍟', rarity: 'Secret', cost: 60e9, mps: 350e6 }, 'Los Bicicletas': { icon: '🚲👥', rarity: 'Secret', cost: 70e9, mps: 400e6 }, 'Los Siblings': { icon: '👫', rarity: 'Secret', cost: 80e9, mps: 450e6 }, 'Los ketupatsitos': { icon: '🍚👥', rarity: 'Secret', cost: 90e9, mps: 500e6 }, 'Tacorini Cowboini': { icon: '🌮🤠', rarity: 'Secret', cost: 100e9, mps: 600e6 }, 'La aquatic combination': { icon: '🌊🤯', rarity: 'Secret', cost: 120e9, mps: 700e6 },
+            'La Mega Combination': { icon: '👑🤯', rarity: 'Secret', cost: 200e9, mps: 1e12 }
+        };
+        const fuseExclusives = { 'Tipi Topi Taco': { icon: '🌮', rarity: 'Brainrot God', cost: 60e6, mps: 2.5e6 }, 'Capi Taco': { icon: '🧢', rarity: 'Brainrot God', cost: 70e6, mps: 3e6 }, 'Bombardini Tortini': { icon: '💣', rarity: 'Brainrot God', cost: 80e6, mps: 3.5e6 }, 'Nooo My Hotspot': { icon: '🔥', rarity: 'Secret', cost: 1e12, mps: 500e6 }, 'Tacorita Bicicleta': { icon: '🚲', rarity: 'Secret', cost: 1.5e12, mps: 700e6 }, 'Perrito Burrito': { icon: '🐶', rarity: 'Secret', cost: 2e12, mps: 900e6 }, 'Chillin Chili': { icon: '🌶️', rarity: 'Secret', cost: 2.5e12, mps: 1.1e9 }, 'Quesadillo Vampiro': { icon: '🧛', rarity: 'Secret', cost: 3e12, mps: 1.3e9 }, 'Chipso and Queso': { icon: '🧀', rarity: 'Secret', cost: 3.5e12, mps: 1.5e9 }, 'La Taco Combinasion': { icon: '🤯', rarity: 'Secret', cost: 5e12, mps: 2e9 }, 'Tukanno Bananno': { icon: '🍌', rarity: 'Brainrot God', cost: 50e6, mps: 2.5e6 }, 'Brr es Teh Patipum': { icon: '🧊', rarity: 'Brainrot God', cost: 55e6, mps: 2.8e6 }, 'Agarrini La Palini': { icon: '✋', rarity: 'Secret', cost: 1.2e12, mps: 600e6 }, 'Los Hotspotsitos': { icon: '🔥', rarity: 'Secret', cost: 2.2e12, mps: 1e9 }, 'La Supreme Combinasion': { icon: '👑', rarity: 'Secret', cost: 10e12, mps: 5e9 }, 'Jacko Jack Jack': { icon: '🎃', rarity: 'Brainrot God', cost: 50e6, mps: 2.5e6 }, 'Tentacolo Tecnico': { icon: '🐙', rarity: 'Brainrot God', cost: 55e6, mps: 2.8e6 }, 'Snailenzo': { icon: '🐌', rarity: 'Brainrot God', cost: 60e6, mps: 3e6 }, 'Vulturino Skeletono': { icon: '💀', rarity: 'Secret', cost: 1.5e12, mps: 700e6 }, 'Los Mobilis': { icon: '📱', rarity: 'Secret', cost: 2e12, mps: 900e6 }, 'Mieteteira Bicicleteira': { icon: '🚲', rarity: 'Secret', cost: 2.5e12, mps: 1.1e9 }, 'Eviledon': { icon: '😈', rarity: 'Secret', cost: 3e12, mps: 1.3e9 }, 'Spooky and Pumpky': { icon: '👻', rarity: 'Secret', cost: 3.5e12, mps: 1.5e9 }, 'Headless Horseman': { icon: '🐴', rarity: 'Secret', cost: 5e12, mps: 2e9 } };
+        const fuseRecipes = { 
+            'Taco': [{ inputRarity: 'Brainrot God', count: 4, output: ['Tipi Topi Taco', 'Capi Taco', 'Bombardini Tortini'] }, { inputRarity: 'Secret', count: 4, output: ['Nooo My Hotspot', 'Tacorita Bicicleta', 'Perrito Burrito', 'Chillin Chili', 'Quesadillo Vampiro', 'Chipso and Queso', 'La Taco Combinasion'] }], 
+            'Normal': [{ inputRarity: 'Mythic', count: 4, output: ['Tukanno Bananno', 'Brr es Teh Patipum', 'Los Tungtungtungcitos'] }, { inputRarity: 'Brainrot God', count: 4, output: ['Agarrini La Palini', 'Los Combinasionas', 'Los Hotspotsitos', 'Pop Pop Sahara', 'TV TV TV Sahur'] }, { inputRarity: 'Secret', count: 4, output: ['La Supreme Combinasion', 'Nooooo my Batteria', 'Los sigmas', 'Pizza Pizza Pizzaaa Sahur', 'Las Combinasionas', 'Pencili and Paperini'] }], 
+            'Witch': [{ inputRarity: 'Mythic', count: 4, output: ['Jacko Jack Jack', 'Tentacolo Tecnico', 'Snailenzo'] }, { inputRarity: 'Brainrot God', count: 4, output: ['Vulturino Skeletono', 'Los Mobilis', 'Mieteteira Bicicleteira', 'Eviledon', 'Spooky and Pumpky', 'Headless Horseman'] }],
+            'Santa': [
+                { inputRarity: 'Mythic', count: 4, output: ['Yeti Claus', 'Ginger Globo', 'Ginger Cisterna'] },
+                { inputRarity: 'Brainrot God', count: 4, output: ['La Vacca Prese Presente', 'Ho Ho Ho Sahur', 'Chicleteira Noelteira'] },
+                { inputRarity: 'Secret', count: 4, output: ['Chicleteira Noelteira', 'La Gingerbread Kepat', 'Cooki and Milki', 'Los Candies'] },
+                { inputRarity: 'OG', count: 4, output: ['La Vacca Prese Presente', 'Cooki and Milki', 'Santa Claus'] }
+            ]
+        };
+        const rebirthRequirements = [{ cost: 1e6, units: ['Pipi Kiwi', 'Trippi Troppi'] }, { cost: 3e6, units: ['Brr Brr Patapim', 'Boneca Ambalabu'] }, { cost: 12.5e6, units: ['Trulimero Trulicina', 'Chimpanzini Bananini'] }, { cost: 35e6, units: ['Chef Crabracadabra', 'Glorbo Fruttodrillo'] }, { cost: 100e6, units: ['Frigo Camelo', 'Orangutini Ananassini'] }, { cost: 350e6, units: ['Bombardiro Crocodilo'] }, { cost: 1e9, units: ['Bombombini Gusini'] }, { cost: 5e9, units: ['Te Te Te Sahur'] }, { cost: 25e9, units: ['Cocofanto Elefanto'] }, { cost: 250e9, units: ['Girafa Celestre'] }, { cost: 1e12, units: ['Tralalero Tralala'] }, { cost: 35e12, units: ['Trenostruzzo Turbo 3000'] }, { cost: 100e12, units: ['Trippi Troppi Troppa Trippa'] }, { cost: 500e12, units: ['Pakrahmatmamat'] }, { cost: 1e15, units: ['Los Tralaleritos'] }];
+        
+        const allBrainrotData = [];
+        for (const rarityName in brainrotManifest) { brainrotManifest[rarityName].forEach(b => { allBrainrotData.push({ ...b, rarity: rarityName }); }); }
+        for (const brainrotName in luckyBlockExclusives) { allBrainrotData.push({ name: brainrotName, ...luckyBlockExclusives[brainrotName] }); }
+        for (const brainrotName in ritualExclusives) { const data = ritualExclusives[brainrotName]; allBrainrotData.push({ name: data.name || brainrotName, ...data }); }
+        for (const brainrotName in craftExclusives) { const data = craftExclusives[brainrotName]; allBrainrotData.push({ name: data.name || brainrotName, ...data }); }
+        for (const brainrotName in fuseExclusives) { const data = fuseExclusives[brainrotName]; allBrainrotData.push({ name: data.name || brainrotName, ...data }); }
+        for (const brainrotName in traderExclusives) { allBrainrotData.push({ name: brainrotName, ...traderExclusives[brainrotName] }); }
+        for (const brainrotName in fishingExclusives) { allBrainrotData.push({ name: brainrotName, ...fishingExclusives[brainrotName] }); }
+
+        // Limited Items Config
+        const limitedItemsConfig = {
+            'Taco Combination': { name: 'Taco Combination', icon: '🌮➕', cost: 0, mps: 50000000000, rarity: 'Limited', ingredients: {'Quesadilla Crocodila': 1, 'Burrito Bandito': 1, 'Los Nooo My Hotspotsitos': 1, 'Mariachi Corazoni': 1} },
+            'W or L': { name: 'W or L', icon: '🏆', cost: 0, mps: 100000000000, rarity: 'Limited', ingredients: {'Cuadramat and Pakrahmatmamat': 1, 'Los Combinasionas': 1, 'Los Burritos': 1, 'Los 67': 1} },
+            'Evo Mega Mega Mega Mega Mega Knight': { name: 'Evo Mega Mega Mega Mega Mega Knight', icon: '🛡️⚔️', cost: 0, mps: 80000000000, rarity: 'Limited', ingredients: {'Spaghetti Tualetti': 1, 'La Karkerkar Combinasion': 1, 'Los Chicleteiras': 1, 'Mieteteira Bicicleteira': 1} },
+            'La Hotspot Combination': { name: 'La Hotspot Combination', icon: '🔥📡', cost: 0, mps: 70000000000, rarity: 'Limited', ingredients: {'Los Nooo My Hotspotsitos': 1, 'Pot Hotspot': 1, 'Los Combinasionas': 1} },
+            'La Jolly Grande': { name: 'La Jolly Grande', icon: '🎅🎁', cost: 0, mps: 150000000000, rarity: 'Limited', ingredients: {'Ballerina Peppermintina': 1, 'Reindeer Tralala': 1, 'Santteo': 1, 'List List List Sahur': 1} }
+        };
+
+        for (const key in limitedItemsConfig) {
+            allBrainrotData.push(limitedItemsConfig[key]);
+        }
+
+        const totalLuckyBlockWeight = Object.values(luckyBlockManifest).reduce((s, b) => s + b.weight, 0);
+        const allBrainrotNames = new Set(allBrainrotData.map(b => b.name));
+        const totalBrainrotsCount = allBrainrotNames.size;
+
+        // --- DOM Elements ---
+        let loadingSpinner, gameRoot, pauseButton, saveButton, loadButton, saveFileButton, loadFileButton, indexButton, indexCounter, openRebirthButton, moneyDisplay, mpsDisplay, timerDisplay, activeEventsList, rebirthDisplay, baseCountDisplay, openNormalFuseButton, openTacoFuseButton, openCraftMachineButton, openRitualButton, openTraderButton, openCorruptorButton, fishButton, conveyorBelt, baseContainer, sellButton, indexModal, closeIndexButton, indexGridContainer, rebirthModal, closeRebirthButton, rebirthInfo, confirmRebirthButton, jayceModal, closeJayceButton, jaycePasswordScreen, jaycePasswordInput, jayceLoginButton, jayceError, jayceCommandScreen, jayceLogoutButton, ritualModal, closeRitualButton, ritualList, craftMachineModal, closeCraftMachineButton, craftMachineList, fuseModal, fuseModalTitle, closeFuseModalButton, fuseModalList, traderModal, closeTraderButton, traderList, corruptorModal, closeCorruptorButton, corruptorList, globalTooltip, notification, loadFileInput, selectionModal, selectionModalTitle, closeSelectionModalButton, selectionModalPrompt, selectionModalGrid, selectionModalConfirm, selectionModalCancel, craftTimerDisplay, traderTimerDisplay, leaderboardModal, closeLeaderboardButton, leaderboardContent, leaderboardNameInput, setNameButton, openLeaderboardButton, toggleSoundButton, santaFuseButton, openLimitedButton, limitedItemModal, closeLimitedItemButton, limitedItemContent, adminLimitedStockDisplay, jayceLimitedStockInput, jayceSetLimitedStock, jayceRemoveLimitedStock, jayceLimitedSelect, jayceSpawnSantaGift;
+
+        // --- Firebase Globals ---
+        let app, auth, db, userId, userSaveDocPath, globalEventsDocPath, traderStateDocPath, craftStateDocPath, leaderboardCollectionPath, limitedStockDocPath, globalEventListener = null, traderListener = null, craftListener = null, limitedStockListener = null, isAdmin = false;
+
+        // --- Game State ---
+        let money = 100, baseSlots = [], beltItems = [], discoveredBrainrots = new Set(), rebirths = 0, luck = 0, timeUntilLegendary = 60, timeUntilMythic = 300, timeUntilBrainrotGod = 1800, gameInterval, timerInterval, isPaused = false, isSellMode = false, maxBaseSlots = 10, moneyMultiplier = 1, activeEvents = {}, tacoEventInterval = null, lastFishTime = 0, displayName = "Brainrotter";
+        let currentTraderOffers = [], currentTraderNextRefresh = 0, currentCraftRecipes = [], currentCraftNextRefresh = 0, currentSelectionCallback = null, selectedIndices = [];
+        let limitedStocks = {};
+
+        const HARDCODED_FIREBASE_CONFIG = { apiKey: "AIzaSyB_8Eao4PirrTF6DBjjbUmhL6MyXnt6vzY", authDomain: "steal-the-brainrot-admin-panel.firebaseapp.com", projectId: "steal-the-brainrot-admin-panel", storageBucket: "steal-the-brainrot-admin-panel.firebasestorage.app", messagingSenderId: "559691711111", appId: "1:559691711111:web:27dff3446aea0ef624ee22", measurementId: "G-3FPEYCR4JM" };
+
+        async function initializeFirebase() {
+            try {
+                let firebaseConfig;
+                if (HARDCODED_FIREBASE_CONFIG.apiKey.startsWith("AIzaSyB_")) { firebaseConfig = HARDCODED_FIREBASE_CONFIG; } else if (typeof __firebase_config !== 'undefined') { firebaseConfig = JSON.parse(__firebase_config); } else { throw new Error("No Firebase config found."); }
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setLogLevel('Debug');
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'c_d19bc2a77fb557fd_brainrot_tycoon.html-934';
+                        userSaveDocPath = `/artifacts/${appId}/users/${userId}/saveData/gameSave`;
+                        globalEventsDocPath = `/artifacts/${appId}/public/data/globalEvents/latest`;
+                        traderStateDocPath = `/artifacts/${appId}/public/data/trader/current`;
+                        craftStateDocPath = `/artifacts/${appId}/public/data/craft/current`;
+                        leaderboardCollectionPath = `artifacts/${appId}/public/data/leaderboard`;
+                        // Using a new path for multiple limited items
+                        limitedStockDocPath = `/artifacts/${appId}/public/data/limitedItems/allStocks`;
+                        initGameLogic(); 
+                        await loadGame(); 
+                        setupGlobalListeners();
+                        SoundManager.init();
+                        loadingSpinner.classList.add('hidden');
+                        gameRoot.classList.remove('hidden');
+                    } else {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { try { await signInWithCustomToken(auth, __initial_auth_token); } catch (e) { await signInAnonymously(auth); } } else { await signInAnonymously(auth); }
+                    }
+                });
+            } catch (error) { console.error("Firebase Init Error:", error); initGameLogic(); loadGameData({}, "Offline"); loadingSpinner.classList.add('hidden'); gameRoot.classList.remove('hidden'); }
+        }
+
+        // --- Core Loop & Timer Functions ---
+        function gameLoop() { if (!isPaused) { updateMoney(); updateBeltItems(); } }
+        function updateMoney() { 
+            let totalMPS = 0; let baseRebirthMultiplier = 1 + rebirths * 0.02;
+            const liveSlots = baseSlots.map((b, i) => ({ item: b, index: i })).filter(s => s.item);
+            let glitchedIndices = [];
+            liveSlots.forEach(s => { 
+                const b = s.item;
+                if (b) { 
+                    const mutationMultiplier = b.mutation?.multiplier || 1; 
+                    const traitMultiplier = b.trait?.multiplier || 1; 
+                    const mpsGenerated = b.mps * mutationMultiplier * traitMultiplier;
+                    if (b.trait?.name === 'Glitched' && Math.random() < 1/60) { glitchedIndices.push(s.index); }
+                    totalMPS += mpsGenerated; 
+                } 
+            }); 
+            if (glitchedIndices.length > 0) {
+                const nonGlitchedItems = liveSlots.filter(s => s.item.trait?.name !== 'Glitched');
+                if (nonGlitchedItems.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * nonGlitchedItems.length);
+                    const destroyedIndex = nonGlitchedItems[randomIndex].index;
+                    const destroyedItem = baseSlots[destroyedIndex];
+                    baseSlots[destroyedIndex] = null;
+                    showNotification(`The Glitch destroyed a ${destroyedItem.name}!`, 'red');
+                    SoundManager.playCorruptFail();
+                }
+            }
+            money += (totalMPS * baseRebirthMultiplier) / 60; 
+            moneyDisplay.textContent = formatLargeNumber(Math.floor(money)); 
+        }
+        function updateTimers() { 
+            if (isPaused) return; 
+            timeUntilLegendary--; timeUntilMythic--; timeUntilBrainrotGod--; 
+            if (timeUntilLegendary <= 0) { spawnSpecificBrainrot('Legendary'); timeUntilLegendary = 60; } 
+            if (timeUntilMythic <= 0) { spawnSpecificBrainrot('Mythic'); timeUntilMythic = 300; } 
+            if (timeUntilBrainrotGod <= 0) { spawnSpecificBrainrot('Brainrot God'); timeUntilBrainrotGod = 1800; } 
+            
+            updateTimerDisplay(); 
+            updateActiveEvents(); 
+            updateGlobalTimers(); 
+        }
+        function updateGlobalTimers() {
+            if (currentTraderNextRefresh > 0) { const diff = currentTraderNextRefresh - Date.now(); if (diff > 0) { const m = Math.floor(diff / 60000); const s = Math.floor((diff % 60000) / 1000); traderTimerDisplay.textContent = `Refresh: ${m}:${s.toString().padStart(2, '0')}`; } else { traderTimerDisplay.textContent = "Refreshing..."; checkAndRefreshGlobalState('trader'); } }
+            if (currentCraftNextRefresh > 0) { const diff = currentCraftNextRefresh - Date.now(); if (diff > 0) { const m = Math.floor(diff / 60000); const s = Math.floor((diff % 60000) / 1000); craftTimerDisplay.textContent = `Refresh: ${m}:${s.toString().padStart(2, '0')}`; } else { craftTimerDisplay.textContent = "Refreshing..."; checkAndRefreshGlobalState('craft'); } }
+        }
+
+        // --- Core Logic ---
+        function updateDerivedState() { maxBaseSlots = 10 + rebirths; moneyMultiplier = 1; }
+        function initBase() { baseContainer.innerHTML = ''; baseSlots = Array(maxBaseSlots).fill(null); for (let i = 0; i < maxBaseSlots; i++) { const slot = document.createElement('div'); slot.classList.add('base-slot'); slot.dataset.index = i; slot.onclick = () => handleBaseSlotClick(i); baseContainer.appendChild(slot); } }
+        function spawnBrainrotOnBelt() { 
+            if (isPaused) { setTimeout(spawnBrainrotOnBelt, Math.random() * 2500 + 1000); return; }; 
+            
+            // Piñata Spawn Check
+            if (activeEvents['Piñata Party'] && Math.random() < 0.3) {
+                spawnLuckyBlockOnBelt('Piñata');
+            } else {
+                const rarity = getRandomRarity(); 
+                if (rarity === 'Lucky Block') { spawnLuckyBlockOnBelt(); } 
+                else if (rarity) { spawnSpecificBrainrot(rarity); }
+            }
+            setTimeout(spawnBrainrotOnBelt, Math.random() * 2500 + 1000); 
+        }
+        function spawnLuckyBlockOnBelt(forceBlockType = null) { let blockType = forceBlockType; if (!blockType) { let random = Math.random() * totalLuckyBlockWeight; for (const name in luckyBlockManifest) { if (random < luckyBlockManifest[name].weight) { blockType = name; break; } random -= luckyBlockManifest[name].weight; } } if (!blockType) return; const blockData = luckyBlockManifest[blockType]; const itemWrapper = document.createElement('div'); itemWrapper.classList.add('belt-item-wrapper'); itemWrapper.innerHTML = `<div class="belt-item-label">${blockType}</div><div class="belt-item" style="border-color: ${blockData.color}; --glow-color: ${blockData.color};">${blockData.icon}</div>`; const block = { id: Date.now() + Math.random(), element: itemWrapper, position: -150 }; itemWrapper.onclick = () => openLuckyBlock(block, blockType); beltItems.push(block); conveyorBelt.appendChild(itemWrapper); }
+        function openLuckyBlock(block, blockType) { 
+            block.element.remove(); 
+            beltItems = beltItems.filter(b => b.id !== block.id); 
+            const blockData = luckyBlockManifest[blockType]; 
+            const lootTable = blockData.lootTable; 
+            
+            if (blockData.isMultiLoot) { 
+                let itemsFound = []; 
+                for (const loot of lootTable) { if (Math.random() * 100 < loot.chance) { const prizeData = findBrainrotData(loot.name); if (prizeData) itemsFound.push(prizeData); } } 
+                if (itemsFound.length === 0) { showNotification(`The OP Lucky Block was empty...`, "gray"); return; } 
+                let itemsPlaced = 0; 
+                for (const prizeData of itemsFound) { const emptySlotIndex = baseSlots.findIndex(s => s === null); if (emptySlotIndex !== -1) { const brainrot = { ...prizeData, mutation: getRandomMutation(), trait: null }; baseSlots[emptySlotIndex] = brainrot; discoveredBrainrots.add(prizeData.name); if (brainrot.event) startWeatherEvent(brainrot.event); itemsPlaced++; } else { break; } } 
+                showNotification(`You found ${itemsPlaced} items!`, rarities['Secret'].color); SoundManager.playSpawn('Secret'); renderBase(); updateAllUI(); 
+            } else { 
+                // Weighted random for normal/Piñata/Festive blocks
+                const totalChance = lootTable.reduce((s, l) => s + l.chance, 0); 
+                let random = Math.random() * totalChance; 
+                let selectedLoot = null;
+                
+                for (const loot of lootTable) { 
+                    if (random < loot.chance) { selectedLoot = loot; break; } 
+                    random -= loot.chance; 
+                } 
+                
+                if (selectedLoot) {
+                    if (selectedLoot.type === 'Money') {
+                        const range = selectedLoot.range;
+                        const amount = Math.floor(Math.random() * (range[1] - range[0] + 1)) + range[0];
+                        money += amount;
+                        showNotification(`Piñata dropped $${formatLargeNumber(amount)}!`, 'green');
+                        SoundManager.playBuy();
+                        updateAllUI();
+                    } else {
+                        const emptySlotIndex = baseSlots.findIndex(s => s === null); 
+                        if (emptySlotIndex === -1) { showNotification("Your base is full!", "red"); return; } 
+                        let prizeData = findBrainrotData(selectedLoot.name); 
+                        if (prizeData) { 
+                            const brainrot = { ...prizeData, mutation: getRandomMutation(), trait: null }; 
+                            baseSlots[emptySlotIndex] = brainrot; 
+                            discoveredBrainrots.add(selectedLoot.name); 
+                            if (brainrot.event) startWeatherEvent(brainrot.event); 
+                            showNotification(`You found a ${selectedLoot.name}!`, rarities[prizeData.rarity].color); 
+                            
+                            // Pass name to play sound
+                            SoundManager.playSpawn(prizeData.rarity, selectedLoot.name); 
+                            renderBase(); 
+                            updateAllUI(); 
+                        }
+                    }
+                }
+            } 
+        }
+        function findBrainrotData(name) { if(name === 'Los Orcalitos (Ritual)') name = 'Los Orcalitos'; if (traderExclusives[name]) { return { name, ...traderExclusives[name] }; } if (ritualExclusives[name]) { return { name, ...ritualExclusives[name] }; } if (craftExclusives[name]) { return { name, ...craftExclusives[name] }; } if (fuseExclusives[name]) { return { name, ...fuseExclusives[name] }; } if (luckyBlockExclusives[name]) { return { name, ...luckyBlockExclusives[name] }; } if (fishingExclusives[name]) { return { name, ...fishingExclusives[name] }; } if (limitedItemsConfig[name]) return limitedItemsConfig[name]; for (const rarity in brainrotManifest) { const found = brainrotManifest[rarity].find(b => b.name === name); if (found) return { ...found, rarity }; } return null; }
+        function spawnSpecificBrainrot(rarityName) { 
+            const possibleBrainrots = brainrotManifest[rarityName].filter(b => !b.isExclusive); 
+            if (!possibleBrainrots || possibleBrainrots.length === 0) return; 
+            const brainrotData = possibleBrainrots[Math.floor(Math.random() * possibleBrainrots.length)]; 
+            spawnBrainrotByName(brainrotData.name, getRandomMutation()); 
+        }
+        function spawnBrainrotByName(brainrotName, mutation = null, trait = null) { let brainrotData = findBrainrotData(brainrotName); if (!brainrotData) { console.error("Spawn Error:", brainrotName); return; } const rarityData = rarities[brainrotData.rarity] || { color: '#00ffff', glow: '#00ffff' }; const itemWrapper = document.createElement('div'); itemWrapper.classList.add('belt-item-wrapper'); let mutationIcon = ''; let finalMutation = mutation || getRandomMutation(); if (finalMutation && finalMutation.name !== 'None') { mutationIcon = `<div class="mutation-icon" style="background: ${finalMutation.color};">${finalMutation.icon}</div>`; } itemWrapper.innerHTML = `<div class="belt-item-label"><div>${finalMutation.name !== 'None' ? finalMutation.name : ''} ${brainrotData.name}</div><div style="color: ${rarityData.color}">${brainrotData.rarity}</div><div>Cost: <span class="font-bold text-green-400">$${formatLargeNumber(brainrotData.cost)}</span></div><div>MPS: <span class="font-bold text-yellow-400">${formatLargeNumber(brainrotData.mps * finalMutation.multiplier)}</span></div></div><div class="belt-item" style="border-color: ${rarityData.color}; --glow-color: ${rarityData.glow};">${brainrotData.icon}${mutationIcon}</div>`; const brainrot = { id: Date.now() + Math.random(), ...brainrotData, element: itemWrapper, position: -150, mutation: finalMutation, trait: trait || null }; itemWrapper.onclick = () => buyBrainrot(brainrot); beltItems.push(brainrot); conveyorBelt.appendChild(itemWrapper); }
+        function updateBeltItems() { const beltWidth = conveyorBelt.offsetWidth; const speed = 1.2; beltItems = beltItems.filter(item => { item.position += speed; item.element.style.transform = `translateX(${item.position}px) translateY(-50%)`; if (item.position > beltWidth + 50) { item.element.remove(); return false; } return true; }); }
+        function buyBrainrot(brainrot) { const emptySlotIndex = baseSlots.findIndex(slot => slot === null); if (money < brainrot.cost) { showNotification("Not enough money!", "red"); return; } if (emptySlotIndex === -1) { showNotification("Base is full!", "red"); return; } money -= brainrot.cost; let appliedTrait = null; if(brainrot.trait) { appliedTrait = brainrot.trait; } else { for(const eventName in activeEvents) { if(Math.random() < 0.25) { appliedTrait = { ...weatherEvents[eventName] }; break; } } } const { element, position, ...safeBrainrotData } = brainrot; baseSlots[emptySlotIndex] = { ...safeBrainrotData, trait: appliedTrait }; discoveredBrainrots.add(brainrot.name); if (brainrot.event) startWeatherEvent(brainrot.event); brainrot.element.remove(); beltItems = beltItems.filter(b => b.id !== brainrot.id); renderBase(); updateAllUI(); SoundManager.playBuy(); }
+        function handleBaseSlotClick(index) { if (isSellMode && baseSlots[index]) { const brainrotToSell = baseSlots[index]; const sellPrice = Math.floor(brainrotToSell.cost * SELL_MULTIPLIER); money += sellPrice; baseSlots[index] = null; renderBase(); updateAllUI(); SoundManager.playSell(); } }
+        function renderBase() { const slots = baseContainer.children; for (let i = 0; i < maxBaseSlots; i++) { const slot = slots[i]; if (!slot) continue; const brainrot = baseSlots[i]; if (brainrot) { const rarityData = rarities[brainrot.rarity] || { color: '#00ffff', glow: '#00ffff' }; let mutationIcon = ''; if (brainrot.mutation && brainrot.mutation.name !== 'None') { mutationIcon = `<div class="mutation-icon" style="background: ${brainrot.mutation.color};">${brainrot.mutation.icon}</div>`; } let traitIcon = ''; if (brainrot.trait) { traitIcon = `<div class="trait-icon" style="color: ${brainrot.trait.color};">${brainrot.trait.icon}</div>`; } slot.innerHTML = `<div class="base-item" style="border-color: ${rarityData.color}; background-color: #374151;">${brainrot.icon}${mutationIcon}${traitIcon}</div>`; } else { slot.innerHTML = ''; } } }
+        function updateAllUI() { moneyDisplay.textContent = formatLargeNumber(Math.floor(money)); const count = baseSlots.filter(s => s !== null).length; baseCountDisplay.textContent = `${count} / ${maxBaseSlots}`; let totalMPS = 0; let baseRebirthMultiplier = 1 + rebirths * 0.02; baseSlots.forEach(b => { if (b) { const mutationMultiplier = b.mutation?.multiplier || 1; const traitMultiplier = b.trait?.multiplier || 1; totalMPS += b.mps * mutationMultiplier * traitMultiplier; } }); mpsDisplay.textContent = formatLargeNumber(totalMPS * baseRebirthMultiplier); rebirthDisplay.textContent = rebirths.toLocaleString(); updateIndexCounter(); }
+        function updateIndexCounter() { indexCounter.textContent = `(${discoveredBrainrots.size}/${totalBrainrotsCount})`; }
+        function updateTimerDisplay() { const nextSpawnTime = Math.min(timeUntilLegendary, timeUntilMythic, timeUntilBrainrotGod); const minutes = Math.floor(nextSpawnTime / 60).toString().padStart(2, '0'); const seconds = (nextSpawnTime % 60).toString().padStart(2, '0'); timerDisplay.textContent = `${minutes}:${seconds}`; }
+        function handleRebirth() { if (!checkRebirthEligibility()) return; rebirths++; money = 100; updateDerivedState(); initBase(); beltItems.forEach(item => item.element.remove()); beltItems = []; renderBase(); updateAllUI(); closeRebirthModal(); SoundManager.playRebirth(); saveToLeaderboard(); }
+        function checkRebirthEligibility() { const requirement = rebirthRequirements[rebirths]; if (!requirement) return false; const hasMoney = money >= requirement.cost; const baseUnitNames = baseSlots.filter(s => s).map(s => s.name); const hasUnits = requirement.units.every(unitName => baseUnitNames.includes(unitName)); return hasMoney && hasUnits; }
+        function renderRebirthModal() { const requirement = rebirthRequirements[rebirths]; if (!requirement) { rebirthInfo.innerHTML = `<p class="text-xl font-bold text-center text-green-400">You have reached the maximum rebirth!</p>`; confirmRebirthButton.disabled = true; confirmRebirthButton.textContent = "Max Rebirth"; return; } const hasMoney = money >= requirement.cost; const baseUnitNames = baseSlots.filter(s => s).map(s => s.name); const unitsMet = requirement.units.map(u => baseUnitNames.includes(u)); const hasAllUnits = unitsMet.every(met => met); let reqHTML = `<h3 class="text-lg font-bold mb-2">Rebirth ${rebirths + 1} Requirements:</h3>`; reqHTML += `<p class="${hasMoney ? 'requirement-met' : 'requirement-not-met'}">💰 Money: $${formatLargeNumber(requirement.cost)}</p>`; reqHTML += `<h4 class="font-semibold mt-2">Required Brainrots:</h4><ul class="list-disc list-inside">`; requirement.units.forEach((unitName, index) => { reqHTML += `<li class="${unitsMet[index] ? 'requirement-met' : 'requirement-not-met'}">${unitName}</li>`; }); reqHTML += `</ul>`; rebirthInfo.innerHTML = reqHTML; confirmRebirthButton.disabled = !(hasMoney && hasAllUnits); confirmRebirthButton.textContent = `Confirm Rebirth (${rebirths + 1})`; }
+        function togglePause() { isPaused = !isPaused; pauseButton.textContent = isPaused ? "Resume" : "Pause"; conveyorBelt.classList.toggle('paused', isPaused); }
+        function toggleSellMode() { isSellMode = !isSellMode; sellButton.classList.toggle('active', isSellMode); baseContainer.querySelectorAll('.base-slot').forEach(slot => { const index = parseInt(slot.dataset.index, 10); if (baseSlots[index]) slot.classList.toggle('sell-mode', isSellMode); else slot.classList.remove('sell-mode'); }); }
+        function openIndexModal() { renderIndex(); indexModal.classList.remove('hidden'); }
+        function closeIndexModal() { indexModal.classList.add('hidden'); }
+        function openRebirthModal() { renderRebirthModal(); rebirthModal.classList.remove('hidden'); }
+        function closeRebirthModal() { rebirthModal.classList.add('hidden'); }
+        function openRitualModal() { renderRitualModal(); ritualModal.classList.remove('hidden'); }
+        function closeRitualModal() { ritualModal.classList.add('hidden'); }
+        function openCraftMachineModal() { updateCraftUI(); craftMachineModal.classList.remove('hidden'); }
+        function closeCraftMachineModal() { craftMachineModal.classList.add('hidden'); }
+        function openFuseModal(type) { renderFuseModal(type); fuseModal.classList.remove('hidden'); }
+        function closeFuseModal() { fuseModal.classList.add('hidden'); }
+        function openTraderModal() { updateTraderUI(); traderModal.classList.remove('hidden'); }
+        function closeTraderModal() { traderModal.classList.add('hidden'); }
+        function checkTacoTuesday() { const today = new Date(); if (today.getDay() === 2) { startTacoEvent(); } }
+        function startTacoEvent() { openTacoFuseButton.classList.remove('hidden'); if (tacoEventInterval) clearInterval(tacoEventInterval); tacoEventInterval = setInterval(() => { if (!isPaused) { spawnLuckyBlockOnBelt('Taco Lucky Block'); } }, 300000); showNotification('Taco Tuesday is active! Taco Blocks will spawn!', '#f59e0b'); }
+        function formatLargeNumber(num) { if (num >= 1e15) return (num / 1e15).toFixed(2) + 'Qa'; if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T'; if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B'; if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M'; if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K'; return Math.floor(num).toLocaleString(); }
+        function openRitualSelectionModal(ritualKey) { const recipe = ritualRecipes[ritualKey]; const resultData = findBrainrotData(ritualKey); selectionModalTitle.textContent = `Craft: ${resultData.name}`; const ingredients = recipe.ingredients; let requiredItems = []; for (const name in ingredients) { requiredItems.push({ name, count: ingredients[name] }); } selectedIndices = []; selectionModalConfirm.disabled = true; currentSelectionCallback = (confirmedIndices) => { performRitual(ritualKey, confirmedIndices); closeSelectionModal(); }; renderSelectionModal(requiredItems); selectionModal.classList.remove('hidden'); }
+        function openCraftSelectionModal(recipeIndex) { const craftKey = currentCraftRecipes[recipeIndex]; let recipeName, recipe; if (typeof craftKey === 'string') { recipeName = craftKey; recipe = craftRecipes[recipeName]; } else if (craftKey.name) { recipeName = craftKey.name; recipe = craftKey; } else { return; } const resultData = findBrainrotData(recipeName); if (!resultData) return; selectionModalTitle.textContent = `Craft: ${resultData.name}`; let requiredItems = []; if (recipe.isGeneric) { const requiredRarity = Object.keys(recipe.ingredients)[0]; const requiredAmount = Object.values(recipe.ingredients)[0]; requiredItems.push({ name: requiredRarity, count: requiredAmount, isRarity: true }); } else { for (const name in recipe.ingredients) { requiredItems.push({ name, count: recipe.ingredients[name] }); } } selectedIndices = []; selectionModalConfirm.disabled = true; currentSelectionCallback = (confirmedIndices) => { performCraft(recipeName, confirmedIndices); closeSelectionModal(); }; renderSelectionModal(requiredItems); selectionModal.classList.remove('hidden'); }
+        function openFuseSelectionModal(rarity, count, type) { const requiredItems = [{ name: rarity, count: count, isRarity: true }]; selectionModalTitle.textContent = `Fuse: ${type}`; selectedIndices = []; selectionModalConfirm.disabled = true; currentSelectionCallback = (confirmedIndices) => { performFuse(rarity, type, confirmedIndices); closeSelectionModal(); }; renderSelectionModal(requiredItems); selectionModal.classList.remove('hidden'); }
+        function renderSelectionModal(requiredItems) { selectionModalGrid.innerHTML = ''; const requiredCounts = {}; const requiredRarities = {}; let prompt = "Select items to use:<br>"; requiredItems.forEach(req => { if (req.isRarity) { requiredRarities[req.name] = req.count; prompt += `<span id="req-rarity-${req.name}" style="color: #f87171">${req.count}x ${req.name} (0 selected)</span><br>`; } else { requiredCounts[req.name] = req.count; prompt += `<span id="req-${req.name}" style="color: #f87171">${req.count}x ${req.name} (0 selected)</span><br>`; } }); selectionModalPrompt.innerHTML = prompt; const availableItems = baseSlots.map((slot, index) => ({ slot, index })).filter(item => item.slot && (requiredCounts[item.slot.name] || requiredRarities[item.slot.rarity])); if (availableItems.length === 0) { selectionModalGrid.innerHTML = `<p class="col-span-full text-center">You have no required items in your base.</p>`; return; } availableItems.forEach(item => { const brainrot = item.slot; const index = item.index; const rarityData = rarities[brainrot.rarity]; let mutationIcon = ''; if (brainrot.mutation && brainrot.mutation.name !== 'None') { mutationIcon = `<div class="mutation-icon" style="background: ${brainrot.mutation.color};">${brainrot.mutation.icon}</div>`; } let traitIcon = ''; if (brainrot.trait) { traitIcon = `<div class="trait-icon" style="color: ${brainrot.trait.color};">${brainrot.trait.icon}</div>`; } const slot = document.createElement('div'); slot.className = 'base-slot selectable'; slot.dataset.index = index; slot.innerHTML = `<div class="base-item" style="border-color: ${rarityData.color}; background-color: #374151;">${brainrot.icon}${mutationIcon}${traitIcon}</div>`; slot.onclick = () => toggleSelection(index, requiredCounts, requiredRarities); selectionModalGrid.appendChild(slot); }); }
+        function toggleSelection(index, requiredCounts, requiredRarities = {}) { const slotEl = selectionModalGrid.querySelector(`.base-slot[data-index="${index}"]`); const item = baseSlots[index]; if (!item) return; const findIndex = selectedIndices.indexOf(index); if (findIndex > -1) { selectedIndices.splice(findIndex, 1); slotEl.classList.remove('selected'); } else { let canSelect = false; let neededName = null; let neededRarity = null; if (requiredCounts[item.name]) neededName = item.name; if (requiredRarities[item.rarity]) neededRarity = item.rarity; if (neededName) { const currentSelected = selectedIndices.map(i => baseSlots[i].name).filter(name => name === neededName).length; if (currentSelected < requiredCounts[neededName]) { canSelect = true; } else { showNotification(`You only need ${requiredCounts[neededName]}x ${neededName}`, 'yellow'); } } else if (neededRarity) { const currentSelected = selectedIndices.map(i => baseSlots[i].rarity).filter(rarity => rarity === neededRarity).length; if (currentSelected < requiredRarities[neededRarity]) { canSelect = true; } else { showNotification(`You only need ${requiredRarities[neededRarity]}x ${neededRarity}`, 'yellow'); } } if (canSelect) { selectedIndices.push(index); slotEl.classList.add('selected'); } } let allRequirementsMet = true; const currentCounts = {}; const currentRarityCounts = {}; selectedIndices.forEach(i => { const name = baseSlots[i].name; const rarity = baseSlots[i].rarity; currentCounts[name] = (currentCounts[name] || 0) + 1; currentRarityCounts[rarity] = (currentRarityCounts[rarity] || 0) + 1; }); for (const name in requiredCounts) { const count = currentCounts[name] || 0; const req = requiredCounts[name]; const el = document.getElementById(`req-${name}`); if (el) { el.innerHTML = `${req}x ${name} (${count} selected)`; if (count < req) { allRequirementsMet = false; el.style.color = '#f87171'; } else { el.style.color = '#4ade80'; } } } for (const rarity in requiredRarities) { const count = currentRarityCounts[rarity] || 0; const req = requiredRarities[rarity]; const el = document.getElementById(`req-rarity-${rarity}`); if (el) { el.innerHTML = `${req}x ${rarity} (${count} selected)`; if (count < req) { allRequirementsMet = false; el.style.color = '#f87171'; } else { el.style.color = '#4ade80'; } } } selectionModalConfirm.disabled = !allRequirementsMet; }
+        function closeSelectionModal() { selectionModal.classList.add('hidden'); currentSelectionCallback = null; selectedIndices = []; }
+        function handleFishClick() { const now = Date.now(); if (now - lastFishTime < 10000) { const remaining = Math.ceil((10000 - (now - lastFishTime)) / 1000); showNotification(`Fishing Cooldown: ${remaining}s`, "red"); return; } lastFishTime = now; fishButton.textContent = "🎣 Fishing... (10s)"; fishButton.disabled = true; SoundManager.playFish(); setTimeout(() => { fishButton.textContent = "🎣 Fish (10s)"; fishButton.disabled = false; }, 10000); const emptySlotIndex = baseSlots.findIndex(s => s === null); if (emptySlotIndex === -1) { showNotification("Base is full! Cannot fish.", "red"); return; } let totalWeight = fishingLootTable.reduce((sum, item) => sum + item.weight, 0); let random = Math.random() * totalWeight; let selectedItemName = ''; for (const item of fishingLootTable) { if (random < item.weight) { selectedItemName = item.name; break; } random -= item.weight; } const data = findBrainrotData(selectedItemName); if (data) { baseSlots[emptySlotIndex] = { ...data, mutation: getRandomMutation(), trait: null }; discoveredBrainrots.add(data.name); renderBase(); updateAllUI(); showNotification(`You caught a ${data.name}!`, rarities[data.rarity].color); SoundManager.playSpawn(data.rarity, data.name); } }
+        function startWeatherEvent(eventName) { if (!weatherEvents[eventName]) return; const event = { ...weatherEvents[eventName] }; activeEvents[eventName] = event; showNotification(`${event.name} event has started!`, event.color || '#fff'); if (event.spawn) spawnBrainrotByName(event.spawn); updateAllUI(); updateActiveEventsUI(); }
+        function updateActiveEvents() { let needsUpdate = false; for(const eventName in activeEvents) { activeEvents[eventName].duration--; if(activeEvents[eventName].duration <= 0) { showNotification(`${eventName} event has ended.`, 'gray'); delete activeEvents[eventName]; needsUpdate = true; } } if(needsUpdate) { baseSlots.forEach(slot => { if (slot && slot.trait && !activeEvents[slot.trait.name]) { slot.trait = null; } }); renderBase(); updateAllUI(); } updateActiveEventsUI(); }
+        function updateActiveEventsUI() { activeEventsList.innerHTML = ''; fishButton.classList.add('hidden'); for (const eventName in activeEvents) { const event = activeEvents[eventName]; activeEventsList.innerHTML += `<span title="${event.name} (${event.duration}s left)" style="color: ${event.color || '#fff'}">${event.icon}</span>`; if (eventName === 'Fishing') { fishButton.classList.remove('hidden'); } } }
+
+        function initGameLogic() {
+            loadingSpinner = document.getElementById('loading-spinner'); gameRoot = document.getElementById('game-root'); pauseButton = document.getElementById('pause-button'); saveButton = document.getElementById('save-button'); loadButton = document.getElementById('load-button'); saveFileButton = document.getElementById('save-file-button'); loadFileButton = document.getElementById('load-file-button'); indexButton = document.getElementById('index-button'); indexCounter = document.getElementById('index-counter'); openRebirthButton = document.getElementById('open-rebirth-button'); moneyDisplay = document.getElementById('money'); mpsDisplay = document.getElementById('mps'); timerDisplay = document.getElementById('timer-display'); activeEventsList = document.getElementById('active-events-list'); rebirthDisplay = document.getElementById('rebirth-display'); baseCountDisplay = document.getElementById('base-count'); openNormalFuseButton = document.getElementById('open-normal-fuse-button'); openTacoFuseButton = document.getElementById('open-taco-fuse-button'); openCraftMachineButton = document.getElementById('open-craft-machine-button'); openRitualButton = document.getElementById('open-ritual-button'); openTraderButton = document.getElementById('open-trader-button'); openCorruptorButton = document.getElementById('open-corruptor-button'); fishButton = document.getElementById('fish-button'); conveyorBelt = document.getElementById('conveyor-belt'); baseContainer = document.getElementById('base'); sellButton = document.getElementById('sell-button'); indexModal = document.getElementById('index-modal'); closeIndexButton = document.getElementById('close-index-button'); indexGridContainer = document.getElementById('index-grid-container'); rebirthModal = document.getElementById('rebirth-modal'); closeRebirthButton = document.getElementById('close-rebirth-button'); rebirthInfo = document.getElementById('rebirth-info'); confirmRebirthButton = document.getElementById('confirm-rebirth-button'); jayceModal = document.getElementById('jayce-modal'); closeJayceButton = document.getElementById('close-jayce-button'); jaycePasswordScreen = document.getElementById('jayce-password-screen'); jaycePasswordInput = document.getElementById('jayce-password-input'); jayceLoginButton = document.getElementById('jayce-login-button'); jayceError = document.getElementById('jayce-error'); jayceCommandScreen = document.getElementById('jayce-command-screen'); jayceLogoutButton = document.getElementById('jayce-logout-button'); ritualModal = document.getElementById('ritual-modal'); closeRitualButton = document.getElementById('close-ritual-button'); ritualList = document.getElementById('ritual-list'); craftMachineModal = document.getElementById('craft-machine-modal'); closeCraftMachineButton = document.getElementById('close-craft-machine-button'); craftMachineList = document.getElementById('craft-machine-list'); fuseModal = document.getElementById('fuse-modal'); fuseModalTitle = document.getElementById('fuse-modal-title'); closeFuseModalButton = document.getElementById('close-fuse-modal-button'); fuseModalList = document.getElementById('fuse-modal-list'); traderModal = document.getElementById('trader-modal'); closeTraderButton = document.getElementById('close-trader-button'); traderList = document.getElementById('trader-list'); corruptorModal = document.getElementById('corruptor-modal'); closeCorruptorButton = document.getElementById('close-corruptor-button'); corruptorList = document.getElementById('corruptor-list'); globalTooltip = document.getElementById('global-tooltip'); notification = document.getElementById('notification'); loadFileInput = document.getElementById('load-file-input'); selectionModal = document.getElementById('selection-modal'); selectionModalTitle = document.getElementById('selection-modal-title'); closeSelectionModalButton = document.getElementById('close-selection-modal-button'); selectionModalPrompt = document.getElementById('selection-modal-prompt'); selectionModalGrid = document.getElementById('selection-modal-grid'); selectionModalConfirm = document.getElementById('selection-modal-confirm'); selectionModalCancel = document.getElementById('selection-modal-cancel'); craftTimerDisplay = document.getElementById('craft-timer'); traderTimerDisplay = document.getElementById('trader-timer'); leaderboardModal = document.getElementById('leaderboard-modal'); closeLeaderboardButton = document.getElementById('close-leaderboard-button'); leaderboardContent = document.getElementById('leaderboard-content'); leaderboardNameInput = document.getElementById('leaderboard-name-input'); setNameButton = document.getElementById('set-name-button'); openLeaderboardButton = document.getElementById('open-leaderboard-button'); toggleSoundButton = document.getElementById('toggle-sound-button'); santaFuseButton = document.getElementById('santa-fuse-button'); openLimitedButton = document.getElementById('open-limited-button'); limitedItemModal = document.getElementById('limited-item-modal'); closeLimitedItemButton = document.getElementById('close-limited-item-button'); limitedItemContent = document.getElementById('limited-item-content'); adminLimitedStockDisplay = document.getElementById('admin-limited-stock-display'); jayceLimitedStockInput = document.getElementById('jayce-limited-stock-input'); jayceSetLimitedStock = document.getElementById('jayce-set-limited-stock'); jayceRemoveLimitedStock = document.getElementById('jayce-remove-limited-stock'); jayceLimitedSelect = document.getElementById('jayce-limited-select');
+            jayceSpawnSantaGift = document.getElementById('jayce-spawn-santa-gift');
+
+            pauseButton.addEventListener('click', togglePause);
+            saveButton.addEventListener('click', () => { saveGame(); saveToLeaderboard(); }); 
+            loadButton.addEventListener('click', loadGame); 
+            saveFileButton.addEventListener('click', saveGameToFile); 
+            loadFileButton.addEventListener('click', loadGameFromFile); 
+            sellButton.addEventListener('click', toggleSellMode);
+            indexButton.addEventListener('click', openIndexModal);
+            closeIndexButton.addEventListener('click', closeIndexModal);
+            indexModal.addEventListener('click', (e) => { if(e.target === indexModal) closeIndexModal() });
+            openRebirthButton.addEventListener('click', openRebirthModal);
+            closeRebirthButton.addEventListener('click', closeRebirthModal);
+            confirmRebirthButton.addEventListener('click', handleRebirth);
+            rebirthModal.addEventListener('click', (e) => { if(e.target === rebirthModal) closeRebirthModal() });
+            window.addEventListener('keydown', (e) => { if (e.key === '-') { openJayceModal(); } });
+            closeJayceButton.addEventListener('click', closeJayceModal);
+            jayceLoginButton.addEventListener('click', jayceLogin);
+            jaycePasswordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') jayceLogin() });
+            jayceLogoutButton.addEventListener('click', jayceLogout);
+            openRitualButton.addEventListener('click', openRitualModal);
+            closeRitualButton.addEventListener('click', closeRitualModal);
+            ritualModal.addEventListener('click', (e) => { if (e.target === ritualModal) closeRitualModal(); });
+            ritualList.addEventListener('click', (e) => { if (e.target.classList.contains('perform-ritual-btn')) { openRitualSelectionModal(e.target.dataset.ritualKey); } });
+            openCraftMachineButton.addEventListener('click', openCraftMachineModal);
+            closeCraftMachineButton.addEventListener('click', closeCraftMachineModal);
+            craftMachineModal.addEventListener('click', (e) => { if (e.target === craftMachineModal) closeCraftMachineModal(); });
+            craftMachineList.addEventListener('click', (e) => { if (e.target.classList.contains('perform-craft-btn')) { openCraftSelectionModal(e.target.dataset.recipeIndex); } });
+            openNormalFuseButton.addEventListener('click', () => openFuseModal('Normal'));
+            openTacoFuseButton.addEventListener('click', () => openFuseModal('Taco'));
+            santaFuseButton.addEventListener('click', () => openFuseModal('Santa'));
+            closeFuseModalButton.addEventListener('click', closeFuseModal);
+            fuseModal.addEventListener('click', (e) => { if (e.target === fuseModal) closeFuseModal(); });
+            fuseModalList.addEventListener('click', (e) => { if (e.target.classList.contains('perform-fuse-btn')) { const { inputType, inputRarity, inputCount } = e.target.dataset; openFuseSelectionModal(inputRarity, parseInt(inputCount, 10), inputType); } });
+            openTraderButton.addEventListener('click', openTraderModal);
+            closeTraderButton.addEventListener('click', closeTraderModal);
+            traderModal.addEventListener('click', (e) => { if(e.target === traderModal) closeTraderModal() });
+            traderList.addEventListener('click', (e) => { if (e.target.classList.contains('perform-trade-btn')) { let costType = e.target.dataset.costType; let costValue = e.target.dataset.costValue; let costAmount = parseInt(e.target.dataset.costAmount); openTraderSelectionModal(e.target.dataset.targetItem, costType, costValue, costAmount); } });
+            // openCorruptorButton.addEventListener('click', openCorruptorModal); 
+            // closeCorruptorButton.addEventListener('click', closeCorruptorModal);
+            // corruptorModal.addEventListener('click', (e) => { if(e.target === corruptorModal) closeCorruptorModal() });
+            // corruptorList.addEventListener('click', (e) => { if (e.target.classList.contains('corrupt-btn')) { openCorruptorSelection(); } });
+            fishButton.addEventListener('click', handleFishClick);
+            closeSelectionModalButton.addEventListener('click', closeSelectionModal);
+            selectionModalCancel.addEventListener('click', closeSelectionModal);
+            selectionModal.addEventListener('click', (e) => { if(e.target === selectionModal) closeSelectionModal() });
+            selectionModalConfirm.addEventListener('click', () => { if (currentSelectionCallback) { currentSelectionCallback(selectedIndices); } });
+            loadFileInput.addEventListener('change', (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const text = e.target.result; const parsedData = JSON.parse(text); loadGameData(parsedData, "File"); } catch (error) { console.error("Error reading save file:", error); showNotification("Load Failed: Invalid file format.", "red"); } }; reader.readAsText(file); event.target.value = null; });
+            openLeaderboardButton.addEventListener('click', () => { leaderboardNameInput.value = displayName; leaderboardModal.classList.remove('hidden'); fetchLeaderboard('money'); });
+            closeLeaderboardButton.addEventListener('click', () => leaderboardModal.classList.add('hidden'));
+            setNameButton.addEventListener('click', () => { const newName = leaderboardNameInput.value.trim(); if (newName) { displayName = newName; showNotification(`Name set to ${displayName}`, "green"); saveToLeaderboard(); } });
+            document.getElementById('lb-tab-money').addEventListener('click', () => fetchLeaderboard('money'));
+            document.getElementById('lb-tab-rebirths').addEventListener('click', () => fetchLeaderboard('rebirths'));
+            toggleSoundButton.addEventListener('click', () => { SoundManager.init(); const enabled = SoundManager.toggle(); toggleSoundButton.textContent = enabled ? "🔊" : "🔇"; showNotification(`Sound ${enabled ? 'Enabled' : 'Disabled'}`, "cyan"); });
+            baseContainer.addEventListener('mouseover', (e) => { const slot = e.target.closest('.base-slot'); if (!slot) return; const index = parseInt(slot.dataset.index, 10); const brainrot = baseSlots[index]; if (brainrot) { const sellPrice = Math.floor(brainrot.cost * SELL_MULTIPLIER); let tooltipHTML = `<div class="font-bold">${brainrot.name}</div><div>Sell: <span class="text-green-400">$${formatLargeNumber(sellPrice)}</span></div><div>Base MPS: <span class="text-yellow-400">${formatLargeNumber(brainrot.mps)}</span></div>`; if (brainrot.mutation && brainrot.mutation.name !== 'None') { tooltipHTML += `<div>${brainrot.mutation.name}: <span style="color: ${brainrot.mutation.color}">x${brainrot.mutation.multiplier} MPS</span></div>`; } if (brainrot.trait) { tooltipHTML += `<div>${brainrot.trait.name}: <span style="color: ${brainrot.trait.color}">x${brainrot.trait.multiplier} MPS</span></div>`; } globalTooltip.innerHTML = tooltipHTML; const rect = slot.getBoundingClientRect(); globalTooltip.classList.remove('hidden'); const tooltipRect = globalTooltip.getBoundingClientRect(); let top = rect.top - tooltipRect.height - 8; let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2); if (top < 0) { top = rect.bottom + 8; } if (left < 0) { left = 5; } if (left + tooltipRect.width > window.innerWidth) { left = window.innerWidth - tooltipRect.width - 5; } globalTooltip.style.top = `${top}px`; globalTooltip.style.left = `${left}px`; } });
+            baseContainer.addEventListener('mouseout', () => { globalTooltip.classList.add('hidden'); });
+            openLimitedButton.addEventListener('click', openLimitedItemModal);
+            closeLimitedItemButton.addEventListener('click', () => limitedItemModal.classList.add('hidden'));
+            
+            // Admin Machine Events
+            // Removed as requested
+
+            setupAdminPanel();
+            updateDerivedState();
+            initBase();
+            populateAdminDropdowns();
+            
+            // Fallback for Crafting UI
+            if (currentCraftRecipes.length === 0) {
+                // If global state isn't ready, populate with defaults
+                if (typeof craftRecipes !== 'undefined') {
+                    const defaultRecipes = Object.keys(craftRecipes).slice(0, 4);
+                    currentCraftRecipes = defaultRecipes;
+                    updateCraftUI();
+                } else {
+                    console.error("craftRecipes is undefined! Crafting system may not work.");
+                }
+            }
+
+            gameInterval = setInterval(gameLoop, 1000 / 60);
+            timerInterval = setInterval(updateTimers, 1000);
+            setTimeout(spawnBrainrotOnBelt, 1000);
+            checkTacoTuesday();
+            updateAllUI();
+        }
+
+        // --- RESTORED FUNCTIONS ---
+        function setupGlobalListeners() { if (!db) return; 
+            globalEventListener = onSnapshot(doc(db, globalEventsDocPath), (doc) => { if (doc.exists()) { const event = doc.data(); if (event.timestamp && Date.now() - event.timestamp.toMillis() < 10000) { handleGlobalEvent(event); } } }); 
+            traderListener = onSnapshot(doc(db, traderStateDocPath), (doc) => { if (doc.exists()) { const data = doc.data(); if (data.nextRefresh > Date.now()) { currentTraderOffers = data.offers; currentTraderNextRefresh = data.nextRefresh; updateTraderUI(); } else { checkAndRefreshGlobalState('trader'); } } else { checkAndRefreshGlobalState('trader'); } }); 
+            craftListener = onSnapshot(doc(db, craftStateDocPath), (doc) => { if (doc.exists()) { const data = doc.data(); if (data.nextRefresh > Date.now()) { currentCraftRecipes = data.recipes; currentCraftNextRefresh = data.nextRefresh; updateCraftUI(); } else { checkAndRefreshGlobalState('craft'); } } else { checkAndRefreshGlobalState('craft'); } }); 
+            limitedStockListener = onSnapshot(doc(db, limitedStockDocPath), (doc) => {
+                if (doc.exists()) {
+                    limitedStocks = doc.data() || {};
+                    updateLimitedUI();
+                } else {
+                    limitedStocks = {};
+                    updateLimitedUI();
+                }
+            });
+        }
+        function updateLimitedUI() {
+            // Update Admin Panel
+            const selected = jayceLimitedSelect ? jayceLimitedSelect.value : '';
+            if (selected && adminLimitedStockDisplay) {
+                adminLimitedStockDisplay.textContent = `Qty: ${limitedStocks[selected] || 0}`;
+            }
+            
+            // Update Client Button
+            let totalStock = 0;
+            for(let key in limitedStocks) { totalStock += limitedStocks[key] || 0; }
+            const countBtn = document.getElementById('limited-stock-count-btn');
+            if(countBtn) countBtn.textContent = totalStock;
+            
+            if (totalStock > 0) {
+                openLimitedButton.classList.remove('hidden');
+                openLimitedButton.classList.add('btn-pulse');
+            } else {
+                openLimitedButton.classList.add('hidden');
+                openLimitedButton.classList.remove('btn-pulse');
+                limitedItemModal.classList.add('hidden');
+            }
+        }
+        
+        async function checkAndRefreshGlobalState(type, force = false) { if (!db) return; const docPath = type === 'trader' ? traderStateDocPath : craftStateDocPath; const duration = 10 * 60 * 1000; try { await runTransaction(db, async (transaction) => { const ref = doc(db, docPath); const sfDoc = await transaction.get(ref); if (!sfDoc.exists() || sfDoc.data().nextRefresh <= Date.now() || force) { let newData = {}; if (type === 'trader') { const keys = Object.keys(traderExclusives); const randomOffers = []; for(let i=0; i<4; i++) { const item = keys[Math.floor(Math.random() * keys.length)]; if (Math.random() < 0.5) { const data = findBrainrotData(item); const sameRarityItems = allBrainrotData.filter(b => b.rarity === data.rarity); const reqItem = sameRarityItems[Math.floor(Math.random() * sameRarityItems.length)]; randomOffers.push({ item: item, req: { type: 'Item', value: reqItem.name, amount: 1 } }); } else { randomOffers.push(item); } } newData = { offers: randomOffers, nextRefresh: Date.now() + duration }; } else { const keys = Object.keys(craftRecipes); const randomRecipes = []; for(let i=0; i<4; i++) { randomRecipes.push(keys[Math.floor(Math.random() * keys.length)]); } newData = { recipes: randomRecipes, nextRefresh: Date.now() + duration }; } transaction.set(ref, newData); } }); if(force) showNotification(`Forced ${type} refresh!`, "green"); } catch (e) { console.log("State refresh transaction ignored/failed:", e); } }
+        function setupAdminPanel() { 
+            document.getElementById('jayce-send-chat').addEventListener('click', () => { const message = document.getElementById('jayce-chat-input').value; const displayName = document.getElementById('jayce-display-name').value || 'Admin'; if(message) { sendGlobalEvent('chat', { message: message, displayName: displayName }); document.getElementById('jayce-chat-input').value = ''; } }); 
+            document.getElementById('jayce-spawn-button').addEventListener('click', () => { const value = document.getElementById('jayce-spawn-select').value; const mutation = mutations[document.getElementById('jayce-spawn-mutation').value]; let traitName = document.getElementById('jayce-spawn-trait').value; let trait = null; if (traitName === 'All') { const allTraits = Object.values(weatherEvents); trait = allTraits[Math.floor(Math.random() * allTraits.length)]; } else if (traitName !== 'None') { trait = weatherEvents[traitName]; } if (value.startsWith('lucky_block_')) { const blockType = value.replace('lucky_block_', ''); sendGlobalEvent('spawn_lucky_block', { name: blockType }); } else { sendGlobalEvent('spawn', { name: value, mutation, trait }); } }); 
+            document.getElementById('jayce-give-money').addEventListener('click', () => { const amount = parseFloat(document.getElementById('jayce-money-input').value); if (!isNaN(amount)) { money += amount; updateAllUI(); } }); 
+            document.getElementById('jayce-give-button').addEventListener('click', () => { const brainrotName = document.getElementById('jayce-give-select').value; const emptySlotIndex = baseSlots.findIndex(s => s === null); if (emptySlotIndex === -1) { showNotification("Base is full!", "red"); return; } const data = findBrainrotData(brainrotName); if (data) { const mutation = mutations[document.getElementById('jayce-give-mutation').value]; let traitName = document.getElementById('jayce-give-trait').value; let trait = null; if (traitName === 'All') { const allTraits = Object.values(weatherEvents); trait = allTraits[Math.floor(Math.random() * allTraits.length)]; } else if (traitName !== 'None') { trait = weatherEvents[traitName]; } baseSlots[emptySlotIndex] = { ...data, mutation, trait }; discoveredBrainrots.add(data.name); renderBase(); updateAllUI(); SoundManager.playSpawn(data.rarity, data.name); } }); 
+            document.getElementById('jayce-give-rebirth').addEventListener('click', () => { const level = parseInt(document.getElementById('jayce-rebirth-input').value, 10); if (!isNaN(level) && level >= 0) { rebirths = level; updateDerivedState(); initBase(); renderBase(); updateAllUI(); } }); 
+            document.getElementById('jayce-give-luck').addEventListener('click', () => { const amount = parseFloat(document.getElementById('jayce-luck-input').value); if (!isNaN(amount)) { luck += amount; showNotification(`Luck set to ${luck}`, 'cyan');} }); 
+            document.getElementById('jayce-unlock-index').addEventListener('click', () => { allBrainrotData.forEach(b => discoveredBrainrots.add(b.name)); updateIndexCounter(); showNotification('Index Unlocked!', 'green'); }); 
+            document.getElementById('jayce-event-taco').addEventListener('click', () => sendGlobalEvent('taco_event', {})); 
+            document.getElementById('jayce-event-run-all').addEventListener('click', () => sendGlobalEvent('all_events', {})); 
+            document.getElementById('jayce-event-stop-all').addEventListener('click', () => sendGlobalEvent('stop_all_events', {})); 
+            document.getElementById('jayce-event-run-global').addEventListener('click', () => { const eventName = document.getElementById('jayce-event-select').value; sendGlobalEvent('event', { name: eventName }); }); 
+            document.getElementById('jayce-add-trader-btn').addEventListener('click', () => { const item = document.getElementById('jayce-add-trader-select').value; const amount = parseInt(document.getElementById('jayce-trader-cost-amount').value); const type = document.getElementById('jayce-trader-cost-type').value; const targetValue = document.getElementById('jayce-trader-cost-target').value; const tradeData = { item: item, req: { type: type, value: targetValue, amount: amount } }; adminAddStock('trader', tradeData); }); 
+            document.getElementById('jayce-add-craft-btn').addEventListener('click', () => { const resultItem = document.getElementById('jayce-add-craft-select').value; const ingredientRows = document.querySelectorAll('#jayce-craft-ingredients-container > div'); const ingredients = {}; let hasIngredients = false; ingredientRows.forEach(row => { const count = parseInt(row.querySelector('.ingredient-count').value); const name = row.querySelector('.ingredient-name').value; if (name && name !== 'None' && count > 0) { ingredients[name] = count; hasIngredients = true; } }); if (!hasIngredients) { adminAddStock('craft', resultItem); } else { const recipeData = { name: resultItem, ingredients: ingredients }; adminAddStock('craft', recipeData); } }); 
+            document.getElementById('jayce-force-refresh-trader').addEventListener('click', () => { checkAndRefreshGlobalState('trader', true); }); 
+            document.getElementById('jayce-force-refresh-craft').addEventListener('click', () => { checkAndRefreshGlobalState('craft', true); }); 
+            document.getElementById('jayce-trader-cost-type').addEventListener('change', (e) => { const targetSelect = document.getElementById('jayce-trader-cost-target'); targetSelect.innerHTML = ''; if(e.target.value === 'Rarity') { Object.keys(rarities).forEach(r => { const opt = document.createElement('option'); opt.value = r; opt.textContent = r; targetSelect.appendChild(opt); }); } else { const allNames = allBrainrotData.map(b => b.name).sort(); allNames.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name; targetSelect.appendChild(opt); }); } });
+            
+            // Populate Limited Item Select
+            jayceLimitedSelect.innerHTML = '';
+            for (let key in limitedItemsConfig) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = key;
+                jayceLimitedSelect.appendChild(opt);
+            }
+            jayceLimitedSelect.addEventListener('change', updateLimitedUI);
+
+            jayceSetLimitedStock.addEventListener('click', async () => { 
+                const qty = parseInt(jayceLimitedStockInput.value); 
+                const key = jayceLimitedSelect.value;
+                if(!isNaN(qty) && key) { 
+                    await setDoc(doc(db, limitedStockDocPath), { [key]: qty }, { merge: true }); 
+                    showNotification(`${key} Stock set to ${qty}`, "green"); 
+                } 
+            });
+            jayceRemoveLimitedStock.addEventListener('click', async () => { 
+                const key = jayceLimitedSelect.value;
+                if(key) {
+                    await setDoc(doc(db, limitedStockDocPath), { [key]: 0 }, { merge: true }); 
+                    showNotification(`${key} Removed`, "red"); 
+                }
+            });
+
+            // Santa Gift Spawn
+            jayceSpawnSantaGift.addEventListener('click', () => {
+                sendGlobalEvent('spawn_lucky_block', { name: 'Santa Gift' });
+            });
+        }
+        function getTrashData() { return { name: 'Literal Trash', icon: '🗑️', cost: 0, mps: 1, rarity: 'Common' }; }
+        async function adminAddStock(type, dataPayload) { if (!db || !isAdmin) return; const docPath = type === 'trader' ? traderStateDocPath : craftStateDocPath; const field = type === 'trader' ? 'offers' : 'recipes'; try { await runTransaction(db, async (transaction) => { const ref = doc(db, docPath); const sfDoc = await transaction.get(ref); if (sfDoc.exists()) { const data = sfDoc.data(); const currentList = data[field] || []; currentList.push(dataPayload); transaction.update(ref, { [field]: currentList }); } else { const newData = { [field]: [dataPayload], nextRefresh: Date.now() + 600000 }; transaction.set(ref, newData); } }); const name = (typeof dataPayload === 'string') ? dataPayload : dataPayload.item || dataPayload.name; showNotification(`Added ${name} to ${type === 'trader' ? 'Trader' : 'Craft Machine'}!`, "green"); } catch (e) { console.error("Stock update failed:", e); showNotification("Failed to update stock.", "red"); } }
+        function handleGlobalEvent(event) { if (!event || !event.type) return; switch(event.type) { case 'chat': showNotification(`${event.displayName || 'JAYCE'}: ${event.message}`, 'white'); break; case 'spawn': spawnBrainrotByName(event.name, event.mutation, event.trait); break; case 'spawn_lucky_block': spawnLuckyBlockOnBelt(event.name); break; case 'event': startWeatherEvent(event.name); break; case 'taco_event': startTacoEvent(); break; case 'all_events': for (const eventName in weatherEvents) { startWeatherEvent(eventName); } break; case 'stop_all_events': activeEvents = {}; baseSlots.forEach(slot => { if (slot) slot.trait = null; }); renderBase(); updateAllUI(); updateActiveEventsUI(); showNotification("All events have been stopped.", "gray"); break; } }
+        async function sendGlobalEvent(type, payload) { if (!isAdmin || !db) return; try { await setDoc(doc(db, globalEventsDocPath), { ...payload, type: type, timestamp: serverTimestamp() }); showNotification("Global command sent!", "cyan"); } catch (error) { console.error("Error sending global event:", error); } }
+        function openJayceModal() { jayceModal.classList.remove('hidden'); }
+        function closeJayceModal() { jayceModal.classList.add('hidden'); }
+        function jayceLogin() { const inputPassword = jaycePasswordInput.value; if (inputPassword === JAYCE_PASSWORD) { isAdmin = true; jaycePasswordScreen.classList.add('hidden'); jayceCommandScreen.classList.remove('hidden'); jayceError.textContent = ''; showNotification("Jayce Mode Activated", "cyan"); } else { isAdmin = false; jayceError.textContent = 'Incorrect Password.'; } jaycePasswordInput.value = ''; }
+        function jayceLogout() { isAdmin = false; jaycePasswordScreen.classList.remove('hidden'); jayceCommandScreen.classList.add('hidden'); closeJayceModal(); showNotification("Jayce Mode Deactivated", "gray"); }
+        function populateAdminDropdowns() { const spawnSelect = document.getElementById('jayce-spawn-select'); const giveSelect = document.getElementById('jayce-give-select'); const spawnMutation = document.getElementById('jayce-spawn-mutation'); const giveMutation = document.getElementById('jayce-give-mutation'); const spawnTrait = document.getElementById('jayce-spawn-trait'); const giveTrait = document.getElementById('jayce-give-trait'); const eventSelect = document.getElementById('jayce-event-select'); const traderAddSelect = document.getElementById('jayce-add-trader-select'); const craftAddSelect = document.getElementById('jayce-add-craft-select'); spawnSelect.innerHTML = ''; giveSelect.innerHTML = ''; spawnMutation.innerHTML = ''; giveMutation.innerHTML = ''; spawnTrait.innerHTML = ''; giveTrait.innerHTML = ''; eventSelect.innerHTML = ''; traderAddSelect.innerHTML = ''; craftAddSelect.innerHTML = ''; const raritySortOrder = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Brainrot God', 'Secret', 'OG']; allBrainrotData.sort((a, b) => { const rarityA = raritySortOrder.indexOf(a.rarity); const rarityB = raritySortOrder.indexOf(b.rarity); return rarityA !== rarityB ? rarityA - rarityB : a.name.localeCompare(b.name); }); let currentRarity = ''; allBrainrotData.forEach(b => { if (b.rarity !== currentRarity) { currentRarity = b.rarity; if(raritySortOrder.includes(currentRarity)) { const optgroupGive = document.createElement('optgroup'); optgroupGive.label = currentRarity; giveSelect.appendChild(optgroupGive); const optgroupSpawn = document.createElement('optgroup'); optgroupSpawn.label = currentRarity; spawnSelect.appendChild(optgroupSpawn); const optgroupTrader = document.createElement('optgroup'); optgroupTrader.label = currentRarity; traderAddSelect.appendChild(optgroupTrader); } } const option = document.createElement('option'); option.value = b.name; option.textContent = b.name; if(giveSelect.querySelector(`optgroup[label="${currentRarity}"]`)) { giveSelect.querySelector(`optgroup[label="${currentRarity}"]`).appendChild(option.cloneNode(true)); spawnSelect.querySelector(`optgroup[label="${currentRarity}"]`).appendChild(option.cloneNode(true)); traderAddSelect.querySelector(`optgroup[label="${currentRarity}"]`).appendChild(option.cloneNode(true)); } }); allBrainrotData.forEach(b => { const option = document.createElement('option'); option.value = b.name; option.textContent = b.name; craftAddSelect.appendChild(option); }); const ingredientSelects = document.querySelectorAll('.ingredient-name'); ingredientSelects.forEach(sel => { sel.innerHTML = '<option value="None">None</option>'; allBrainrotData.forEach(b => { const opt = document.createElement('option'); opt.value = b.name; opt.textContent = b.name; sel.appendChild(opt); }); }); const luckyBlockOptGroup = document.createElement('optgroup'); luckyBlockOptGroup.label = "Lucky Blocks"; Object.keys(luckyBlockManifest).forEach(name => { const option = document.createElement('option'); option.value = `lucky_block_${name}`; option.textContent = name; luckyBlockOptGroup.appendChild(option); }); spawnSelect.appendChild(luckyBlockOptGroup); Object.values(mutations).forEach(m => { const option = document.createElement('option'); option.value = m.name; option.textContent = m.name; spawnMutation.appendChild(option.cloneNode(true)); giveMutation.appendChild(option.cloneNode(true)); }); spawnTrait.innerHTML = '<option value="None">None</option><option value="All">All (Random)</option>'; giveTrait.innerHTML = '<option value="None">None</option><option value="All">All (Random)</option>'; Object.values(weatherEvents).forEach(e => { const option = document.createElement('option'); option.value = e.name; option.textContent = e.name; spawnTrait.appendChild(option.cloneNode(true)); giveTrait.appendChild(option.cloneNode(true)); eventSelect.appendChild(option.cloneNode(true)); }); const targetSelect = document.getElementById('jayce-trader-cost-target'); targetSelect.innerHTML = ''; Object.keys(rarities).forEach(r => { const opt = document.createElement('option'); opt.value = r; opt.textContent = r; targetSelect.appendChild(opt); }); }
+        function showNotification(message, color = 'white') { if (!notification) return; notification.textContent = message; notification.style.borderColor = color; notification.style.top = '20px'; notification.style.visibility = 'visible'; notification.style.opacity = '1'; setTimeout(() => { notification.style.top = '-50px'; notification.style.opacity = '0'; notification.style.visibility = 'hidden'; }, 3000); }
+        function getRandomRarity() { let adjustedWeights = JSON.parse(JSON.stringify(rarities)); let commonWeight = adjustedWeights['Common'].weight; let eventLuck = Object.values(activeEvents).reduce((s, e) => s + (e.luck || 0), 0); let reduction = Math.min(commonWeight * 0.85, (rebirths * 5) + luck + eventLuck); adjustedWeights['Common'].weight -= reduction; let increasePerOther = reduction / (Object.keys(adjustedWeights).length - 1); for(const r in adjustedWeights) { if (r !== 'Common') { adjustedWeights[r].weight += increasePerOther; } } const currentTotalWeight = Object.values(adjustedWeights).reduce((sum, r) => sum + r.weight, 0); let random = Math.random() * currentTotalWeight; for (const rarityName in adjustedWeights) { const rarity = adjustedWeights[rarityName]; if (random < rarity.weight) return rarityName; random -= rarity.weight; } }
+        function getRandomMutation() { let eventRainbow = Object.values(activeEvents).some(e => e.rainbow); if(eventRainbow && Math.random() < 0.25) return mutations['Rainbow']; let rand = Math.random(); if (rand < mutations['Rainbow'].chance) return mutations['Rainbow']; if (rand < mutations['Diamond'].chance) return mutations['Diamond']; if (rand < mutations['Gold'].chance) return mutations['Gold']; return mutations['None']; }
+        async function saveToLeaderboard() { if (!db || !userId) return; try { await setDoc(doc(db, leaderboardCollectionPath, userId), { displayName: displayName, money: money, rebirths: rebirths, timestamp: serverTimestamp() }); console.log("Leaderboard updated"); } catch (e) { console.error("Leaderboard save error", e); } }
+        async function fetchLeaderboard(sortBy = 'money') { if (!db) return; leaderboardContent.innerHTML = '<p class="text-center text-gray-400 mt-4">Loading...</p>'; document.getElementById('lb-tab-money').classList.toggle('btn-blue', sortBy === 'money'); document.getElementById('lb-tab-money').classList.toggle('btn-gray', sortBy !== 'money'); document.getElementById('lb-tab-rebirths').classList.toggle('btn-blue', sortBy === 'rebirths'); document.getElementById('lb-tab-rebirths').classList.toggle('btn-gray', sortBy !== 'rebirths'); try { const querySnapshot = await getDocs(collection(db, leaderboardCollectionPath)); let players = []; querySnapshot.forEach((doc) => { const d = doc.data(); players.push({ name: d.displayName || "Unknown", money: d.money || 0, rebirths: d.rebirths || 0 }); }); players.sort((a, b) => b[sortBy] - a[sortBy]); players = players.slice(0, 50); let html = `<table class="leaderboard-table"><thead><tr><th>#</th><th>Name</th><th>${sortBy === 'money' ? 'Money' : 'Rebirths'}</th></tr></thead><tbody>`; players.forEach((p, i) => { const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : ''; const value = sortBy === 'money' ? `$${formatLargeNumber(p.money)}` : p.rebirths; html += `<tr class="${rankClass}"><td>${i + 1}</td><td>${p.name}</td><td>${value}</td></tr>`; }); html += '</tbody></table>'; leaderboardContent.innerHTML = html; } catch (e) { console.error("Fetch leaderboard failed", e); leaderboardContent.innerHTML = '<p class="text-center text-red-400 mt-4">Failed to load leaderboard.</p>'; } }
+        function renderIndex() { indexGridContainer.innerHTML = ''; const categorizedBrainrots = {}; allBrainrotData.forEach(brainrot => { if (!categorizedBrainrots[brainrot.rarity]) { categorizedBrainrots[brainrot.rarity] = []; } if (!categorizedBrainrots[brainrot.rarity].some(b => b.name === brainrot.name)) { categorizedBrainrots[brainrot.rarity].push(brainrot); } }); const displayOrder = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Brainrot God', 'Secret', 'OG', 'Limited']; for (const rarityName of displayOrder) { if (!categorizedBrainrots[rarityName] || categorizedBrainrots[rarityName].length === 0) continue; const rarityData = rarities[rarityName] || { color: '#00ffff', glow: '#00ffff' }; let sectionHTML = `<div class="col-span-full mt-4 first:mt-0"><h3 class="text-xl font-bold" style="color:${rarityData.color}; text-shadow: 0 0 5px ${rarityData.glow};">${rarityName}</h3><hr class="border-gray-600 my-1"></div><div class="col-span-full index-grid">`; categorizedBrainrots[rarityName].sort((a, b) => a.cost - b.cost); categorizedBrainrots[rarityName].forEach(brainrot => { const isDiscovered = discoveredBrainrots.has(brainrot.name); sectionHTML += `<div class="index-item ${isDiscovered ? '' : 'undiscovered'}"><div class="index-item-icon">${isDiscovered ? brainrot.icon : '?'}</div><div class="index-item-name">${isDiscovered ? brainrot.name : '???'}</div></div>`; }); sectionHTML += '</div>'; indexGridContainer.innerHTML += sectionHTML; } }
+        function renderRitualModal() { ritualList.innerHTML = ''; const baseCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.name] = (acc[b.name] || 0) + 1; return acc; }, {}); const hasEmptySlot = baseSlots.some(s => s === null); for (const ritualKey in ritualRecipes) { const resultData = findBrainrotData(ritualKey); const recipe = ritualRecipes[ritualKey]; let canCraft = hasEmptySlot; let ingredientsHTML = ''; for (const ingredientName in recipe.ingredients) { const required = recipe.ingredients[ingredientName]; const owned = baseCounts[ingredientName] || 0; const hasEnough = owned >= required; if (!hasEnough) canCraft = false; ingredientsHTML += `<li class="${hasEnough ? 'requirement-met' : 'requirement-not-met'}">${ingredientName} (${owned}/${required})</li>`; } const ritualEl = document.createElement('div'); ritualEl.className = 'bg-gray-700 p-3 rounded-lg'; ritualEl.innerHTML = `<div class="flex items-center justify-between"><div><h4 class="font-bold text-lg">${resultData.name}</h4><ul class="text-sm list-disc list-inside">${ingredientsHTML}</ul></div><button class="btn btn-red perform-ritual-btn" data-ritual-key="${ritualKey}" ${canCraft ? '' : 'disabled'}>Select Items</button></div>`; ritualList.appendChild(ritualEl); } }
+        function performRitual(ritualKey, indicesToUse) { const hasEmptySlot = baseSlots.some(s => s === null); if (!hasEmptySlot) { showNotification("Base is full!", "red"); return; } indicesToUse.forEach(index => { baseSlots[index] = null; }); const emptySlotIndex = baseSlots.findIndex(s => s === null); const resultData = findBrainrotData(ritualKey); baseSlots[emptySlotIndex] = { ...resultData, mutation: getRandomMutation(), trait: null }; discoveredBrainrots.add(resultData.name); showNotification(`Ritual complete! You crafted a ${resultData.name}!`, rarities[resultData.rarity] ? rarities[resultData.rarity].color : '#fff'); renderBase(); updateAllUI(); renderRitualModal(); SoundManager.playSpawn(resultData.rarity, resultData.name); }
+        function updateCraftUI() { craftMachineList.innerHTML = ''; if (currentCraftRecipes.length === 0) { craftMachineList.innerHTML = '<p>Refining recipes... (Check back soon)</p>'; return; } const baseCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.name] = (acc[b.name] || 0) + 1; return acc; }, {}); const hasEmptySlot = baseSlots.some(s => s === null); currentCraftRecipes.forEach(craftKey => { let recipeName, customRecipe; if (typeof craftKey === 'string') { recipeName = craftKey; } else if (craftKey.name) { recipeName = craftKey.name; customRecipe = craftKey; } else { return; } const resultData = findBrainrotData(recipeName); if (!resultData) return; let recipe; if (customRecipe) { recipe = customRecipe; } else { recipe = craftRecipes[recipeName]; if (!recipe) { recipe = { ingredients: { [resultData.rarity]: 5 }, isGeneric: true }; } } let canCraft = hasEmptySlot; let ingredientsHTML = ''; if (recipe.isGeneric) { const requiredRarity = Object.keys(recipe.ingredients)[0]; const requiredAmount = Object.values(recipe.ingredients)[0]; const ownedRarityCount = baseSlots.filter(s => s && s.rarity === requiredRarity).length; const hasEnough = ownedRarityCount >= requiredAmount; if (!hasEnough) canCraft = false; ingredientsHTML = `<li class="${hasEnough ? 'requirement-met' : 'requirement-not-met'}">${requiredAmount}x ${requiredRarity} (Owned: ${ownedRarityCount})</li>`; } else { for (const ingredientName in recipe.ingredients) { const required = recipe.ingredients[ingredientName]; const owned = baseCounts[ingredientName] || 0; const hasEnough = owned >= required; if (!hasEnough) canCraft = false; ingredientsHTML += `<li class="${hasEnough ? 'requirement-met' : 'requirement-not-met'}">${ingredientName} (${owned}/${required})</li>`; } } const craftEl = document.createElement('div'); craftEl.className = 'bg-gray-700 p-3 rounded-lg'; const recipeIndex = currentCraftRecipes.indexOf(craftKey); craftEl.innerHTML = `<div class="flex items-center justify-between"><div><h4 class="font-bold text-lg">${resultData.name}</h4><ul class="text-sm list-disc list-inside">${ingredientsHTML}</ul></div><button class="btn btn-orange perform-craft-btn" data-recipe-index="${recipeIndex}" ${canCraft ? '' : 'disabled'}>Select Items</button></div>`; craftMachineList.appendChild(craftEl); }); }
+        function performCraft(craftKey, indicesToUse) { const hasEmptySlot = baseSlots.some(s => s === null); if (!hasEmptySlot) { showNotification("Base is full!", "red"); return; } indicesToUse.forEach(index => { baseSlots[index] = null; }); const emptySlotIndex = baseSlots.findIndex(s => s === null); const resultData = findBrainrotData(craftKey); baseSlots[emptySlotIndex] = { ...resultData, mutation: getRandomMutation(), trait: null }; discoveredBrainrots.add(resultData.name); showNotification(`Craft complete! You made a ${resultData.name}!`, rarities[resultData.rarity].color); renderBase(); updateAllUI(); updateCraftUI(); SoundManager.playSpawn(resultData.rarity, resultData.name); }
+        function renderFuseModal(type) { fuseModal.dataset.type = type; fuseModalTitle.textContent = `${type} Fuse`; fuseModalList.innerHTML = ''; const baseCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.rarity] = (acc[b.rarity] || 0) + 1; return acc; }, {}); const hasEmptySlot = baseSlots.some(s => s === null); fuseRecipes[type].forEach(recipe => { const owned = baseCounts[recipe.inputRarity] || 0; const hasEnough = owned >= recipe.count; const canFuse = hasEmptySlot && hasEnough; const lowestRarity = recipe.output.map(name => findBrainrotData(name)?.rarity).sort((a, b) => { const order = ['Common', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Brainrot God', 'Secret', 'OG']; return order.indexOf(a) - order.indexOf(b); })[0]; const resultRarity = lowestRarity || 'Unknown'; const resultRarityColor = rarities[resultRarity]?.color || '#fff'; const fuseEl = document.createElement('div'); fuseEl.className = 'bg-gray-700 p-3 rounded-lg'; fuseEl.innerHTML = `<div class="flex items-center justify-between"><div><h4 class="font-bold text-lg">Fuse ${recipe.count} <span style="color: ${rarities[recipe.inputRarity].color}">${recipe.inputRarity}</span></h4><p class="text-sm">Result: 1x Random <span style="color: ${resultRarityColor}">${resultRarity}</span></p><p class="text-sm ${hasEnough ? 'requirement-met' : 'requirement-not-met'}">Owned: ${owned}/${recipe.count}</p></div><button class="btn btn-cyan perform-fuse-btn" data-input-type="${type}" data-input-rarity="${recipe.inputRarity}" data-input-count="${recipe.count}" ${canFuse ? '' : 'disabled'}>Select Items</button></div>`; fuseModalList.appendChild(fuseEl); }); }
+        function performFuse(inputRarity, type, indicesToUse) { const recipe = fuseRecipes[type].find(r => r.inputRarity === inputRarity); if (!recipe) return; const hasEmptySlot = baseSlots.some(s => s === null); if (!hasEmptySlot) { showNotification("Base is full!", "red"); return; } indicesToUse.forEach(index => { baseSlots[index] = null; }); const emptySlotIndex = baseSlots.findIndex(s => s === null); const resultName = recipe.output[Math.floor(Math.random() * recipe.output.length)]; const resultData = findBrainrotData(resultName); let mutation = getRandomMutation(); if( (type === 'Normal' && activeEvents['Fuse Luck']) || (type === 'Witch' && activeEvents['Witch Luck']) || (type === 'Santa' && activeEvents['Santa Fuse Luck']) ) { if (Math.random() < 0.25) mutation = mutations['Gold']; if (Math.random() < 0.10) mutation = mutations['Diamond']; if (Math.random() < 0.05) mutation = mutations['Rainbow']; } baseSlots[emptySlotIndex] = { ...resultData, mutation: mutation, trait: null }; discoveredBrainrots.add(resultData.name); showNotification(`Fuse complete! You got a ${resultData.name}!`, rarities[resultData.rarity].color); renderBase(); updateAllUI(); renderFuseModal(type); SoundManager.playSpawn(resultData.rarity, resultData.name); }
+        function updateTraderUI() { traderList.innerHTML = ''; if (currentTraderOffers.length === 0) { traderList.innerHTML = '<p>Restocking... (Check back soon)</p>'; return; } const hasEmptySlot = baseSlots.some(s => s === null); const baseRarityCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.rarity] = (acc[b.rarity] || 0) + 1; return acc; }, {}); const baseItemCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.name] = (acc[b.name] || 0) + 1; return acc; }, {}); currentTraderOffers.forEach(offerEntry => { let offerName = ''; let requirement = {}; if (typeof offerEntry === 'string') { offerName = offerEntry; const data = findBrainrotData(offerName); if (data) { requirement = { type: 'Rarity', value: data.rarity, amount: 1 }; } } else { offerName = offerEntry.item; requirement = offerEntry.req; } const data = findBrainrotData(offerName); if (!data) return; let ownedCount = 0; if (requirement.type === 'Rarity') { ownedCount = baseRarityCounts[requirement.value] || 0; } else { ownedCount = baseItemCounts[requirement.value] || 0; } const canAfford = ownedCount >= requirement.amount; const canTrade = hasEmptySlot && canAfford; const traderEl = document.createElement('div'); traderEl.className = 'bg-gray-700 p-3 rounded-lg flex items-center justify-between'; traderEl.innerHTML = `<div class="flex items-center gap-3"><div class="text-3xl">${data.icon}</div><div><h4 class="font-bold">${data.name} <span style="color: ${rarities[data.rarity].color}">(${data.rarity})</span></h4><div class="text-sm">Trade: ${requirement.amount}x <span style="color: ${requirement.type === 'Rarity' ? rarities[requirement.value].color : '#fff'}">${requirement.value}</span></div><div class="text-sm ${canAfford ? 'text-green-400' : 'text-red-500'}">Owned: ${ownedCount}</div></div></div><button class="btn btn-blue perform-trade-btn" data-target-item="${data.name}" data-cost-type="${requirement.type}" data-cost-value="${requirement.value}" data-cost-amount="${requirement.amount}" ${canTrade ? '' : 'disabled'}>Trade</button>`; traderList.appendChild(traderEl); }); }
+        function openTraderSelectionModal(targetItemName, costType, costValue, costAmount) { selectionModalTitle.textContent = `Trade for: ${targetItemName}`; const amount = parseInt(costAmount); const isRarity = (costType === 'Rarity'); const requiredItems = [{ name: costValue, count: amount, isRarity: isRarity }]; selectedIndices = []; selectionModalConfirm.disabled = true; currentSelectionCallback = (confirmedIndices) => { performTrade(targetItemName, confirmedIndices); closeSelectionModal(); }; renderSelectionModal(requiredItems); selectionModal.classList.remove('hidden'); }
+        function performTrade(targetItemName, indicesToUse) { const hasEmptySlot = baseSlots.some(s => s === null); if (!hasEmptySlot) { showNotification("Base is full!", "red"); return; } indicesToUse.forEach(index => { baseSlots[index] = null; }); const emptySlotIndex = baseSlots.findIndex(s => s === null); const data = findBrainrotData(targetItemName); baseSlots[emptySlotIndex] = { ...data, mutation: getRandomMutation(), trait: null }; discoveredBrainrots.add(targetItemName); showNotification(`Traded for ${targetItemName}!`, "green"); renderBase(); updateAllUI(); updateTraderUI(); SoundManager.playBuy(); }
+        async function saveGame() { if (!db || !userId) { showNotification("Cannot save: Not connected to cloud.", "red"); return; } const safeBaseSlots = baseSlots.map(slot => { if (!slot) return null; const { element, position, ...cleanSlot } = slot; return cleanSlot; }); const saveData = { money: money, baseSlots: safeBaseSlots, discovered: Array.from(discoveredBrainrots), rebirths: rebirths, luck: luck, activeEvents: activeEvents, dealerStock: currentTraderOffers, timestamp: Date.now(), displayName: displayName }; try { await setDoc(doc(db, userSaveDocPath), saveData); showNotification("Game Saved to Cloud!", "green"); } catch (error) { console.error("Failed to save game:", error); showNotification("Save Failed!", "red"); } }
+        async function loadGame() { if (!db || !userId) { showNotification("Not connected to cloud.", "red"); return; } try { const docSnap = await getDoc(doc(db, userSaveDocPath)); if (docSnap.exists()) { loadGameData(docSnap.data(), "Cloud"); } else { showNotification("No cloud save found. Starting new game.", "cyan"); loadGameData({}, "New"); } } catch (error) { console.error("Failed to load save data:", error); showNotification("Load Failed: Could not reach cloud save.", "red"); loadGameData({}, "Offline"); } }
+        function saveGameToFile() { const safeBaseSlots = baseSlots.map(slot => { if (!slot) return null; const { element, position, ...cleanSlot } = slot; return cleanSlot; }); const saveData = { money: money, baseSlots: safeBaseSlots, discovered: Array.from(discoveredBrainrots), rebirths: rebirths, luck: luck, activeEvents: activeEvents, dealerStock: currentTraderOffers, timestamp: Date.now(), displayName: displayName }; const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(saveData)); const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", `brainrot_tycoon_save_${Date.now()}.json`); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove(); showNotification("Game Saved to File!", "green"); }
+        function loadGameFromFile() { loadFileInput.click(); }
+        function loadGameData(parsedData, source = "File") { try { money = parsedData.money || 100; rebirths = parsedData.rebirths || 0; luck = parsedData.luck || 0; activeEvents = parsedData.activeEvents || {}; displayName = parsedData.displayName || "Brainrotter"; updateDerivedState(); initBase(); const rawSlots = parsedData.baseSlots || []; for(let i = 0; i < maxBaseSlots; i++) { const slotData = rawSlots[i]; if (slotData && slotData.name) { const freshData = findBrainrotData(slotData.name); if (freshData) { baseSlots[i] = { ...freshData, mutation: slotData.mutation || mutations['None'], trait: slotData.trait || null }; } else { console.warn(`Removed invalid item from save: ${slotData.name}`); baseSlots[i] = null; } } else { baseSlots[i] = null; } } discoveredBrainrots = new Set(parsedData.discovered || []); renderBase(); updateAllUI(); updateActiveEventsUI(); showNotification(`Game Loaded from ${source}!`, "green"); } catch (error) { console.error("Failed to load save data:", error); showNotification(`Load Failed: Invalid ${source} data.`, "red"); } }
+        function openCorruptorModal() { renderCorruptorModal(); corruptorModal.classList.remove('hidden'); }
+        function closeCorruptorModal() { corruptorModal.classList.add('hidden'); }
+        function renderCorruptorModal() { corruptorList.innerHTML = ` <div class="col-span-full text-center p-4"> <p class="mb-4">Select an item to corrupt. It might become Glitched (OP, but has 1/60 chance per tick to destroy another item), Mutated, or Trash.</p> <button class="btn btn-red w-full py-4 text-xl corrupt-btn">Select Item to Corrupt ($100M)</button> </div> `; }
+        function openCorruptorSelection() { if (money < 100000000) { showNotification("Not enough money ($100M required)!", "red"); return; } selectionModalTitle.textContent = "Select Item to Corrupt"; selectionModalGrid.innerHTML = ''; const availableItems = baseSlots.map((slot, index) => ({ slot, index })).filter(item => item.slot !== null); if (availableItems.length === 0) { selectionModalGrid.innerHTML = `<p class="col-span-full text-center">Base is empty.</p>`; } else { availableItems.forEach(item => { const brainrot = item.slot; const index = item.index; const rarityData = rarities[brainrot.rarity] || { color: '#fff', glow: '#fff' }; let mutationIcon = ''; if (brainrot.mutation && brainrot.mutation.name !== 'None') { mutationIcon = `<div class="mutation-icon" style="background: ${brainrot.mutation.color};">${brainrot.mutation.icon}</div>`; } let traitIcon = ''; if (brainrot.trait) { traitIcon = `<div class="trait-icon" style="color: ${brainrot.trait.color};">${brainrot.trait.icon}</div>`; } const slot = document.createElement('div'); slot.className = 'base-slot selectable'; slot.dataset.index = index; slot.innerHTML = `<div class="base-item" style="border-color: ${rarityData.color}; background-color: #374151;">${brainrot.icon}${mutationIcon}${traitIcon}</div>`; slot.onclick = () => { selectedIndices = [index]; document.querySelectorAll('.base-slot.selectable').forEach(s => s.classList.remove('selected')); slot.classList.add('selected'); selectionModalConfirm.disabled = false; }; selectionModalGrid.appendChild(slot); }); } selectionModalPrompt.textContent = "Risk it all? (Select 1)"; selectedIndices = []; selectionModalConfirm.disabled = true; currentSelectionCallback = (indices) => { if (indices.length > 0) { performCorruption(indices[0]); } closeSelectionModal(); }; selectionModal.classList.remove('hidden'); }
+        function performCorruption(index) { if (money < 100000000) return; money -= 100000000; const item = baseSlots[index]; const rand = Math.random(); if (rand < 0.20) { const glitchTrait = { name: 'Glitched', multiplier: 6, icon: '👾', color: '#ec4899' }; baseSlots[index] = { ...item, trait: glitchTrait }; showNotification("CORRUPTION SUCCESS! Item is now Glitched (6x MPS)! Be careful, it's unstable.", "magenta"); SoundManager.playCorruptSuccess(); } else if (rand < 0.50) { const newMut = Math.random() < 0.5 ? mutations['Diamond'] : mutations['Rainbow']; baseSlots[index] = { ...item, mutation: newMut }; showNotification("Corruption mutated the item...", "cyan"); SoundManager.playSpawn(item.rarity); } else { const trashData = getTrashData(); baseSlots[index] = { ...trashData, mutation: mutations['None'], trait: null }; showNotification("Corruption FAILED! Item destroyed.", "red"); SoundManager.playCorruptFail(); } renderBase(); updateAllUI(); closeCorruptorModal(); }
+
+        function openLimitedItemModal() {
+            // Find active limited items
+            const activeLimited = [];
+            for (let key in limitedStocks) {
+                if (limitedStocks[key] > 0 && limitedItemsConfig[key]) {
+                    activeLimited.push({ ...limitedItemsConfig[key], stock: limitedStocks[key] });
+                }
+            }
+
+            if(activeLimited.length === 0) {
+                limitedItemContent.innerHTML = '<p>No limited offers available right now.</p>';
+                limitedItemModal.classList.remove('hidden');
+                return;
+            }
+
+            let html = '';
+            activeLimited.forEach((item, index) => {
+                const ingredients = item.ingredients || {};
+                let canAfford = true;
+                let ingredientHTML = '<div class="text-left p-2 bg-gray-800 rounded mb-2"><p class="text-xs text-gray-400 mb-1">Requirements:</p>';
+                const baseItemCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.name] = (acc[b.name] || 0) + 1; return acc; }, {});
+                
+                for(const ing in ingredients) {
+                    const count = baseItemCounts[ing] || 0;
+                    const req = ingredients[ing];
+                    if(count < req) canAfford = false;
+                    ingredientHTML += `<div class="flex justify-between text-xs ${count >= req ? 'text-green-400' : 'text-red-400'}"><span>${ing}</span><span>${count} / ${req}</span></div>`;
+                }
+                ingredientHTML += '</div>';
+
+                html += `
+                    <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="text-3xl animate-bounce">${item.icon}</div>
+                            <div class="text-right">
+                                <h3 class="text-xl font-bold">${item.name}</h3>
+                                <p class="text-sm text-red-400 font-bold">Stock: ${item.stock}</p>
+                            </div>
+                        </div>
+                        <p class="text-lg font-bold text-yellow-400 mb-2">MPS: ${formatLargeNumber(item.mps)}</p>
+                        ${ingredientHTML}
+                        <button class="btn btn-green w-full py-2 buy-limited-btn" data-item-name="${item.name}" ${canAfford ? '' : 'disabled'}>Craft Limited</button>
+                    </div>
+                `;
+            });
+
+            limitedItemContent.innerHTML = html;
+            limitedItemModal.classList.remove('hidden');
+
+            // Attach listeners to new buttons
+            const buttons = limitedItemContent.querySelectorAll('.buy-limited-btn');
+            buttons.forEach(btn => {
+                btn.onclick = () => buyLimitedItem(btn.dataset.itemName);
+            });
+        }
+
+        async function buyLimitedItem(itemName) {
+            const item = limitedItemsConfig[itemName];
+            if(!item) return;
+            
+            // Re-verify affordability just in case
+            const ingredients = item.ingredients;
+            const baseItemCounts = baseSlots.filter(s => s).reduce((acc, b) => { acc[b.name] = (acc[b.name] || 0) + 1; return acc; }, {});
+            for(const ing in ingredients) {
+                if((baseItemCounts[ing] || 0) < ingredients[ing]) {
+                    showNotification("Missing ingredients!", "red");
+                    return;
+                }
+            }
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const docRef = doc(db, limitedStockDocPath);
+                    const sfDoc = await transaction.get(docRef);
+                    if (!sfDoc.exists()) { throw "Item unavailable"; }
+                    
+                    const data = sfDoc.data();
+                    const currentStock = data[itemName] || 0;
+                    
+                    if (currentStock <= 0) { throw "Out of stock"; }
+                    transaction.update(docRef, { [itemName]: currentStock - 1 });
+                });
+                
+                // Success: Consume Items
+                for(const ing in ingredients) {
+                    const index = baseSlots.findIndex(s => s && s.name === ing);
+                    if(index !== -1) baseSlots[index] = null;
+                }
+                
+                const emptySlotIndex = baseSlots.findIndex(s => s === null);
+                baseSlots[emptySlotIndex] = { ...item, mutation: getRandomMutation(), trait: null };
+                discoveredBrainrots.add(item.name);
+                showNotification(`Successfully crafted ${item.name}!`, "green");
+                SoundManager.playSpawn('Mythic', item.name);
+                renderBase();
+                updateAllUI();
+                limitedItemModal.classList.add('hidden');
+            } catch (e) {
+                console.error(e);
+                showNotification(e === "Out of stock" ? "Sold out just now!" : "Transaction failed", "red");
+            }
+        }
+
+        // --- ADMIN MACHINE LOGIC ---
+        function updateAdminMachine() {
+            const now = Date.now();
+            const blockDuration = 300000; // 5 minutes
+            const currentBlock = Math.floor(now / blockDuration);
+            const nextBlockTime = (currentBlock + 1) * blockDuration;
+            const timeLeft = nextBlockTime - now;
+
+            // Timer UI
+            if (adminMachineTimer && !adminMachineModal.classList.contains('hidden')) {
+                const m = Math.floor(timeLeft / 60000);
+                const s = Math.floor((timeLeft % 60000) / 1000);
+                adminMachineTimer.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                
+                // Forecast for NEXT block (currentBlock + 1)
+                const nextSeed = currentBlock + 1; 
+                const { event, item, luck } = getAdminMachineOutcomes(nextSeed);
+                const itemLabel = item.type === 'block' ? '🍀 Block' : '🤫 Secret';
+                const itemColor = item.type === 'block' ? '#facc15' : '#ffffff';
+                
+                adminMachineForecast.innerHTML = `
+                    <div class="text-sm">Event: <span style="color:${event.color}">${event.name}</span></div>
+                    <div class="text-sm">${itemLabel}: <span style="color:${itemColor}">${item.display}</span></div>
+                    <div class="text-sm">Luck: <span>${luck.name}</span></div>
+                `;
+            }
+
+            // Trigger Logic
+            if (lastAdminMachineBlock !== -1 && currentBlock > lastAdminMachineBlock) {
+                // New block started! Run the effects for the NEW block (which is currentBlock)
+                const { event, item, luck } = getAdminMachineOutcomes(currentBlock);
+                
+                showNotification("🤖 Admin Machine Activated!", "purple");
+                
+                // 1. Run Event
+                startWeatherEvent(event.name);
+                
+                // 2. Spawn Item (Secret or Lucky Block)
+                if (item.type === 'block') {
+                    spawnLuckyBlockOnBelt(item.name);
+                } else {
+                    spawnBrainrotByName(item.name);
+                }
+                
+                // 3. Run Luck Event
+                startWeatherEvent(luck.name);
+            }
+            lastAdminMachineBlock = currentBlock;
+        }
+
+        function getAdminMachineOutcomes(seed) {
+            // Simple deterministic PRNG based on seed
+            const rand = (s) => {
+                let t = s + 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+
+            const r1 = rand(seed);
+            const r2 = rand(seed + 1);
+            const r3 = rand(seed + 2);
+
+            // Filter lists
+            const events = Object.values(weatherEvents).filter(e => !e.luck); // Non-luck events
+            const lucks = Object.values(weatherEvents).filter(e => e.luck); // Luck events
+            
+            // RESTRICTED SECRET POOL (No "Super Good" Brainrots > 500M MPS)
+            // Filter brainrotManifest['Secret'] to exclude extremely high tier items
+            const allowedSecrets = brainrotManifest['Secret'].filter(b => b.mps < 100000000); 
+            // Fallback if empty (shouldn't be)
+            const secretPool = allowedSecrets.length > 0 ? allowedSecrets : brainrotManifest['Secret'];
+
+            // RESTRICTED LUCKY BLOCK POOL (No "OP" or "Admin" Blocks)
+            // Explicitly allow only "fair" blocks
+            const allowedBlocks = ['Mythic Lucky Block', 'Aquatic Lucky Block', 'Piñata']; 
+            
+            let selectedItem = {};
+            
+            if (r2 < 0.5) {
+                // Spawn Secret Unit
+                // Map 0.0-0.5 range to array index
+                const index = Math.floor((r2 * 2) * secretPool.length);
+                const unit = secretPool[index] || secretPool[0];
+                selectedItem = { type: 'unit', name: unit.name, display: unit.name };
+            } else {
+                // Spawn Lucky Block
+                // Map 0.5-1.0 range to array index
+                const index = Math.floor(((r2 - 0.5) * 2) * allowedBlocks.length);
+                const blockName = allowedBlocks[index] || allowedBlocks[0];
+                selectedItem = { type: 'block', name: blockName, display: blockName };
+            }
+
+            const event = events[Math.floor(r1 * events.length)];
+            const luck = lucks[Math.floor(r3 * lucks.length)];
+
+            return { event, item: selectedItem, luck };
+        }
+
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>

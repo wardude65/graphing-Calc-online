@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluff's Casino | Premium Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Righteous&display=swap');
+        
+        :root {
+            --casino-gold: #fbbf24;
+            --casino-dark: #0f172a;
+            --casino-purple: #7c3aed;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* Slate 950 */
+            color: #f1f5f9;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        h1, h2, h3, .casino-font {
+            font-family: 'Righteous', cursive;
+            letter-spacing: 1px;
+        }
+
+        /* --- Animations --- */
+        @keyframes shine {
+            0% { background-position: 200% center; }
+            100% { background-position: -200% center; }
+        }
+        
+        .gold-text {
+            background: linear-gradient(to right, #fcd34d 20%, #fff 40%, #fcd34d 60%, #fff 80%);
+            background-size: 200% auto;
+            color: #000;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3s linear infinite;
+        }
+
+        .reel-blur {
+            filter: blur(2px);
+            transform: translateY(10px);
+            transition: all 0.1s;
+        }
+
+        /* --- Custom Components --- */
+        .game-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .game-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--casino-gold);
+        }
+        
+        /* Shop Card */
+        .shop-card {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 1px solid #334155;
+            transition: all 0.3s ease;
+        }
+        .shop-card:hover {
+            border-color: #fbbf24;
+            transform: scale(1.02);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+            transition: all 0.2s;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.6);
+        }
+        .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(100%); }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+        }
+
+        /* --- Game Specific --- */
+        .card {
+            width: 60px; height: 84px;
+            background: white;
+            color: black;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .card.red { color: #dc2626; }
+        .card .suit-sm { font-size: 0.8rem; position: absolute; top: 4px; left: 4px; }
+        
+        /* VIP */
+        .vip-card {
+            background-color: #000;
+            border: 4px solid #ffd700;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
+        }
+        
+        .vip-reel {
+            border-color: #ffd700;
+            background-color: #222;
+            box-shadow: inset 0 0 10px #ffd700;
+        }
+        
+        .vip-text {
+            color: #ffd700;
+            text-shadow: 0 0 5px #ffd700, 0 0 10px #b8860b;
+            font-family: 'Bungee Inline', cursive;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+        }
+        .modal { z-index: 1000; }
+        .modal.hidden { display: none !important; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100">
+
+    <!-- TOP NAVIGATION -->
+    <nav class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="window.goToLobby()">
+                <div class="text-3xl">🐼</div>
+                <div class="hidden md:block">
+                    <h1 class="text-xl font-bold text-white">FLUFF'S <span class="text-yellow-400">CASINO</span></h1>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- Balance -->
+                <div class="flex items-center space-x-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+                    <span class="text-yellow-400">💰</span>
+                    <span id="nav-balance" class="text-lg font-mono text-white font-bold">$500</span>
+                </div>
+
+                <!-- Job Status -->
+                <button id="nav-job-btn" onclick="window.openJobModal()" class="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-700 transition">
+                    <i class="fas fa-briefcase text-blue-400"></i>
+                    <span id="nav-job-status" class="text-sm font-bold hidden sm:inline">Unemployed</span>
+                    <span id="nav-job-timer" class="text-xs text-slate-400 hidden">(00:00)</span>
+                </button>
+                
+                <!-- Audio Toggle -->
+                <button onclick="window.toggleAudio()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center border border-slate-700">
+                    <i id="audio-icon" class="fas fa-volume-mute text-slate-400"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="max-w-7xl mx-auto px-4 py-8 relative min-h-[80vh]">
+        
+        <!-- NOTIFICATIONS AREA -->
+        <div id="notification-area" class="fixed top-24 right-4 z-40 space-y-2 pointer-events-none"></div>
+
+        <!-- VIEW: LOBBY -->
+        <div id="view-lobby" class="space-y-8">
+            
+            <!-- Hero Section -->
+            <div class="text-center space-y-4 py-8">
+                <h2 class="text-4xl md:text-6xl font-bold gold-text drop-shadow-lg">WELCOME TO THE PANDA PALACE</h2>
+                <p class="text-slate-400 max-w-2xl mx-auto">High stakes, big wins, and strict labor laws. Play responsibly.</p>
+            </div>
+
+            <!-- Hero Buttons -->
+            <div class="flex justify-center gap-4 flex-wrap">
+                <button onclick="window.openShop()" class="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105">
+                    🛍️ Fluff-Mart Shop
+                </button>
+                <button onclick="window.openStats()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105">
+                    📊 Stats & Achievements
+                </button>
+            </div>
+
+            <!-- Game Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Slots -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('slots')">
+                    <div class="text-4xl mb-2">🎰</div>
+                    <h3 class="font-bold">Panda Slots</h3>
+                    <p class="text-xs text-slate-400 mt-2">Match pandas for huge payouts!</p>
+                </div>
+                <!-- Blackjack -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('blackjack')">
+                    <div class="text-4xl mb-2">♠️</div>
+                    <h3 class="font-bold">Blackjack</h3>
+                    <p class="text-xs text-slate-400 mt-2">Beat the dealer to 21.</p>
+                </div>
+                <!-- Roulette -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('roulette')">
+                    <div class="text-4xl mb-2">🎡</div>
+                    <h3 class="font-bold">Roulette</h3>
+                    <p class="text-xs text-slate-400 mt-2">Bet on colors and numbers.</p>
+                </div>
+                <!-- Horse Racing -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('racing')">
+                    <div class="text-4xl mb-2">🏇</div>
+                    <h3 class="font-bold">Fluff's Races</h3>
+                    <p class="text-xs text-slate-400 mt-2">Pick the fastest animal.</p>
+                </div>
+                 <!-- Poker -->
+                 <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('poker')">
+                    <div class="text-4xl mb-2">🃏</div>
+                    <h3 class="font-bold">Hold'em</h3>
+                    <p class="text-xs text-slate-400 mt-2">House poker against the dealer.</p>
+                </div>
+                <!-- Craps -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('craps')">
+                    <div class="text-4xl mb-2">🎲</div>
+                    <h3 class="font-bold">Craps</h3>
+                    <p class="text-xs text-slate-400 mt-2">Roll the dice and hit the point.</p>
+                </div>
+                <!-- Coin Flip -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('coinflip')">
+                    <div class="text-4xl mb-2">🪙</div>
+                    <h3 class="font-bold">Coin Flip</h3>
+                    <p class="text-xs text-slate-400 mt-2">50/50 double or nothing.</p>
+                </div>
+                <!-- Panda Fighting -->
+                <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer text-center" onclick="window.openGame('panda-fighting')">
+                    <div class="text-4xl mb-2">🥊</div>
+                    <h3 class="font-bold">Brawlers</h3>
+                    <p class="text-xs text-slate-400 mt-2">Bet on the underground fights.</p>
+                </div>
+                 <!-- VIP Lounge -->
+                 <div class="game-card p-4 rounded-xl flex flex-col items-center cursor-pointer border-yellow-500 bg-yellow-900/10 col-span-2 md:col-span-4" onclick="window.enterVIP()">
+                    <div class="text-4xl mb-2">👑</div>
+                    <h3 class="font-bold text-yellow-400">VIP Lounge</h3>
+                    <p class="text-xs text-yellow-600 mt-2">High Rollers Only ($1,000+)</p>
+                </div>
+            </div>
+            
+            <!-- Management Footer -->
+            <div class="text-center pt-8 border-t border-slate-800">
+                <button onclick="window.resetData()" class="text-xs text-slate-600 hover:text-red-500">Reset Save Data</button>
+            </div>
+        </div>
+
+        <!-- GAMES CONTAINER -->
+        <div id="game-stage" class="hidden">
+            <button onclick="window.goToLobby()" class="mb-4 text-slate-400 hover:text-white flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Back to Lobby
+            </button>
+            <div id="active-game-content" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl min-h-[400px] relative overflow-hidden">
+                <!-- Game HTML injected here -->
+            </div>
+        </div>
+        
+        <!-- SHOP VIEW -->
+        <div id="view-shop" class="hidden">
+            <button onclick="window.goToLobby()" class="mb-4 text-slate-400 hover:text-white flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Back to Lobby
+            </button>
+            <h2 class="text-4xl text-center gold-text mb-2">FLUFF-MART LUXURY SHOP</h2>
+            <p class="text-center text-slate-400 mb-8">Spend your winnings on useless virtual status symbols.</p>
+            
+            <div id="shop-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Items injected by JS -->
+            </div>
+        </div>
+        
+        <!-- STATS VIEW -->
+        <div id="view-stats" class="hidden">
+            <button onclick="window.goToLobby()" class="mb-4 text-slate-400 hover:text-white flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Back to Lobby
+            </button>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-400">Statistics</h3>
+                    <ul class="space-y-3 text-slate-300" id="stats-list">
+                        <!-- Stats injected -->
+                    </ul>
+                </div>
+                <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                    <h3 class="text-2xl font-bold mb-4 text-yellow-400">Achievements</h3>
+                    <div id="achievements-grid" class="grid grid-cols-1 gap-2">
+                        <!-- Achievements injected -->
+                    </div>
+                </div>
+                <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 md:col-span-2">
+                    <h3 class="text-2xl font-bold mb-4 text-purple-400">Inventory</h3>
+                    <div id="inventory-grid" class="flex flex-wrap gap-4">
+                        <span class="text-slate-500 italic">No items owned. Go to the shop!</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JOB CENTER MODAL -->
+        <div id="job-modal" class="modal fixed inset-0 hidden flex items-center justify-center p-4">
+            <div class="modal-overlay absolute inset-0" onclick="window.closeModal('job-modal')"></div>
+            <div class="modal-content relative z-50">
+                <button onclick="window.closeModal('job-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fas fa-times text-2xl"></i></button>
+                <h2 class="text-3xl casino-font mb-6 text-blue-400">Career Center</h2>
+                
+                <!-- State: Unemployed -->
+                <div id="job-unemployed" class="space-y-4 text-left">
+                    <p class="text-slate-300 text-center mb-4">Get a job to fund your habit. Jobs pay <strong>$300+ per shift</strong>.</p>
+                    
+                    <button onclick="window.applyForJob('Laundromat Staff', 50)" class="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition group">
+                        <div class="font-bold text-lg group-hover:text-blue-400">🧼 Laundromat Staff</div>
+                        <div class="text-sm text-slate-400">Easy to get. Pay: $300.</div>
+                    </button>
+                    
+                    <button onclick="window.applyForJob('Liquor Store Clerk', 50)" class="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition group">
+                        <div class="font-bold text-lg group-hover:text-blue-400">🥃 Liquor Store Clerk</div>
+                        <div class="text-sm text-slate-400">Standard shift. Pay: $300.</div>
+                    </button>
+
+                    <button onclick="window.applyForJob('Courier 6', 50)" class="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition group">
+                        <div class="font-bold text-lg group-hover:text-blue-400">📦 Courier 6</div>
+                        <div class="text-sm text-slate-400">Deliveries in the wasteland. Pay: $350.</div>
+                    </button>
+                    
+                    <button onclick="window.applyForJob('Back Alley Fighter', 50)" class="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition group">
+                        <div class="font-bold text-lg group-hover:text-red-400">🥊 Back Alley Fighter</div>
+                        <div class="text-sm text-slate-400">High risk, high physical labor. Pay: $500.</div>
+                    </button>
+
+                    <button onclick="window.applyForJob('Casino Worker', 300)" class="w-full p-4 bg-slate-900 border-2 border-yellow-600 hover:bg-slate-800 rounded-xl transition group relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-yellow-600 text-black text-xs font-bold px-2 py-1">HARD TO GET</div>
+                        <div class="font-bold text-lg text-yellow-400">🎰 Casino Worker</div>
+                        <div class="text-sm text-slate-300">Special Perk: Gamble while working! (No Lockout). Pay: $400.</div>
+                    </button>
+                </div>
+
+                <!-- State: Employed (Dashboard) -->
+                <div id="job-employed" class="hidden text-center space-y-6">
+                    <div class="bg-blue-900/30 p-6 rounded-xl border border-blue-500/30">
+                        <h3 class="text-2xl font-bold mb-2" id="current-job-title">Job Title</h3>
+                        <p class="text-blue-300 mb-4">Current Status: <span id="job-status-text" class="font-bold text-white">ON BREAK</span></p>
+                        <div class="text-4xl font-mono mb-4" id="job-timer-big">05:00</div>
+                        <p class="text-sm text-slate-400" id="job-instruction">Time to next shift activity.</p>
+                    </div>
+                    <button id="btn-collect-pay" onclick="window.collectPaycheck()" class="btn-primary w-full py-4 rounded-xl text-xl font-bold hidden">
+                        💰 CLOCK OUT & COLLECT PAY
+                    </button>
+                    <button onclick="window.quitJob()" class="text-red-500 hover:text-red-400 text-sm underline">Quit Job</button>
+                </div>
+
+                <!-- Application Form -->
+                <div id="job-application-form" class="hidden space-y-4 text-left">
+                    <h3 class="text-xl">Application: <span id="app-job-name" class="text-blue-400"></span></h3>
+                    <input type="text" id="app-name" placeholder="Full Name" class="w-full bg-slate-800 p-3 rounded-lg border border-slate-700 focus:border-blue-500 outline-none">
+                    <div>
+                        <label class="text-sm text-slate-400">Resume / Why hire you?</label>
+                        <textarea id="app-resume" class="w-full bg-slate-800 p-3 rounded-lg border border-slate-700 focus:border-blue-500 outline-none h-32"></textarea>
+                        <p class="text-xs text-slate-500 text-right">Min chars: <span id="app-min-chars">50</span></p>
+                    </div>
+                    <p id="app-error" class="text-red-500 text-sm hidden font-bold"></p>
+                    <button onclick="window.submitApplication()" class="btn-primary w-full py-3 rounded-lg font-bold">Submit Application</button>
+                    <button onclick="document.getElementById('job-application-form').classList.add('hidden'); document.getElementById('job-unemployed').classList.remove('hidden');" class="text-slate-500 w-full mt-2 text-sm">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- WORK LOCKOUT MODAL -->
+        <div id="work-lockout" class="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center hidden">
+            <div class="text-center space-y-6 max-w-md px-6">
+                <i class="fas fa-user-clock text-6xl text-red-500 mb-4"></i>
+                <h2 class="text-4xl font-bold text-red-500">SHIFT IN PROGRESS</h2>
+                <p class="text-xl text-slate-300">Casino access denied. You are currently working.</p>
+                <div class="text-6xl font-mono text-white" id="work-timer">03:00</div>
+                <p class="text-sm text-slate-500">Finish your shift to get paid.</p>
+                
+                <div class="mt-12 p-6 bg-slate-900 rounded-xl border border-slate-800 w-full">
+                    <h3 class="text-lg font-bold mb-4 text-teal-400">Bored? Play Flappy Fluff</h3>
+                    <canvas id="flappy-canvas" width="320" height="200" class="mx-auto mb-4 cursor-pointer" onclick="window.jumpFlappy()"></canvas>
+                    <button id="start-flappy" onclick="window.startFlappy()" class="mt-4 w-full bg-teal-700 hover:bg-teal-600 text-white font-bold py-2 rounded">Start Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOAN MODAL -->
+        <div id="loan-modal" class="modal fixed inset-0 hidden flex items-center justify-center p-4">
+            <div class="modal-overlay absolute inset-0"></div>
+            <div class="bg-slate-900 border-2 border-red-500 rounded-2xl w-full max-w-md z-50 p-6 shadow-2xl text-center relative">
+                <h2 class="text-3xl casino-font mb-4 text-red-500">BUSTED!</h2>
+                <p class="text-slate-300 mb-6">You're out of cash. Fluff offers you a predatory loan.</p>
+                <div class="bg-black p-4 rounded-lg mb-6 border border-slate-700">
+                    <p class="text-green-400 text-2xl font-bold mb-1">+$100 Cash</p>
+                    <p class="text-xs text-slate-500">Interest rate: 0% (For now...)</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="window.acceptLoan()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg">Accept Deal</button>
+                    <button onclick="window.goToLobby(); window.closeModal('loan-modal');" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg">Refuse</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JAVASCRIPT ENGINE -->
+    <script>
+        // --- CONSTANTS ---
+        const VIP_SYMBOLS = ['👑', '💎', '🐉', '🎰', '7️⃣', '🐼'];
+        const DICE_EMOJIS = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+        // 1. CONFIG & STATE
+        const CONFIG = {
+            breakTime: 5 * 60 * 1000, 
+            workTime: 3 * 60 * 1000, 
+            vipThreshold: 1000,
+            jobs: {
+                'Laundromat Staff': { pay: 300, minChars: 50 },
+                'Burger Flipper': { pay: 300, minChars: 50 },
+                'Liquor Store Clerk': { pay: 300, minChars: 50 },
+                'Courier 6': { pay: 350, minChars: 100 },
+                'Back Alley Fighter': { pay: 500, minChars: 100 },
+                'Casino Worker': { pay: 400, minChars: 300, special: true }
+            },
+            shopItems: [
+                { id: 1, name: 'Golden Bamboo Watch', cost: 5000, icon: '⌚' },
+                { id: 2, name: 'Designer Sunglasses', cost: 1500, icon: '🕶️' },
+                { id: 3, name: 'Panda Suit', cost: 10000, icon: '🤵' },
+                { id: 4, name: 'Panda Lamborghini', cost: 500000, icon: '🏎️' },
+                { id: 5, name: 'Private Island', cost: 10000000, icon: '🏝️' },
+                { id: 6, name: 'Mystery Box', cost: 500, icon: '🎁' }
+            ]
+        };
+
+        let state = {
+            balance: 500,
+            job: null,
+            inventory: [],
+            stats: { wins: 0, losses: 0, wagered: 0, biggestWin: 0, jobsCompleted: 0, flappyHigh: 0 },
+            achievements: []
+        };
+        
+        let flappyRunning = false;
+        let bird, pipes, score;
+        let audioCtx = null;
+        let audioEnabled = false;
+
+        // Custom Bet Globals for Multi-Step games
+        let currentBjBet = 0;
+        let currentPokerBet = 0;
+        let currentCrapsBet = 0;
+        let crapsPoint = 0;
+        
+        // Cheats
+        window.forceWin = false;
+        let cheatBuffer = "";
+
+        // --- INIT & CHEAT CODE ---
+        window.onload = () => {
+            loadGame();
+            updateUI();
+            setInterval(gameLoop, 1000);
+            
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'Space' && flappyRunning) window.jumpFlappy();
+                
+                // Cheat code logic
+                if(e.key.length === 1 && e.key.match(/[a-z]/i)) {
+                    cheatBuffer += e.key.toLowerCase();
+                    if(cheatBuffer.length > 20) cheatBuffer = cheatBuffer.slice(-20);
+                    
+                    if(cheatBuffer.endsWith("fluffmoney")) {
+                        state.balance += 10000;
+                        window.notify("CHEAT: +$10,000", "win");
+                        saveGame();
+                        updateUI();
+                        cheatBuffer = "";
+                    } else if (cheatBuffer.endsWith("money")) {
+                        state.balance += 200000;
+                        window.notify("CHEAT: +$200,000", "win");
+                        saveGame();
+                        updateUI();
+                        cheatBuffer = "";
+                    } else if (cheatBuffer.endsWith("winwin")) {
+                        window.forceWin = !window.forceWin;
+                        window.notify("CHEAT: God Mode " + (window.forceWin ? "ON" : "OFF"), "win");
+                        cheatBuffer = "";
+                    }
+                }
+            });
+        };
+
+        // --- SAVE SYSTEM ---
+        function saveGame() {
+            localStorage.setItem('fluffs_casino_v3', JSON.stringify(state));
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('fluffs_casino_v3');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state = { 
+                        ...state, 
+                        ...parsed, 
+                        stats: { ...state.stats, ...(parsed.stats || {}) }
+                    };
+                } catch(e) { console.error("Save corrupt"); }
+            }
+        }
+
+        function resetData() {
+            if(confirm("Reset all progress?")) {
+                localStorage.removeItem('fluffs_casino_v3');
+                location.reload();
+            }
+        }
+
+        // --- UI & NAVIGATION ---
+        function goToLobby() {
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-lobby').classList.remove('hidden');
+            document.getElementById('game-stage').classList.add('hidden');
+            document.getElementById('active-game-content').innerHTML = '';
+        }
+        
+        function openStats() {
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-stats').classList.remove('hidden');
+            renderStats();
+        }
+        
+        function openShop() {
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-shop').classList.remove('hidden');
+            renderShop();
+        }
+
+        function updateUI() {
+            document.getElementById('nav-balance').textContent = '$' + state.balance.toLocaleString();
+            const jobStatus = document.getElementById('nav-job-status');
+            const jobTimer = document.getElementById('nav-job-timer');
+            
+            if (state.job) {
+                jobStatus.textContent = state.job.status === 'break' ? 'On Break' : 'Working';
+                jobTimer.classList.remove('hidden');
+            } else {
+                jobStatus.textContent = "Get a Job";
+                jobTimer.classList.add('hidden');
+            }
+
+            if (state.balance < 5 && (!state.job || state.job.status !== 'working')) {
+                 if(document.getElementById('work-lockout').classList.contains('hidden')) {
+                    document.getElementById('loan-modal').classList.remove('hidden');
+                 }
+            }
+        }
+
+        function notify(msg, type = 'info') {
+            const notif = document.createElement('div');
+            const colors = type === 'win' ? 'bg-green-600 border-green-400' : (type === 'lose' ? 'bg-red-600 border-red-400' : 'bg-slate-700 border-slate-500');
+            notif.className = `${colors} text-white px-6 py-3 rounded-lg shadow-xl border-l-4 font-bold transform transition-all duration-500 translate-x-full opacity-0`;
+            notif.innerText = msg;
+            document.getElementById('notification-area').appendChild(notif);
+            
+            if (type === 'win') playSound('win');
+            if (type === 'lose') playSound('lose');
+
+            requestAnimationFrame(() => notif.classList.remove('translate-x-full', 'opacity-0'));
+            setTimeout(() => {
+                notif.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => notif.remove(), 500);
+            }, 3000);
+        }
+
+        // --- AUDIO SYSTEM ---
+        function initAudio() {
+             if (!audioCtx) {
+                 try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        audioCtx = new AudioContext();
+                    }
+                 } catch (e) { console.warn("AudioContext error", e); }
+             }
+             if (audioCtx && audioCtx.state === 'suspended') {
+                 audioCtx.resume().catch(e => console.warn(e));
+             }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            initAudio();
+            const icon = document.getElementById('audio-icon');
+            if (audioEnabled) {
+                icon.classList.remove('fa-volume-mute', 'text-slate-400');
+                icon.classList.add('fa-volume-up', 'text-green-400');
+                playSound('click');
+            } else {
+                icon.classList.add('fa-volume-mute', 'text-slate-400');
+                icon.classList.remove('fa-volume-up', 'text-green-400');
+            }
+        }
+
+        function playSound(type) {
+            if (!audioEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                
+                if (type === 'click') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'win') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(500, now); osc.frequency.linearRampToValueAtTime(1000, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                    osc.start(now); osc.stop(now + 0.5);
+                } else if (type === 'lose') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+                    gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'spin') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                }
+            } catch(e) { console.warn("Audio play error", e); }
+        }
+
+        // --- STATS & SHOP ---
+        function renderStats() {
+            const list = document.getElementById('stats-list');
+            list.innerHTML = `
+                <li><strong>Balance:</strong> $${state.balance.toLocaleString()}</li>
+                <li><strong>Total Wagered:</strong> $${state.stats.wagered.toLocaleString()}</li>
+                <li><strong>Biggest Win:</strong> $${state.stats.biggestWin.toLocaleString()}</li>
+                <li><strong>Wins/Losses:</strong> ${state.stats.wins} / ${state.stats.losses}</li>
+                <li><strong>Shifts Worked:</strong> ${state.stats.jobsCompleted}</li>
+                <li><strong>Flappy High Score:</strong> ${state.stats.flappyHigh}</li>
+            `;
+            const invGrid = document.getElementById('inventory-grid');
+            if (state.inventory.length === 0) invGrid.innerHTML = '<span class="text-slate-500 italic">No items owned.</span>';
+            else invGrid.innerHTML = state.inventory.map(item => `
+                <div class="bg-black border border-yellow-500 p-2 rounded text-center" title="${item.name}">
+                    <div class="text-2xl">${item.icon}</div>
+                    <div class="text-xs text-yellow-500 font-bold truncate w-20">${item.name}</div>
+                </div>`).join('');
+            
+            const badges = [];
+            if (state.balance >= 10000) badges.push({ name: "High Roller", icon: "👑" });
+            if (state.stats.jobsCompleted >= 5) badges.push({ name: "Worker Bee", icon: "🐝" });
+            if (state.inventory.length >= 1) badges.push({ name: "Consumer", icon: "🛍️" });
+            if (state.stats.biggestWin >= 1000) badges.push({ name: "Jackpot", icon: "🎰" });
+            
+            const achGrid = document.getElementById('achievements-grid');
+            if (badges.length === 0) achGrid.innerHTML = '<span class="text-slate-500">Play more to unlock!</span>';
+            else achGrid.innerHTML = badges.map(b => `<div class="bg-slate-800 p-2 rounded flex items-center gap-2"><span class="text-2xl">${b.icon}</span> <span>${b.name}</span></div>`).join('');
+        }
+        
+        function renderShop() {
+            const grid = document.getElementById('shop-grid');
+            grid.innerHTML = CONFIG.shopItems.map(item => `
+                <div class="shop-card p-6 rounded-xl text-center relative group">
+                    <div class="text-6xl mb-4 transform group-hover:scale-110 transition">${item.icon}</div>
+                    <h3 class="text-xl font-bold mb-1">${item.name}</h3>
+                    <p class="text-yellow-400 font-mono text-lg font-bold mb-4">$${item.cost.toLocaleString()}</p>
+                    <button onclick="window.buyItem(${item.id})" class="btn-primary w-full py-2 rounded-lg font-bold" ${state.balance < item.cost ? 'disabled' : ''}>Buy</button>
+                </div>`).join('');
+        }
+        
+        function buyItem(id) {
+            const item = CONFIG.shopItems.find(i => i.id === id);
+            if (state.balance >= item.cost) {
+                state.balance -= item.cost;
+                state.inventory.push(item);
+                notify(`Bought ${item.name}!`, 'win');
+                renderShop();
+                saveGame(); updateUI();
+            }
+        }
+        
+        function updateStats(type, amount) {
+             if (type === 'wager') state.stats.wagered += amount;
+             if (type === 'win') {
+                 state.stats.wins++;
+                 if(amount > state.stats.biggestWin) state.stats.biggestWin = amount;
+             }
+             if (type === 'lose') state.stats.losses++;
+        }
+
+        // --- JOB SYSTEM ---
+        function openJobModal() {
+            const modal = document.getElementById('job-modal');
+            const unemployed = document.getElementById('job-unemployed');
+            const employed = document.getElementById('job-employed');
+            const appForm = document.getElementById('job-application-form');
+
+            modal.classList.remove('hidden');
+            appForm.classList.add('hidden');
+
+            if (state.job) {
+                unemployed.classList.add('hidden');
+                employed.classList.remove('hidden');
+                document.getElementById('current-job-title').textContent = state.job.title;
+                updateJobModalTimer();
+            } else {
+                unemployed.classList.remove('hidden');
+                employed.classList.add('hidden');
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function applyForJob(title, minChars) {
+            document.getElementById('job-unemployed').classList.add('hidden');
+            document.getElementById('job-application-form').classList.remove('hidden');
+            document.getElementById('app-job-name').textContent = title;
+            document.getElementById('app-min-chars').textContent = minChars;
+        }
+
+        function submitApplication() {
+            const title = document.getElementById('app-job-name').textContent;
+            const resume = document.getElementById('app-resume').value;
+            const error = document.getElementById('app-error');
+            const jobConfig = CONFIG.jobs[title];
+            
+            if (resume.length < jobConfig.minChars) {
+                error.textContent = `Resume too short! Need ${jobConfig.minChars} chars.`;
+                error.classList.remove('hidden'); return;
+            }
+            if (title === 'Casino Worker' && Math.random() < 0.5) {
+                 error.textContent = "Rejected! The manager didn't like your vibe. Try again.";
+                 error.classList.remove('hidden'); return;
+            }
+
+            state.job = { title: title, status: 'break', endTime: Date.now() + CONFIG.breakTime };
+            state.balance += jobConfig.pay;
+            saveGame();
+            notify(`HIRED! $${jobConfig.pay} Bonus.`, 'win');
+            openJobModal(); 
+        }
+
+        function collectPaycheck() {
+            if (state.job && state.job.status === 'complete') {
+                const pay = CONFIG.jobs[state.job.title].pay;
+                state.balance += pay;
+                state.stats.jobsCompleted++;
+                state.job.status = 'break';
+                state.job.endTime = Date.now() + CONFIG.breakTime;
+                saveGame();
+                notify(`PAYDAY! +$${pay}`, 'win');
+                document.getElementById('work-lockout').classList.add('hidden');
+                updateUI();
+                openJobModal();
+            }
+        }
+
+        function quitJob() {
+            if(confirm("Quit your job?")) {
+                state.job = null;
+                saveGame();
+                openJobModal();
+                updateUI();
+            }
+        }
+
+        function gameLoop() {
+            const now = Date.now();
+            const timerNav = document.getElementById('nav-job-timer');
+
+            if (state.job) {
+                const timeLeft = Math.max(0, state.job.endTime - now);
+                const mins = Math.floor(timeLeft / 60000);
+                const secs = Math.floor((timeLeft % 60000) / 1000).toString().padStart(2, '0');
+                timerNav.textContent = `(${mins}:${secs})`;
+
+                if (!document.getElementById('job-modal').classList.contains('hidden')) updateJobModalTimer();
+
+                if (timeLeft <= 0) {
+                    if (state.job.status === 'break') {
+                        state.job.status = 'working';
+                        state.job.endTime = now + CONFIG.workTime;
+                        saveGame();
+                        checkLockout();
+                    } else if (state.job.status === 'working') {
+                        state.job.status = 'complete';
+                        checkLockout(); 
+                    }
+                } else {
+                    if (state.job.status === 'working') checkLockout();
+                }
+            }
+        }
+
+        function updateJobModalTimer() {
+            const now = Date.now();
+            if (!state.job) return;
+            const timeLeft = Math.max(0, state.job.endTime - now);
+            const mins = Math.floor(timeLeft / 60000);
+            const secs = Math.floor((timeLeft % 60000) / 1000).toString().padStart(2, '0');
+            const bigTimer = document.getElementById('job-timer-big');
+            const statusText = document.getElementById('job-status-text');
+            const payBtn = document.getElementById('btn-collect-pay');
+
+            bigTimer.textContent = `${mins}:${secs}`;
+            if (state.job.status === 'break') {
+                statusText.textContent = "ON BREAK"; statusText.className = "font-bold text-green-400"; payBtn.classList.add('hidden');
+            } else if (state.job.status === 'working') {
+                statusText.textContent = "WORKING"; statusText.className = "font-bold text-red-400"; payBtn.classList.add('hidden');
+            } else if (state.job.status === 'complete') {
+                statusText.textContent = "SHIFT DONE"; bigTimer.textContent = "00:00"; payBtn.classList.remove('hidden');
+            }
+        }
+
+        function checkLockout() {
+            if (state.job && state.job.title === 'Casino Worker') return;
+            const lockout = document.getElementById('work-lockout');
+            const now = Date.now();
+            
+            if (state.job && state.job.status === 'working') {
+                lockout.classList.remove('hidden');
+                const timeLeft = Math.max(0, state.job.endTime - now);
+                const mins = Math.floor(timeLeft / 60000);
+                const secs = Math.floor((timeLeft % 60000) / 1000).toString().padStart(2, '0');
+                document.getElementById('work-timer').textContent = `${mins}:${secs}`;
+                if(!flappyRunning) initFlappy();
+            } else if (state.job && state.job.status === 'complete') {
+                lockout.classList.remove('hidden');
+                document.getElementById('work-timer').innerHTML = `<button onclick="window.collectPaycheck()" class="btn-primary px-8 py-4 rounded-xl text-2xl font-bold mt-4">COLLECT PAYCHECK</button>`;
+            } else {
+                lockout.classList.add('hidden');
+                document.getElementById('work-timer').className = "text-6xl font-mono text-white"; // Restore default class just in case
+            }
+        }
+
+        // --- LOAN ---
+        function acceptLoan() {
+            state.balance += 100;
+            saveGame();
+            updateUI();
+            document.getElementById('loan-modal').classList.add('hidden');
+            notify("Loan Accepted. Don't lose it.", 'info');
+        }
+
+        // --- GAMES MANAGER ---
+        function getValidBet(inputId, isVIP = false) {
+            const betInput = document.getElementById(inputId);
+            if (!betInput) return null;
+            const bet = parseInt(betInput.value);
+            
+            if (isNaN(bet) || bet < 5) {
+                notify("Minimum bet is $5", 'lose');
+                return null;
+            }
+            if (!isVIP && bet > 300) {
+                notify("Max standard bet is $300. Visit VIP Lounge for higher limits!", 'lose');
+                return null;
+            }
+            if (bet > state.balance) {
+                notify("Not enough cash!", 'lose');
+                return null;
+            }
+            return bet;
+        }
+
+        function openGame(gameId) {
+            playSound('click');
+            
+            document.getElementById('view-lobby').classList.add('hidden');
+            document.getElementById('game-stage').classList.remove('hidden');
+            const container = document.getElementById('active-game-content');
+            container.innerHTML = getGameHTML(gameId);
+            
+            if(gameId === 'slots') initSlots();
+            if(gameId === 'blackjack') initBlackjack();
+            if(gameId === 'racing') initRacing();
+            if(gameId === 'poker') initPoker();
+            if(gameId === 'coinflip') initCoinFlip();
+            if(gameId === 'craps') initCraps();
+            if(gameId === 'roulette') initRoulette();
+            if(gameId === 'panda-fighting') initPandaFighting();
+        }
+        
+        function openVIPGame(gameId) {
+            playSound('click');
+            if (state.balance < CONFIG.vipThreshold) {
+                notify("VIP Only! Need $1,000", 'lose');
+                return;
+            }
+            
+            document.getElementById('view-lobby').classList.add('hidden');
+            document.getElementById('game-stage').classList.remove('hidden');
+            const container = document.getElementById('active-game-content');
+            
+            if (gameId === 'vip-slots') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-8">VIP GOLD SLOTS</h2>
+                <div class="flex justify-center gap-4 mb-8">
+                    <div id="vip-reel1" class="reel vip-reel w-24 h-32 flex items-center justify-center text-5xl">👑</div>
+                    <div id="vip-reel2" class="reel vip-reel w-24 h-32 flex items-center justify-center text-5xl">👑</div>
+                    <div id="vip-reel3" class="reel vip-reel w-24 h-32 flex items-center justify-center text-5xl">👑</div>
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <p class="text-yellow-500 mb-2">No Betting Limits!</p>
+                    <input type="number" id="vip-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                    <button id="vip-spin-btn" onclick="window.spinVIPSlots()" class="bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black w-full py-4 rounded-full text-2xl font-bold border-2 border-yellow-300">SPIN VIP</button>
+                    <p id="vip-slot-result" class="h-6 font-bold text-yellow-400"></p>
+                    <button onclick="window.enterVIP()" class="text-slate-400 hover:text-white underline text-sm">Back to VIP Lounge</button>
+                </div>
+                `;
+            } else if (gameId === 'vip-blackjack') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-4">VIP BLACKJACK</h2>
+                <div class="flex justify-between max-w-md mx-auto mb-8">
+                    <div class="text-center">
+                        <p class="text-yellow-600 text-sm mb-2 font-bold">DEALER <span id="d-score" class="bg-yellow-900 px-2 rounded ml-2 text-white">0</span></p>
+                        <div id="d-hand" class="flex justify-center -space-x-8 min-h-[100px]"></div>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-yellow-600 text-sm mb-2 font-bold">YOU <span id="p-score" class="bg-yellow-900 px-2 rounded ml-2 text-white">0</span></p>
+                        <div id="p-hand" class="flex justify-center -space-x-8 min-h-[100px]"></div>
+                    </div>
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <div id="bj-controls" class="space-y-4">
+                        <input type="number" id="vip-bj-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                        <button onclick="window.startBlackjack(true)" class="bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black w-full py-3 rounded-lg font-bold">Deal VIP</button>
+                    </div>
+                    <div id="bj-actions" class="hidden flex gap-2">
+                        <button onclick="window.hit(true)" class="bg-blue-600 hover:bg-blue-500 text-white w-1/2 py-3 rounded-lg font-bold border-2 border-yellow-600">Hit</button>
+                        <button onclick="window.stand(true)" class="bg-red-600 hover:bg-red-500 text-white w-1/2 py-3 rounded-lg font-bold border-2 border-yellow-600">Stand</button>
+                    </div>
+                    <p id="bj-msg" class="h-6 font-bold text-yellow-400"></p>
+                    <button onclick="window.enterVIP()" class="text-slate-400 hover:text-white underline text-sm mt-4">Back to VIP Lounge</button>
+                </div>
+                `;
+                initBlackjack();
+            } else if (gameId === 'vip-roulette') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-6">VIP ROULETTE</h2>
+                <div class="text-center mb-6">
+                    <div class="text-8xl mb-4 overflow-hidden py-4">
+                        <div id="vip-roulette-wheel" class="spinning-wheel inline-block">🎡</div>
+                    </div>
+                    <p id="vip-roulette-result" class="text-2xl font-bold text-yellow-400">Place VIP Bet</p>
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <input type="number" id="vip-rl-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                    <div class="flex justify-center gap-2">
+                        <button id="btn-vr-red" onclick="window.betVIPRoulette('Red')" class="bg-red-600 hover:bg-red-500 text-white px-4 py-3 rounded font-bold border-2 border-yellow-600">Red (2x)</button>
+                        <button id="btn-vr-black" onclick="window.betVIPRoulette('Black')" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 text-white px-4 py-3 rounded font-bold border-2">Black (2x)</button>
+                        <button id="btn-vr-green" onclick="window.betVIPRoulette('Green')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded font-bold border-2 border-yellow-600">Green (36x)</button>
+                    </div>
+                    <button onclick="window.enterVIP()" class="mt-4 text-slate-400 hover:text-white underline text-sm block mx-auto">Back to VIP Lounge</button>
+                </div>
+                `;
+            } else if (gameId === 'vip-racing') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-6">VIP RACES</h2>
+                <div class="bg-black p-4 rounded-xl border border-yellow-600 mb-6 space-y-4" id="vip-race-track">
+                    <!-- Horses injected here -->
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <p class="mb-2 text-yellow-500 font-bold">Pick VIP Winner (4x Payout)</p>
+                    <input type="number" id="vip-race-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="window.betVIPHorse(0)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🐼 Panda</button>
+                        <button onclick="window.betVIPHorse(1)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🎋 Bamboo</button>
+                        <button onclick="window.betVIPHorse(2)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🚀 Flash</button>
+                        <button onclick="window.betVIPHorse(3)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🐌 Slowpoke</button>
+                    </div>
+                    <p id="vip-race-msg" class="h-6 font-bold text-yellow-400"></p>
+                    <button onclick="window.enterVIP()" class="mt-4 text-slate-400 hover:text-white underline text-sm block mx-auto">Back to VIP Lounge</button>
+                </div>`;
+                initVIPRacing();
+            }
+        }
+
+        function getGameHTML(id) {
+            if(id === 'slots') return `<h2 class="text-3xl text-center mb-8">Panda Slots</h2><div class="flex justify-center gap-4 mb-8"><div id="reel1" class="reel bg-slate-950 border-4 border-slate-700 rounded-lg w-24 h-32 flex items-center justify-center text-5xl">🍒</div><div id="reel2" class="reel bg-slate-950 border-4 border-slate-700 rounded-lg w-24 h-32 flex items-center justify-center text-5xl">🍒</div><div id="reel3" class="reel bg-slate-950 border-4 border-slate-700 rounded-lg w-24 h-32 flex items-center justify-center text-5xl">🍒</div></div><div class="text-center max-w-sm mx-auto space-y-4"><input type="number" id="slot-bet" value="10" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><button onclick="window.spinSlots()" class="btn-primary w-full py-4 rounded-full text-2xl font-bold">SPIN</button><p id="slot-msg" class="h-6 font-bold text-yellow-400"></p></div>`;
+            if(id === 'blackjack') return `<h2 class="text-3xl text-center mb-4">Blackjack</h2><div class="flex justify-between max-w-md mx-auto mb-8"><div class="text-center"><p class="text-slate-400 text-sm mb-2">DEALER <span id="d-score" class="bg-slate-700 px-2 rounded ml-2">0</span></p><div id="d-hand" class="flex justify-center -space-x-8 min-h-[100px]"></div></div><div class="text-center"><p class="text-slate-400 text-sm mb-2">YOU <span id="p-score" class="bg-slate-700 px-2 rounded ml-2">0</span></p><div id="p-hand" class="flex justify-center -space-x-8 min-h-[100px]"></div></div></div><div class="text-center max-w-sm mx-auto space-y-4"><div id="bj-controls" class="space-y-4"><input type="number" id="bj-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><button onclick="window.startBlackjack(false)" class="btn-primary w-full py-3 rounded-lg font-bold">Deal</button></div><div id="bj-actions" class="hidden flex gap-2"><button onclick="window.hit()" class="bg-blue-600 hover:bg-blue-500 text-white w-1/2 py-3 rounded-lg font-bold">Hit</button><button onclick="window.stand()" class="bg-red-600 hover:bg-red-500 text-white w-1/2 py-3 rounded-lg font-bold">Stand</button></div><p id="bj-msg" class="h-6 font-bold text-yellow-400"></p></div>`;
+            if(id === 'racing') return `<h2 class="text-3xl text-center mb-6">Fluff's Races</h2><div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-6 space-y-4" id="race-track"></div><div class="text-center max-w-sm mx-auto space-y-4"><p class="mb-2">Pick Winner (4x Payout)</p><input type="number" id="race-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><div class="grid grid-cols-2 gap-2"><button onclick="window.betHorse(0)" class="bg-slate-700 hover:bg-slate-600 py-3 rounded font-bold">🐼 Panda</button><button onclick="window.betHorse(1)" class="bg-slate-700 hover:bg-slate-600 py-3 rounded font-bold">🎋 Bamboo</button><button onclick="window.betHorse(2)" class="bg-slate-700 hover:bg-slate-600 py-3 rounded font-bold">🚀 Flash</button><button onclick="window.betHorse(3)" class="bg-slate-700 hover:bg-slate-600 py-3 rounded font-bold">🐌 Slowpoke</button></div><p id="race-msg" class="h-6 font-bold text-yellow-400"></p></div>`;
+            if(id === 'craps') return `<h2 class="text-3xl text-center mb-6">Craps</h2><div class="flex justify-center gap-4 mb-8 text-6xl"><div id="die1" class="bg-white text-black w-20 h-20 flex items-center justify-center rounded-lg shadow-lg">?</div><div id="die2" class="bg-white text-black w-20 h-20 flex items-center justify-center rounded-lg shadow-lg">?</div></div><div class="text-center max-w-sm mx-auto space-y-4"><div class="text-xl">Point: <span id="craps-point" class="font-bold text-yellow-400">OFF</span></div><div class="flex flex-col gap-4"><input type="number" id="craps-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><button onclick="window.rollCraps()" class="btn-primary w-full py-3 rounded-lg font-bold text-lg">Roll (Pass Line)</button></div><p id="craps-msg" class="h-6 font-bold"></p></div>`;
+            if(id === 'poker') return `<h2 class="text-3xl text-center mb-6">Texas Hold'em</h2><div class="flex justify-between max-w-md mx-auto mb-4"><div class="text-center"><p class="text-slate-400 text-sm mb-2">DEALER</p><div id="pk-dealer-hand" class="flex justify-center -space-x-4 min-h-[84px]"></div></div><div class="text-center"><p class="text-slate-400 text-sm mb-2">YOU</p><div id="pk-player-hand" class="flex justify-center -space-x-4 min-h-[84px]"></div></div></div><div class="text-center mb-6"><p class="text-slate-400 text-sm mb-2">COMMUNITY</p><div id="pk-community" class="flex justify-center gap-2 min-h-[84px]"></div></div><div class="text-center max-w-sm mx-auto space-y-4"><div id="pk-controls" class="space-y-4"><input type="number" id="pk-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><button onclick="window.startPoker()" class="btn-primary w-full py-3 rounded-lg font-bold text-lg">Deal</button></div><div id="pk-actions" class="hidden flex gap-2"><button onclick="window.callPoker()" class="bg-blue-600 hover:bg-blue-500 text-white w-1/2 py-3 rounded-lg font-bold">Call (Match Bet)</button><button onclick="window.foldPoker()" class="bg-red-600 hover:bg-red-500 text-white w-1/2 py-3 rounded-lg font-bold">Fold</button></div><p id="pk-msg" class="h-6 font-bold text-yellow-400"></p></div>`;
+            if(id === 'coinflip') return `<h2 class="text-3xl text-center mb-6">Coin Flip</h2><div id="coin-display" class="coin-display">🪙</div><div class="text-center max-w-sm mx-auto space-y-4"><p class="text-slate-400">Win: 2x Payout</p><input type="number" id="cf-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><div class="flex justify-center gap-4"><button onclick="window.flipCoin('Heads')" class="bg-slate-700 hover:bg-slate-600 w-1/2 py-3 rounded text-xl font-bold">🐼 Heads</button><button onclick="window.flipCoin('Tails')" class="bg-slate-700 hover:bg-slate-600 w-1/2 py-3 rounded text-xl font-bold">🎋 Tails</button></div><p id="cf-msg" class="h-6 font-bold text-yellow-400"></p></div>`;
+            if(id === 'roulette') return `<h2 class="text-3xl text-center mb-6">Roulette</h2><div class="text-center mb-6"><div id="roulette-wheel" class="text-6xl mb-2">🎡</div><p id="roulette-result" class="text-2xl font-bold text-yellow-400">Place Bet</p></div><div class="text-center max-w-sm mx-auto space-y-4"><input type="number" id="rl-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><div class="flex justify-center gap-2"><button onclick="window.betRoulette('Red')" class="bg-red-600 hover:bg-red-500 text-white px-4 py-3 rounded font-bold">Red (2x)</button><button onclick="window.betRoulette('Black')" class="bg-slate-900 border border-slate-600 hover:bg-slate-800 text-white px-4 py-3 rounded font-bold">Black (2x)</button><button onclick="window.betRoulette('Green')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded font-bold">Green (36x)</button></div></div>`;
+            if(id === 'panda-fighting') return `<h2 class="text-3xl text-center mb-6">Panda Brawlers</h2><div class="brawler-display"><div class="text-center"><div class="text-6xl mb-2">🥊</div><p class="font-bold text-red-400">Rocky</p></div><div class="text-2xl font-bold text-slate-500">VS</div><div class="text-center"><div class="text-6xl mb-2">🥋</div><p class="font-bold text-blue-400">Bamboo</p></div></div><div class="text-center max-w-sm mx-auto space-y-4"><p class="text-slate-400 mb-2">Win: 2x Payout</p><input type="number" id="pf-bet" value="20" min="5" class="w-full bg-slate-800 border border-slate-600 rounded px-4 py-2 text-center text-xl font-bold"><div class="flex justify-center gap-4"><button onclick="window.betFighter('Rocky')" class="bg-red-600 hover:bg-red-500 text-white w-1/2 py-3 rounded font-bold">Bet Rocky</button><button onclick="window.betFighter('Bamboo')" class="bg-blue-600 hover:bg-blue-500 text-white w-1/2 py-3 rounded font-bold">Bet Bamboo</button></div><p id="pf-msg" class="h-6 font-bold text-yellow-400"></p></div>`;
+            return `<div></div>`;
+        }
+
+        // --- GAME LOGIC IMPLEMENTATIONS ---
+        
+        // SLOTS
+        function initSlots() { /* Ready */ }
+        function spinSlots() {
+            const bet = getValidBet('slot-bet');
+            if(!bet) return;
+            state.balance -= bet; 
+            updateStats('wager', bet); saveGame(); updateUI();
+            
+            const reels = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
+            const symbols = ['🍒', '🍋', '🐼', '💎', '7️⃣'];
+            playSound('spin');
+            reels.forEach(r => r.classList.add('reel-blur'));
+            let spins = 0;
+            const interval = setInterval(() => {
+                reels.forEach(r => r.textContent = symbols[Math.floor(Math.random() * symbols.length)]);
+                spins++;
+                if (spins > 15) {
+                    clearInterval(interval);
+                    reels.forEach(r => r.classList.remove('reel-blur'));
+                    
+                    if (window.forceWin) {
+                        reels.forEach(r => r.textContent = '🐼');
+                    }
+                    
+                    const res = reels.map(r => r.textContent);
+                    if (res[0] === res[1] && res[1] === res[2]) {
+                        const win = res[0] === '🐼' ? bet * 50 : bet * 10;
+                        state.balance += win; updateStats('win', win); notify(`JACKPOT! +$${win}`, 'win');
+                        document.getElementById('slot-msg').textContent = "WINNER!";
+                    } else {
+                        updateStats('lose', bet); document.getElementById('slot-msg').textContent = "";
+                    }
+                    saveGame(); updateUI();
+                }
+            }, 100);
+        }
+
+        // BLACKJACK
+        let bjDeck = [], dHand = [], pHand = [];
+        function initBlackjack() { document.getElementById('bj-controls').classList.remove('hidden'); document.getElementById('bj-actions').classList.add('hidden'); }
+        function startBlackjack(isVIP = false) {
+            const betInputId = isVIP ? 'vip-bj-bet' : 'bj-bet';
+            const bet = getValidBet(betInputId, isVIP);
+            if(!bet) return;
+            currentBjBet = bet;
+            state.balance -= bet; updateStats('wager', bet); updateUI();
+            bjDeck = createDeck(); pHand = [drawCard(), drawCard()]; dHand = [drawCard(), drawCard()];
+            
+            if(window.forceWin) {
+                pHand = [{v:'A', s:'♠'}, {v:'K', s:'♠'}];
+                dHand = [{v:'10', s:'♥'}, {v:'6', s:'♥'}];
+            }
+            
+            renderBJ(true);
+            document.getElementById('bj-controls').classList.add('hidden');
+            document.getElementById('bj-actions').classList.remove('hidden');
+            document.getElementById('bj-msg').textContent = "";
+            if (getHandValue(pHand) === 21) endBJ();
+        }
+        function createDeck() { const s=['♠','♥','♦','♣'], v=['2','3','4','5','6','7','8','9','10','J','Q','K','A']; let d=[]; for(let S of s) for(let V of v) d.push({v:V,s:S}); return d.sort(()=>Math.random()-.5); }
+        function drawCard() { return bjDeck.pop(); }
+        function getHandValue(h) { let s=0, a=0; h.forEach(c=>{ if(c.v==='A') a++; else if(['J','Q','K'].includes(c.v)) s+=10; else s+=parseInt(c.v); }); for(let i=0;i<a;i++) s+=11; while(s>21&&a>0){s-=10;a--;} return s; }
+        function renderBJ(hide) {
+            document.getElementById('p-hand').innerHTML = pHand.map(c=>`<div class="card ${['♥','♦'].includes(c.s)?'red':''}"><span class="suit-sm">${c.s}</span>${c.v}</div>`).join('');
+            document.getElementById('p-score').textContent = getHandValue(pHand);
+            if(hide) { document.getElementById('d-hand').innerHTML=`<div class="card ${['♥','♦'].includes(dHand[0].s)?'red':''}"><span class="suit-sm">${dHand[0].s}</span>${dHand[0].v}</div><div class="card bg-blue-600 border-2 border-white"></div>`; document.getElementById('d-score').textContent = "?"; }
+            else { document.getElementById('d-hand').innerHTML=dHand.map(c=>`<div class="card ${['♥','♦'].includes(c.s)?'red':''}"><span class="suit-sm">${c.s}</span>${c.v}</div>`).join(''); document.getElementById('d-score').textContent = getHandValue(dHand); }
+        }
+        function hit() { pHand.push(drawCard()); renderBJ(true); if(getHandValue(pHand)>21) endBJ(); }
+        function stand() { endBJ(); }
+        function endBJ() {
+            document.getElementById('bj-actions').classList.add('hidden'); document.getElementById('bj-controls').classList.remove('hidden');
+            let p = getHandValue(pHand); if(p<=21) while(getHandValue(dHand)<17) dHand.push(drawCard()); renderBJ(false);
+            let d = getHandValue(dHand), msg="";
+            
+            if (window.forceWin) { p = 21; d = 22; }
+            
+            if(p>21){msg="Bust!"; updateStats('lose', currentBjBet);} 
+            else if(d>21){let winAmt = currentBjBet*2; msg=`Dealer Bust! Win $${winAmt}`; state.balance+=winAmt; updateStats('win',winAmt); notify("Win!",'win');} 
+            else if(p>d){let winAmt = currentBjBet*2; msg=`Win $${winAmt}!`; state.balance+=winAmt; updateStats('win',winAmt); notify("Win!",'win');} 
+            else if(p===d){msg="Push"; state.balance+=currentBjBet;} 
+            else{msg="Dealer Wins"; updateStats('lose',currentBjBet);}
+            document.getElementById('bj-msg').textContent=msg; saveGame(); updateUI();
+        }
+
+        const horses=["🐼 Panda","🎋 Bamboo","🚀 Flash","🐌 Slowpoke"];
+        function initRacing() { document.getElementById('race-track').innerHTML=horses.map((h,i)=>`<div class="mb-2"><div class="text-xs mb-1 flex justify-between"><span>${h}</span><span id="h-dist-${i}">0m</span></div><div class="w-full bg-slate-800 rounded-full h-4"><div id="h-bar-${i}" class="bg-blue-500 h-4 rounded-full" style="width:0%"></div></div></div>`).join(''); }
+        function betHorse(idx) {
+            const bet = getValidBet('race-bet');
+            if(!bet) return;
+            state.balance -= bet; updateUI(); updateStats('wager', bet); document.getElementById('race-msg').textContent=`Go ${horses[idx]}!`; playSound('spin');
+            
+            let pos=[0,0,0,0]; const i=setInterval(()=>{ let w=-1; for(let k=0;k<4;k++){ pos[k]+=Math.random()*5; 
+            if (window.forceWin && k === idx) pos[k] += 2;
+            document.getElementById(`h-bar-${k}`).style.width=Math.min(100,pos[k])+'%'; document.getElementById(`h-dist-${k}`).innerText=Math.floor(pos[k])+'m'; if(pos[k]>=100) w=k; }
+            if(w>-1){ clearInterval(i); 
+            if(window.forceWin) w = idx;
+            if(w===idx){let win = bet * 4; state.balance+=win; notify(`Won $${win}!`, 'win'); updateStats('win',win); document.getElementById('race-msg').textContent="WINNER!";} else {updateStats('lose', bet); document.getElementById('race-msg').textContent=`${horses[w]} won.`;} saveGame(); updateUI(); } },100);
+        }
+
+        function initVIPRacing() { 
+            document.getElementById('vip-race-track').innerHTML=horses.map((h,i)=>`<div class="mb-2"><div class="text-xs mb-1 flex justify-between text-yellow-500"><span>${h}</span><span id="vip-h-dist-${i}">0m</span></div><div class="w-full bg-slate-800 rounded-full h-4 border border-yellow-700"><div id="vip-h-bar-${i}" class="bg-yellow-500 h-4 rounded-full" style="width:0%"></div></div></div>`).join(''); 
+        }
+        function betVIPHorse(idx) {
+            const bet = getValidBet('vip-race-bet', true);
+            if(!bet) return;
+            state.balance -= bet; updateUI(); updateStats('wager', bet); 
+            document.getElementById('vip-race-msg').textContent=`Go ${horses[idx]}!`; playSound('spin');
+            
+            let pos=[0,0,0,0]; 
+            const interval=setInterval(()=>{ 
+                let w=-1; 
+                for(let k=0;k<4;k++){ 
+                    pos[k]+=Math.random()*5; 
+                    if (window.forceWin && k === idx) pos[k] += 2; 
+                    document.getElementById(`vip-h-bar-${k}`).style.width=Math.min(100,pos[k])+'%'; 
+                    document.getElementById(`vip-h-dist-${k}`).innerText=Math.floor(pos[k])+'m'; 
+                    if(pos[k]>=100) w=k; 
+                }
+                if(w>-1){ 
+                    clearInterval(interval); 
+                    if(window.forceWin) w = idx; 
+                    if(w===idx){
+                        let win = bet * 4; 
+                        state.balance+=win; notify(`VIP Won $${win}!`, 'win'); updateStats('win',win); 
+                        document.getElementById('vip-race-msg').textContent="WINNER!";
+                    } else {
+                        updateStats('lose', bet); 
+                        document.getElementById('vip-race-msg').textContent=`${horses[w]} won.`;
+                    } 
+                    saveGame(); updateUI(); 
+                } 
+            },100);
+        }
+
+        function initCraps(){document.getElementById('craps-point').textContent="OFF";crapsPoint=0; document.getElementById('craps-bet').disabled = false; }
+        function rollCraps() {
+            if(crapsPoint === 0) {
+                const bet = getValidBet('craps-bet');
+                if(!bet) return;
+                currentCrapsBet = bet;
+                document.getElementById('craps-bet').disabled = true;
+                state.balance -= currentCrapsBet;
+                updateStats('wager', currentCrapsBet);
+                updateUI();
+            }
+            
+            let rolls=0; playSound('spin'); 
+            const i=setInterval(()=>{ 
+                let d1=Math.ceil(Math.random()*6), d2=Math.ceil(Math.random()*6); 
+                if (rolls > 10 && window.forceWin) {
+                    if (crapsPoint === 0) { d1 = 3; d2 = 4; }
+                    else { d1 = Math.floor(crapsPoint/2); d2 = crapsPoint - d1; }
+                }
+                document.getElementById('die1').textContent=DICE_EMOJIS[d1-1]; 
+                document.getElementById('die2').textContent=DICE_EMOJIS[d2-1]; 
+                rolls++;
+                
+                if(rolls>10){ 
+                    clearInterval(i); const t=d1+d2; let msg=`Rolled ${t}.`;
+                    if(crapsPoint===0){ 
+                        if(t===7||t===11){let win = currentCrapsBet*2; msg+=" WIN!"; state.balance+=win; updateStats('win', win); notify("Win!",'win'); document.getElementById('craps-bet').disabled = false;} 
+                        else if(t===2||t===3||t===12){msg+=" CRAPS!"; updateStats('lose', currentCrapsBet); notify("Lose",'lose'); document.getElementById('craps-bet').disabled = false;} 
+                        else {crapsPoint=t; document.getElementById('craps-point').textContent=crapsPoint; msg+=` Point is ${crapsPoint}`;} 
+                    } else { 
+                        if(t===crapsPoint){let win = currentCrapsBet*2; msg+=" HIT POINT!"; state.balance+=win; updateStats('win', win); crapsPoint=0; document.getElementById('craps-point').textContent="OFF"; notify("Win!",'win'); document.getElementById('craps-bet').disabled = false;} 
+                        else if(t===7){msg+=" SEVEN OUT!"; updateStats('lose', currentCrapsBet); crapsPoint=0; document.getElementById('craps-point').textContent="OFF"; notify("Lose",'lose'); document.getElementById('craps-bet').disabled = false;} 
+                    }
+                    document.getElementById('craps-msg').textContent=msg; saveGame(); updateUI(); 
+                } 
+            },50);
+        }
+
+        function initCoinFlip(){/*Ready*/}
+        function flipCoin(s){
+            const bet = getValidBet('cf-bet');
+            if(!bet) return;
+            state.balance -= bet; updateUI(); updateStats('wager', bet); document.getElementById('cf-msg').textContent="Flipping..."; playSound('spin');
+            let f=0; const i=setInterval(()=>{ document.getElementById('coin-display').textContent=f%2===0?"🪙":"✨"; f++; if(f>10){ clearInterval(i); let r=Math.random()<0.5?'Heads':'Tails'; if(window.forceWin) r = s; document.getElementById('coin-display').textContent=r==='Heads'?"🐼":"🎋"; if(r===s){ let win=bet*2; state.balance+=win; updateStats('win',win); notify(`Won $${win}!`, 'win'); document.getElementById('cf-msg').textContent="WINNER!";} else {updateStats('lose',bet); document.getElementById('cf-msg').textContent="Lost.";} saveGame(); updateUI(); } },100);
+        }
+
+        function evaluatePokerHand(cards) {
+            let vals = cards.map(c => {
+                if(c.v==='A') return 14; if(c.v==='K') return 13; if(c.v==='Q') return 12; if(c.v==='J') return 11;
+                return parseInt(c.v);
+            }).sort((a,b)=>b-a);
+            let counts = {}; vals.forEach(v => counts[v] = (counts[v]||0)+1);
+            let pairs = [], threes = [], fours = [];
+            for(let v in counts) {
+                if(counts[v]===2) pairs.push(parseInt(v));
+                if(counts[v]===3) threes.push(parseInt(v));
+                if(counts[v]===4) fours.push(parseInt(v));
+            }
+            pairs.sort((a,b)=>b-a); threes.sort((a,b)=>b-a); fours.sort((a,b)=>b-a);
+            let suits = {}; cards.forEach(c => suits[c.s] = (suits[c.s]||0)+1);
+            let hasFlush = Object.values(suits).some(c => c >= 5);
+            let uVals = [...new Set(vals)]; if(uVals.includes(14)) uVals.push(1);
+            let hasStraight = false, stHigh = 0;
+            for(let i=0; i<=uVals.length-5; i++){ if(uVals[i]-uVals[i+4]===4){ hasStraight=true; stHigh=uVals[i]; break; } }
+            
+            if(hasStraight && hasFlush) return 80000 + stHigh;
+            if(fours.length) return 70000 + fours[0];
+            if(threes.length && pairs.length) return 60000 + threes[0]*100 + pairs[0];
+            if(hasFlush) return 50000 + vals[0];
+            if(hasStraight) return 40000 + stHigh;
+            if(threes.length) return 30000 + threes[0];
+            if(pairs.length >= 2) return 20000 + pairs[0]*100 + pairs[1];
+            if(pairs.length === 1) return 10000 + pairs[0];
+            return vals[0];
+        }
+
+        function initPoker(){ document.getElementById('pk-controls').classList.remove('hidden'); document.getElementById('pk-actions').classList.add('hidden'); document.getElementById('pk-dealer-hand').innerHTML=''; document.getElementById('pk-player-hand').innerHTML=''; document.getElementById('pk-community').innerHTML=''; }
+        function startPoker(){
+            const bet = getValidBet('pk-bet');
+            if(!bet) return;
+            currentPokerBet = bet;
+            state.balance -= bet; updateUI(); updateStats('wager', bet);
+            pkDeck=createDeck(); pkHand=[drawCard(),drawCard()]; pkDealer=[drawCard(),drawCard()]; pkComm=[];
+            document.getElementById('pk-player-hand').innerHTML=pkHand.map(c=>`<div class="card ${['♥','♦'].includes(c.s)?'red':''}"><span class="suit-sm">${c.s}</span>${c.v}</div>`).join('');
+            document.getElementById('pk-dealer-hand').innerHTML=`<div class="card bg-blue-600 border-2 border-white"></div><div class="card bg-blue-600 border-2 border-white"></div>`;
+            document.getElementById('pk-controls').classList.add('hidden'); document.getElementById('pk-actions').classList.remove('hidden'); document.getElementById('pk-msg').textContent=`Call ($${currentPokerBet}) or Fold?`;
+        }
+        function foldPoker(){ document.getElementById('pk-msg').textContent="Folded."; updateStats('lose',currentPokerBet); initPoker(); }
+        function callPoker(){
+            if(state.balance < currentPokerBet) return notify(`Need $${currentPokerBet} to Call`, 'lose'); 
+            state.balance -= currentPokerBet; updateUI(); updateStats('wager', currentPokerBet);
+            
+            pkComm=[drawCard(),drawCard(),drawCard(),drawCard(),drawCard()]; document.getElementById('pk-community').innerHTML=pkComm.map(c=>`<div class="card ${['♥','♦'].includes(c.s)?'red':''}"><span class="suit-sm">${c.s}</span>${c.v}</div>`).join('');
+            document.getElementById('pk-dealer-hand').innerHTML=pkDealer.map(c=>`<div class="card ${['♥','♦'].includes(c.s)?'red':''}"><span class="suit-sm">${c.s}</span>${c.v}</div>`).join('');
+            
+            let pV = evaluatePokerHand([...pkHand, ...pkComm]);
+            let dV = evaluatePokerHand([...pkDealer, ...pkComm]);
+            
+            if(window.forceWin) pV = 999999;
+            
+            if(pV>dV){let winAmt = currentPokerBet * 4; state.balance+=winAmt; updateStats('win',winAmt); notify(`Won Pot $${winAmt}!`, 'win'); document.getElementById('pk-msg').textContent="Winner!";} else {updateStats('lose',currentPokerBet*2); document.getElementById('pk-msg').textContent="Dealer Wins.";}
+            setTimeout(initPoker,3000); saveGame(); updateUI();
+        }
+
+        function initRoulette(){/*Ready*/}
+        function betRoulette(t){
+            const bet = getValidBet('rl-bet');
+            if(!bet) return;
+            state.balance -= bet; updateStats('wager', bet); document.getElementById('roulette-result').textContent="Spinning..."; playSound('spin');
+            setTimeout(()=>{ let n=Math.floor(Math.random()*37), c=(n===0)?'Green':(n%2===0?'Black':'Red'); if(window.forceWin){ c = t; if(t==='Green') n=0; else n = t==='Red'?1:2; } let w=0; if(t===c) w=bet*2; if(t==='Green'&&n===0) w=bet*36;
+            document.getElementById('roulette-result').textContent=`${n} (${c})`; if(w>0){state.balance+=w; updateStats('win',w); notify(`Won $${w}!`, 'win');} else {updateStats('lose',bet); notify("Lost",'lose');} saveGame(); updateUI(); },1000);
+        }
+        
+        function betVIPRoulette(type) {
+            const bet = getValidBet('vip-rl-bet', true);
+            if(!bet) return;
+            
+            const btns = document.querySelectorAll('#active-game-content button');
+            btns.forEach(b => b.disabled = true);
+            
+            state.balance -= bet; updateStats('wager', bet); 
+            
+            const wheel = document.getElementById('vip-roulette-wheel');
+            const resultText = document.getElementById('vip-roulette-result');
+            
+            resultText.textContent = "Spinning...";
+            playSound('spin');
+            
+            const extra = Math.floor(Math.random() * 360);
+            const totalDeg = 1800 + extra;
+            
+            wheel.style.transition = 'transform 3s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            wheel.style.transform = `rotate(${totalDeg}deg)`;
+            
+            setTimeout(() => {
+                let num = Math.floor(Math.random() * 37);
+                let color = (num === 0) ? 'Green' : (num % 2 === 0 ? 'Black' : 'Red');
+                if(window.forceWin){ color = type; if(type==='Green') num=0; else num = type==='Red'?1:2; }
+                
+                let win = 0;
+                if (type === color) win = bet*2;
+                if (type === 'Green' && num === 0) win = bet*36;
+                
+                resultText.textContent = `${num} (${color})`;
+                if (win > 0) {
+                    state.balance += win; updateStats('win', win); notify(`VIP Win! $${win}!`, 'win');
+                } else {
+                    updateStats('lose', bet); notify("Lost", 'lose');
+                }
+                
+                wheel.style.transition = 'none';
+                wheel.style.transform = `rotate(${extra}deg)`;
+                
+                btns.forEach(b => b.disabled = false);
+                
+                saveGame(); updateUI();
+            }, 3000);
+        }
+
+        function initPandaFighting(){/*Ready*/}
+        function betFighter(n){
+            const bet = getValidBet('pf-bet');
+            if(!bet) return;
+            state.balance -= bet; updateStats('wager', bet); document.getElementById('pf-msg').textContent="Fighting...";
+            setTimeout(()=>{ let w=Math.random()<0.5?'Rocky':'Bamboo'; if(window.forceWin) w = n; if(w===n){let win = bet * 2; state.balance+=win; updateStats('win',win); notify(`Won $${win}!`, 'win'); document.getElementById('pf-msg').textContent=`${w} Won!`;} else {updateStats('lose',bet); document.getElementById('pf-msg').textContent=`${w} Won. Lost.`;} saveGame(); updateUI(); },1500);
+        }
+
+        // --- VIP ---
+        function enterVIP() {
+            if (state.balance >= CONFIG.vipThreshold) {
+                document.getElementById('view-lobby').classList.add('hidden');
+                document.getElementById('game-stage').classList.remove('hidden');
+                const container = document.getElementById('active-game-content');
+                container.innerHTML = `
+                <h2 class="text-4xl text-center vip-text mb-8">👑 VIP LOUNGE 👑</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-4">
+                    <div class="vip-card p-6 rounded-xl flex flex-col items-center cursor-pointer text-center hover:scale-105 transition" onclick="window.openVIPGame('vip-slots')">
+                        <div class="text-6xl mb-4">🎰</div>
+                        <h3 class="font-bold text-yellow-400 text-2xl">VIP Slots</h3>
+                        <p class="text-sm text-yellow-600 mt-2">Mega Jackpots</p>
+                    </div>
+                    <div class="vip-card p-6 rounded-xl flex flex-col items-center cursor-pointer text-center hover:scale-105 transition" onclick="window.openVIPGame('vip-blackjack')">
+                        <div class="text-6xl mb-4">♠️</div>
+                        <h3 class="font-bold text-yellow-400 text-2xl">VIP 21</h3>
+                        <p class="text-sm text-yellow-600 mt-2">High stakes Blackjack</p>
+                    </div>
+                    <div class="vip-card p-6 rounded-xl flex flex-col items-center cursor-pointer text-center hover:scale-105 transition" onclick="window.openVIPGame('vip-roulette')">
+                        <div class="text-6xl mb-4">🎡</div>
+                        <h3 class="font-bold text-yellow-400 text-2xl">VIP Roulette</h3>
+                        <p class="text-sm text-yellow-600 mt-2">Premium spinning wheel</p>
+                    </div>
+                    <div class="vip-card p-6 rounded-xl flex flex-col items-center cursor-pointer text-center hover:scale-105 transition" onclick="window.openVIPGame('vip-racing')">
+                        <div class="text-6xl mb-4">🏇</div>
+                        <h3 class="font-bold text-yellow-400 text-2xl">VIP Races</h3>
+                        <p class="text-sm text-yellow-600 mt-2">High stakes derbies</p>
+                    </div>
+                </div>
+                <div class="text-center mt-8">
+                    <button onclick="window.goToLobby()" class="text-slate-400 hover:text-white underline">Leave Lounge</button>
+                </div>
+                `;
+            } else {
+                notify("VIP Only! Need $1,000", 'lose');
+            }
+        }
+        
+        function openVIPGame(gameId) {
+            playSound('click');
+            if (state.balance < CONFIG.vipThreshold) {
+                notify("VIP Only! Need $1,000", 'lose');
+                return;
+            }
+            const container = document.getElementById('active-game-content');
+            if (gameId === 'vip-slots') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-8">VIP GOLD SLOTS</h2>
+                <div class="flex justify-center gap-4 mb-8">
+                    <div id="vip-reel1" class="reel vip-reel w-24 h-32 flex items-center justify-center text-5xl">👑</div>
+                    <div id="vip-reel2" class="reel vip-reel w-24 h-32 flex items-center justify-center text-5xl">👑</div>
+                    <div id="vip-reel3" class="reel vip-reel w-24 h-32 flex items-center justify-center text-5xl">👑</div>
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <p class="text-yellow-500 mb-2">No Betting Limits!</p>
+                    <input type="number" id="vip-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                    <button id="vip-spin-btn" onclick="window.spinVIPSlots()" class="bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black w-full py-4 rounded-full text-2xl font-bold border-2 border-yellow-300">SPIN VIP</button>
+                    <p id="vip-slot-result" class="h-6 font-bold text-yellow-400"></p>
+                    <button onclick="window.enterVIP()" class="text-slate-400 hover:text-white underline text-sm">Back to VIP Lounge</button>
+                </div>
+                `;
+            } else if (gameId === 'vip-blackjack') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-4">VIP BLACKJACK</h2>
+                <div class="flex justify-between max-w-md mx-auto mb-8">
+                    <div class="text-center">
+                        <p class="text-yellow-600 text-sm mb-2 font-bold">DEALER <span id="d-score" class="bg-yellow-900 px-2 rounded ml-2 text-white">0</span></p>
+                        <div id="d-hand" class="flex justify-center -space-x-8 min-h-[100px]"></div>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-yellow-600 text-sm mb-2 font-bold">YOU <span id="p-score" class="bg-yellow-900 px-2 rounded ml-2 text-white">0</span></p>
+                        <div id="p-hand" class="flex justify-center -space-x-8 min-h-[100px]"></div>
+                    </div>
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <div id="bj-controls" class="space-y-4">
+                        <input type="number" id="vip-bj-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                        <button onclick="window.startBlackjack(true)" class="bg-gradient-to-r from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-black w-full py-3 rounded-lg font-bold">Deal VIP</button>
+                    </div>
+                    <div id="bj-actions" class="hidden flex gap-2">
+                        <button onclick="window.hit()" class="bg-blue-600 hover:bg-blue-500 text-white w-1/2 py-3 rounded-lg font-bold border-2 border-yellow-600">Hit</button>
+                        <button onclick="window.stand()" class="bg-red-600 hover:bg-red-500 text-white w-1/2 py-3 rounded-lg font-bold border-2 border-yellow-600">Stand</button>
+                    </div>
+                    <p id="bj-msg" class="h-6 font-bold text-yellow-400"></p>
+                    <button onclick="window.enterVIP()" class="text-slate-400 hover:text-white underline text-sm mt-4">Back to VIP Lounge</button>
+                </div>
+                `;
+                initBlackjack();
+            } else if (gameId === 'vip-roulette') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-6">VIP ROULETTE</h2>
+                <div class="text-center mb-6">
+                    <div class="text-8xl mb-4 overflow-hidden py-4">
+                        <div id="vip-roulette-wheel" class="spinning-wheel inline-block">🎡</div>
+                    </div>
+                    <p id="vip-roulette-result" class="text-2xl font-bold text-yellow-400">Place VIP Bet</p>
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <input type="number" id="vip-rl-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                    <div class="flex justify-center gap-2">
+                        <button onclick="window.betVIPRoulette('Red')" class="bg-red-600 hover:bg-red-500 text-white px-4 py-3 rounded font-bold border-2 border-yellow-600">Red (2x)</button>
+                        <button onclick="window.betVIPRoulette('Black')" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 text-white px-4 py-3 rounded font-bold border-2">Black (2x)</button>
+                        <button onclick="window.betVIPRoulette('Green')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded font-bold border-2 border-yellow-600">Green (36x)</button>
+                    </div>
+                    <button onclick="window.enterVIP()" class="mt-4 text-slate-400 hover:text-white underline text-sm block mx-auto">Back to VIP Lounge</button>
+                </div>
+                `;
+            } else if (gameId === 'vip-racing') {
+                container.innerHTML = `
+                <h2 class="text-3xl text-center vip-text mb-6">VIP RACES</h2>
+                <div class="bg-black p-4 rounded-xl border border-yellow-600 mb-6 space-y-4" id="vip-race-track">
+                    <!-- Horses injected here -->
+                </div>
+                <div class="text-center max-w-sm mx-auto space-y-4">
+                    <p class="mb-2 text-yellow-500 font-bold">Pick VIP Winner (4x Payout)</p>
+                    <input type="number" id="vip-race-bet" value="500" min="100" class="w-full bg-black border border-yellow-600 rounded px-4 py-2 text-center text-xl font-bold text-yellow-500">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="window.betVIPHorse(0)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🐼 Panda</button>
+                        <button onclick="window.betVIPHorse(1)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🎋 Bamboo</button>
+                        <button onclick="window.betVIPHorse(2)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🚀 Flash</button>
+                        <button onclick="window.betVIPHorse(3)" class="bg-slate-900 border border-yellow-600 hover:bg-slate-800 py-3 rounded font-bold text-yellow-500">🐌 Slowpoke</button>
+                    </div>
+                    <p id="vip-race-msg" class="h-6 font-bold text-yellow-400"></p>
+                    <button onclick="window.enterVIP()" class="mt-4 text-slate-400 hover:text-white underline text-sm block mx-auto">Back to VIP Lounge</button>
+                </div>`;
+                initVIPRacing();
+            }
+        }
+
+        function spinVIPSlots() {
+            const bet = getValidBet('vip-bet', true);
+            if (!bet) return;
+            state.balance -= bet;
+            updateStats('wager', bet);
+            updateUI();
+            playSound('spin');
+            
+            document.getElementById('vip-slot-result').textContent = "Spinning...";
+            document.getElementById('vip-spin-btn').disabled = true;
+
+            const reels = [ document.getElementById('vip-reel1'), document.getElementById('vip-reel2'), document.getElementById('vip-reel3') ];
+            let spinCount = 0;
+            const spinInterval = setInterval(() => {
+                reels.forEach((reel) => {
+                    reel.textContent = VIP_SYMBOLS[Math.floor(Math.random() * VIP_SYMBOLS.length)];
+                });
+
+                spinCount++;
+                if (spinCount >= 20) {
+                    clearInterval(spinInterval);
+                    if(window.forceWin) reels.forEach(r => r.textContent = '👑');
+                    
+                    const results = reels.map(r => r.textContent);
+                    let winAmount = 0;
+                    let message = "";
+
+                    if (results[0] === results[1] && results[1] === results[2]) {
+                        if (results[0] === '👑') {
+                            winAmount = bet * 100;
+                            message = `MEGA JACKPOT! 👑👑👑 You won $${winAmount}!`;
+                        } else {
+                            winAmount = bet * 10;
+                            message = `VIP WIN! ${results[0]}${results[1]}${results[2]}! You won $${winAmount}!`;
+                        }
+                    } else {
+                        message = "Try again!";
+                    }
+
+                    if (winAmount > 0) {
+                        state.balance += winAmount;
+                        updateStats('win', winAmount);
+                        notify(message, 'win');
+                    } else {
+                         updateStats('lose', bet);
+                    }
+                    
+                    document.getElementById('vip-slot-result').textContent = message;
+                    document.getElementById('vip-spin-btn').disabled = false;
+                    saveGame();
+                    updateUI();
+                }
+            }, 100);
+        }
+
+        // --- FLAPPY FLUFF ---
+        function switchToFlappyBird() {
+            document.getElementById('job-lockout-modal').classList.add('hidden');
+            switchView('flappy-bird-container');
+        }
+        
+        function startFlappy() {
+            initFlappy();
+        }
+
+        function jumpFlappy() {
+            if(bird) bird.vy = -6;
+        }
+
+        // Explicitly expose functions to window
+        window.acceptLoan = acceptLoan;
+        window.startPoker = startPoker;
+        window.callPoker = callPoker;
+        window.foldPoker = foldPoker;
+        window.initPoker = initPoker;
+        window.rollCraps = rollCraps;
+        window.initCraps = initCraps;
+        window.flipCoin = flipCoin;
+        window.initCoinFlip = initCoinFlip;
+        window.betRoulette = betRoulette;
+        window.betVIPRoulette = betVIPRoulette;
+        window.initRoulette = initRoulette;
+        window.betFighter = betFighter;
+        window.initPandaFighting = initPandaFighting;
+        window.openGame = openGame;
+        window.openVIPGame = openVIPGame;
+        window.spinSlots = spinSlots;
+        window.startBlackjack = startBlackjack;
+        window.hit = hit;
+        window.stand = stand;
+        window.betHorse = betHorse;
+        window.betVIPHorse = betVIPHorse;
+        window.enterVIP = enterVIP;
+        window.spinVIPSlots = spinVIPSlots;
+        window.goToLobby = goToLobby;
+        window.openShop = openShop;
+        window.openStats = openStats;
+        window.resetData = resetData;
+        window.openJobModal = openJobModal;
+        window.closeModal = closeModal;
+        window.applyForJob = applyForJob;
+        window.submitApplication = submitApplication;
+        window.collectPaycheck = collectPaycheck;
+        window.quitJob = quitJob;
+        window.toggleAudio = toggleAudio;
+        window.startFlappy = startFlappy;
+        window.jumpFlappy = jumpFlappy;
+        window.buyItem = buyItem;
+        window.kickOut = () => { document.getElementById('loan-modal').classList.add('hidden'); goToLobby(); };
+        window.notify = notify;
+
+    </script>
+</body>
+</html>

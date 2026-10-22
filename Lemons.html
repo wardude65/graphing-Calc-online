@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citrus Empire</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+        
+        :root {
+            --bg-base: #0f172a;
+            --bg-panel: #1e293b;
+            --accent-primary: #eab308;
+            --text-main: #f8fafc;
+        }
+
+        body.theme-sour {
+            --bg-base: #064e3b;
+            --bg-panel: #065f46;
+            --accent-primary: #a3e635;
+        }
+
+        body.theme-sweet {
+            --bg-base: #4c0519;
+            --bg-panel: #881337;
+            --accent-primary: #f43f5e;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            overflow: hidden;
+            user-select: none;
+            transition: background-color 1s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        .fruit-button {
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(0 0 30px var(--accent-primary));
+        }
+        .fruit-button:active {
+            transform: scale(0.9);
+            filter: drop-shadow(0 0 10px var(--accent-primary));
+        }
+
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            color: #22c55e;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 0px 2px 4px rgba(0,0,0,0.5);
+            z-index: 50;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+        }
+
+        .pulse-glow { animation: pulseGlow 2s infinite; }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.2); }
+        }
+
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+        }
+
+        .panel-bg { background-color: var(--bg-panel); }
+        
+        .tab-btn { white-space: nowrap; }
+        .tab-btn.active {
+            border-bottom: 2px solid var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .achievement-card {
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+        .achievement-card.unlocked {
+            border-left-color: #facc15;
+            background-color: rgba(250, 204, 21, 0.1);
+        }
+
+        #fx-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 40;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col relative">
+
+    <!-- Particle Canvas for Weather -->
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- Header / Stats Bar -->
+    <header class="panel-bg border-b border-black/20 p-4 flex justify-between items-center shadow-md z-50 transition-colors duration-500" id="header-bar">
+        <div class="flex flex-col">
+            <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold" id="fruit-name-label">Current Fruit</span>
+            <div class="flex items-center gap-2">
+                <span id="current-fruit-icon" class="text-2xl">🍋</span>
+                <span class="text-2xl font-bold text-yellow-400" id="ui-cash">$0</span>
+            </div>
+            <span class="text-sm text-green-400 font-semibold" id="ui-cash-sec">+$0 / sec</span>
+        </div>
+        
+        <div class="flex items-center gap-6 text-center">
+            <div class="hidden md:block">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">Inventory</span>
+                <span class="text-lg font-bold text-orange-300" id="ui-inventory">0</span>
+            </div>
+            <div class="hidden md:block">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">Multiplier</span>
+                <span class="text-lg font-bold text-purple-400" id="ui-multiplier">x1.00</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 md:gap-3">
+            <div id="weather-indicator" class="hidden px-3 py-1 rounded-full text-xs font-bold pulse-glow bg-blue-900/80 text-blue-200 backdrop-blur">
+                <i class="fas fa-cloud-rain mr-1"></i> <span id="weather-text">Rainstorm</span>
+            </div>
+            <button onclick="toggleAudio()" class="bg-black/20 hover:bg-black/40 p-2 rounded transition" title="Toggle Sound">
+                <i id="audio-icon" class="fas fa-volume-mute text-slate-300"></i>
+            </button>
+            <button onclick="saveGame(true)" class="bg-black/20 hover:bg-black/40 p-2 rounded transition" title="Save Game">
+                <i class="fas fa-save text-slate-300"></i>
+            </button>
+            <button onclick="hardReset()" class="bg-red-900/50 hover:bg-red-800/80 p-2 rounded transition" title="Hard Reset">
+                <i class="fas fa-trash text-red-300"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative z-40">
+        
+        <!-- Left Panel: The Clicker -->
+        <div class="md:w-1/3 p-4 md:p-8 flex flex-col items-center justify-center border-r border-black/20 relative select-none bg-black/10">
+            
+            <div class="absolute top-4 left-4 right-4 flex justify-between gap-2">
+                <button id="btn-rebirth" onclick="openModal('rebirth-modal')" class="hidden flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded shadow-lg transition transform hover:scale-105">
+                    <i class="fas fa-recycle mr-1"></i> Rebirth
+                </button>
+                <button id="btn-ascend" onclick="openModal('ascend-modal')" class="hidden flex-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-2 px-3 rounded shadow-lg transition transform hover:scale-105">
+                    <i class="fas fa-star mr-1"></i> Ascend
+                </button>
+            </div>
+
+            <div class="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center cursor-pointer fruit-button" id="main-clicker">
+                <!-- Fruit Emoji dynamically updated -->
+                <span id="big-fruit" class="text-[8rem] md:text-[12rem] drop-shadow-2xl">🍋</span>
+            </div>
+            
+            <div class="mt-8 text-center panel-bg p-4 rounded-xl border border-white/10 w-full max-w-xs shadow-lg backdrop-blur">
+                <h3 class="text-sm text-slate-300 font-semibold mb-2">Manual Production</h3>
+                <div class="flex justify-between items-center text-sm">
+                    <span>Click Power:</span>
+                    <span class="font-bold text-yellow-300" id="ui-click-power">1</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Tabs System -->
+        <div class="md:w-2/3 flex flex-col bg-black/20">
+            
+            <div class="flex border-b border-black/20 panel-bg overflow-x-auto custom-scrollbar">
+                <button class="tab-btn active px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition flex-1 text-center" onclick="switchTab('businesses', this)">
+                    <i class="fas fa-building md:mr-2"></i> <span class="hidden md:inline">Businesses</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition flex-1 text-center" onclick="switchTab('upgrades', this)">
+                    <i class="fas fa-arrow-up md:mr-2"></i> <span class="hidden md:inline">Upgrades</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition flex-1 text-center" onclick="switchTab('managers', this)">
+                    <i class="fas fa-user-tie md:mr-2"></i> <span class="hidden md:inline">Managers</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition flex-1 text-center" onclick="switchTab('evolution', this)">
+                    <i class="fas fa-dna md:mr-2"></i> <span class="hidden md:inline">Evolve</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition flex-1 text-center" onclick="switchTab('achievements', this)">
+                    <i class="fas fa-trophy text-yellow-500 md:mr-2"></i> <span class="hidden md:inline">Trophies</span>
+                </button>
+                <button class="tab-btn px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 transition flex-1 text-center" onclick="switchTab('stats', this)">
+                    <i class="fas fa-chart-bar text-blue-400 md:mr-2"></i> <span class="hidden md:inline">Stats</span>
+                </button>
+            </div>
+
+            <!-- Global Buy Amount Toggle (Visible on Businesses/Upgrades) -->
+            <div id="buy-amount-container" class="panel-bg border-b border-white/5 p-2 flex justify-end items-center gap-2">
+                <span class="text-xs text-slate-400 font-bold mr-2">BUY AMOUNT:</span>
+                <button onclick="setBuyAmount(1)" id="btn-buy-1" class="buy-amt-btn px-3 py-1 rounded bg-yellow-600 font-bold text-xs">x1</button>
+                <button onclick="setBuyAmount(10)" id="btn-buy-10" class="buy-amt-btn px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 font-bold text-xs transition">x10</button>
+                <button onclick="setBuyAmount('MAX')" id="btn-buy-max" class="buy-amt-btn px-3 py-1 rounded bg-slate-700 hover:bg-slate-600 font-bold text-xs transition">MAX</button>
+            </div>
+
+            <!-- Tab Content Area -->
+            <div class="flex-1 overflow-y-auto p-4" id="tab-content">
+                <div id="tab-businesses" class="space-y-3"></div>
+                <div id="tab-upgrades" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                <div id="tab-managers" class="hidden space-y-3"><div id="manager-list" class="space-y-3"></div></div>
+                
+                <div id="tab-evolution" class="hidden flex flex-col items-center justify-center h-full text-center pb-12">
+                    <h2 class="text-2xl font-bold text-yellow-400 mb-2">Fruit Evolution</h2>
+                    <p class="text-slate-400 mb-6 max-w-md text-sm">Evolving permanently changes your fruit, multiplying base value. Resets standard prestige.</p>
+                    <div class="flex items-center justify-center gap-4 mb-6">
+                        <div class="text-5xl" id="evo-current">🍋</div>
+                        <i class="fas fa-arrow-right text-xl text-slate-500"></i>
+                        <div class="text-5xl opacity-50" id="evo-next">🍊</div>
+                    </div>
+                    <div class="panel-bg p-6 rounded-xl border border-white/10 w-full max-w-sm mb-6">
+                        <h3 class="text-lg font-bold mb-2" id="evo-next-name">Next: Orange</h3>
+                        <p class="text-sm text-green-400 mb-4" id="evo-bonus">Effect: x5 Base Sell Value</p>
+                        <p class="text-sm text-slate-300 mb-4 font-bold">Cost: <span id="evo-cost" class="text-yellow-400">$1.00 M</span></p>
+                        <button id="btn-evolve" onclick="evolveFruit()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded transition disabled:opacity-50 disabled:cursor-not-allowed">Evolve Now</button>
+                    </div>
+
+                    <!-- Relics Section in Evolution Tab -->
+                    <div class="w-full max-w-md text-left">
+                        <h3 class="text-lg font-bold text-purple-400 mb-2 border-b border-white/10 pb-1">Found Relics</h3>
+                        <p class="text-xs text-slate-400 mb-3">Relics drop randomly while clicking. Max 3 equipped automatically.</p>
+                        <div id="relics-list" class="flex flex-col gap-2"></div>
+                    </div>
+                </div>
+
+                <div id="tab-achievements" class="hidden">
+                    <div class="mb-4 bg-yellow-900/20 border border-yellow-600/50 p-3 rounded text-sm text-yellow-200">
+                        <i class="fas fa-info-circle mr-2"></i> Each unlocked trophy grants a permanent <b>+1%</b> bonus to global production and click power!
+                    </div>
+                    <div id="achievements-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </div>
+
+                <div id="tab-stats" class="hidden">
+                    <div class="panel-bg p-6 rounded-xl border border-white/10">
+                        <h2 class="text-xl font-bold mb-4 border-b border-white/10 pb-2">Empire Statistics</h2>
+                        <div class="grid grid-cols-2 gap-4 text-sm" id="stats-grid">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals (Hidden by default) -->
+    
+    <!-- Faction Choice Modal (Endgame) -->
+    <div id="faction-modal" class="hidden fixed inset-0 modal-bg z-50 flex items-center justify-center px-4">
+        <div class="panel-bg rounded-2xl border border-yellow-500 p-6 max-w-lg w-full text-center shadow-2xl">
+            <h2 class="text-3xl font-black text-yellow-400 mb-2">The Golden Era</h2>
+            <p class="text-sm text-slate-300 mb-6">You have reached the Golden Fruit stage. It is time to align your empire with a global syndicate to dominate the markets forever.</p>
+            
+            <div class="flex flex-col md:flex-row gap-4">
+                <button onclick="joinFaction('sour')" class="flex-1 bg-green-900/50 hover:bg-green-800 border border-green-500 p-4 rounded-xl transition flex flex-col items-center group">
+                    <i class="fas fa-flask text-4xl text-green-400 mb-2 group-hover:scale-110 transition"></i>
+                    <h3 class="font-bold text-green-300">The Sour Syndicate</h3>
+                    <p class="text-xs text-slate-400 mt-2">+25% Production Speed globally. Deep green theme.</p>
+                </button>
+                <button onclick="joinFaction('sweet')" class="flex-1 bg-rose-900/50 hover:bg-rose-800 border border-rose-500 p-4 rounded-xl transition flex flex-col items-center group">
+                    <i class="fas fa-heart text-4xl text-rose-400 mb-2 group-hover:scale-110 transition"></i>
+                    <h3 class="font-bold text-rose-300">The Sweet Cartel</h3>
+                    <p class="text-xs text-slate-400 mt-2">+25% Base Sell Value globally. Rich crimson theme.</p>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals from previous code (Offline, NPC, Rebirth, Ascend) -->
+    <div id="offline-modal" class="hidden fixed inset-0 modal-bg z-[60] flex items-center justify-center px-4">
+        <div class="panel-bg rounded-2xl border border-green-500/50 p-6 max-w-sm w-full text-center shadow-2xl transform scale-100 transition-transform">
+            <div class="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-moon text-3xl text-green-400"></i></div>
+            <h2 class="text-2xl font-bold mb-2">Welcome Back!</h2>
+            <p class="text-slate-400 text-sm mb-4">While you were away for <span id="offline-time" class="text-white font-bold">0s</span>, your empire generated:</p>
+            <div class="text-3xl font-black text-yellow-400 mb-6" id="offline-cash">+$0</div>
+            <button onclick="closeModal('offline-modal'); playSound('buy')" class="w-full bg-green-600 hover:bg-green-500 font-bold py-3 rounded-lg transition">Awesome!</button>
+        </div>
+    </div>
+
+    <div id="npc-modal" class="hidden fixed inset-0 modal-bg z-[60] flex items-center justify-center px-4">
+        <div class="panel-bg rounded-2xl border border-blue-500 p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+            <div class="flex items-center gap-4 mb-4">
+                <div class="w-12 h-12 bg-blue-900 rounded-full flex items-center justify-center text-xl" id="npc-icon">💼</div>
+                <div><h2 class="text-lg font-bold" id="npc-name">Businessman</h2><p class="text-xs text-slate-400">Incoming Offer</p></div>
+            </div>
+            <p class="text-slate-300 text-sm mb-6 bg-black/30 p-3 rounded" id="npc-text">"I want to invest."</p>
+            <div class="flex gap-3">
+                <button onclick="acceptNpcDeal()" class="flex-1 bg-green-600 hover:bg-green-500 font-bold py-2 rounded transition">Accept</button>
+                <button onclick="closeModal('npc-modal'); playSound('click')" class="flex-1 bg-red-600 hover:bg-red-500 font-bold py-2 rounded transition">Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rebirth-modal" class="hidden fixed inset-0 modal-bg z-[60] flex items-center justify-center px-4">
+        <div class="panel-bg rounded-2xl border border-blue-500 p-6 max-w-sm w-full text-center shadow-2xl">
+            <h2 class="text-2xl font-bold text-blue-400 mb-2">Rebirth</h2>
+            <p class="text-sm text-slate-400 mb-4">Sell your entire empire to gain Investors. Permanent income multiplier.</p>
+            <div class="bg-black/30 p-4 rounded-lg mb-4 text-left">
+                <p class="text-sm mb-1 text-slate-400">Current Investors: <span class="text-white font-bold float-right" id="rb-current">0</span></p>
+                <div class="h-px bg-white/10 my-2"></div>
+                <p class="text-sm mb-1 text-blue-300 font-bold">Investors to Gain: <span class="float-right" id="rb-gain">+0</span></p>
+                <p class="text-sm text-green-400 font-bold">New Multiplier: <span class="float-right" id="rb-new-multi">0%</span></p>
+            </div>
+            <p class="text-xs text-red-400 mb-4"><i class="fas fa-exclamation-triangle mr-1"></i> Resets Cash, Upgrades, Businesses!</p>
+            <div class="flex gap-3">
+                <button onclick="closeModal('rebirth-modal')" class="flex-1 bg-slate-600 hover:bg-slate-500 font-bold py-2 rounded transition">Cancel</button>
+                <button id="btn-confirm-rebirth" onclick="performRebirth()" class="flex-1 bg-blue-600 hover:bg-blue-500 font-bold py-2 rounded transition">Rebirth</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ascend-modal" class="hidden fixed inset-0 modal-bg z-[60] flex items-center justify-center px-4">
+        <div class="panel-bg rounded-2xl border border-purple-500 p-6 max-w-sm w-full text-center shadow-2xl">
+            <h2 class="text-2xl font-bold text-purple-400 mb-2">Ascension</h2>
+            <p class="text-sm text-slate-400 mb-4">Transcend mortal business. Exchange Investors for Cosmic Power.</p>
+            <div class="bg-black/30 p-4 rounded-lg mb-4 text-left">
+                <p class="text-sm mb-1 text-slate-400">Cosmic Power: <span class="text-white font-bold float-right" id="asc-current">0</span></p>
+                <div class="h-px bg-white/10 my-2"></div>
+                <p class="text-sm mb-1 text-purple-300 font-bold">Power to Gain: <span class="float-right" id="asc-gain">+0</span></p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('ascend-modal')" class="flex-1 bg-slate-600 hover:bg-slate-500 font-bold py-2 rounded transition">Cancel</button>
+                <button id="btn-confirm-ascend" onclick="performAscension()" class="flex-1 bg-purple-600 hover:bg-purple-500 font-bold py-2 rounded transition">Ascend</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-container" class="fixed bottom-4 right-4 z-[70] flex flex-col gap-2"></div>
+
+<script>
+
+const Suffixes = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
+
+function formatNumber(num) {
+    if (num < 1000) return num.toFixed(0);
+    const tier = Math.log10(num) / 3 | 0;
+    if (tier === 0) return num.toFixed(0);
+    const suffix = Suffixes[tier] || "e"+(tier*3);
+    const scale = Math.pow(10, tier * 3);
+    return (num / scale).toFixed(2) + " " + suffix;
+}
+
+const Evolutions = [
+    { name: "Lemon", icon: "🍋", baseValMulti: 1, cost: 0 },
+    { name: "Orange", icon: "🍊", baseValMulti: 5, cost: 1e6 },
+    { name: "Lime", icon: "🍈", baseValMulti: 25, cost: 1e9 },
+    { name: "Golden Fruit", icon: "🌟", baseValMulti: 250, cost: 1e12 },
+    { name: "Cosmic Fruit", icon: "🌌", baseValMulti: 5000, cost: 1e18 }
+];
+
+const TiersConfig = [
+    { id: 't1', name: "Lemon Stand", desc: "Basic standalone booth.", baseCost: 10, baseProd: 1, managerCost: 1000, managerName: "Timmy" },
+    { id: 't2', name: "Delivery Cart", desc: "Delivers fruit locally.", baseCost: 250, baseProd: 15, managerCost: 15000, managerName: "Speedy Joe" },
+    { id: 't3', name: "Warehouse", desc: "Bulk storage & sales.", baseCost: 5000, baseProd: 150, managerCost: 250000, managerName: "Foreman Bob" },
+    { id: 't4', name: "Trading Hub", desc: "Market speculation.", baseCost: 1e5, baseProd: 2000, managerCost: 5e6, managerName: "Broker Alice" },
+    { id: 't5', name: "Research Lab", desc: "Genetic modifications.", baseCost: 2e6, baseProd: 35000, managerCost: 1e8, managerName: "Dr. Citrus" },
+    { id: 't6', name: "Industrial Plant", desc: "Massive automated facility.", baseCost: 5e7, baseProd: 500000, managerCost: 2.5e9, managerName: "CEO Max" },
+    { id: 't7', name: "Global Empire", desc: "Monopolized the market.", baseCost: 1e9, baseProd: 1e7, managerCost: 5e10, managerName: "Emperor Zhu" },
+    { id: 't8', name: "Alien Tech", desc: "Extraterrestrial logistics.", baseCost: 5e11, baseProd: 5e8, managerCost: 2e13, managerName: "Zorg" },
+];
+
+const UpgradesConfig = [
+    { id: 'u1', name: "Better Fertilizers", desc: "Increases click power by +1", baseCost: 50, costMulti: 1.5, type: 'click', val: 1 },
+    { id: 'u2', name: "Marketing Campaign", desc: "Customers buy 10% faster", baseCost: 100, costMulti: 1.8, type: 'sellSpeed', val: 0.1 },
+    { id: 'u3', name: "Premium Pricing", desc: "Base fruit price +$1", baseCost: 300, costMulti: 2.5, type: 'basePrice', val: 1 },
+];
+
+const AchievementsConfig = [
+    { id: 'a1', icon: 'fa-mouse-pointer', name: "Baby Steps", desc: "Click the fruit 100 times", req: () => state.stats.totalClicks >= 100 },
+    { id: 'a2', icon: 'fa-mouse-pointer', name: "Carpal Tunnel", desc: "Click the fruit 2,500 times", req: () => state.stats.totalClicks >= 2500 },
+    { id: 'a3', icon: 'fa-money-bill-wave', name: "Capitalist", desc: "Earn your first $1 Million", req: () => state.totalCashEarned >= 1000000 },
+    { id: 'a4', icon: 'fa-gem', name: "Billionaire", desc: "Earn $1 Billion total", req: () => state.totalCashEarned >= 1e9 },
+    { id: 'a5', icon: 'fa-building', name: "Empire Builder", desc: "Own 50 Lemon Stands", req: () => state.businesses['t1']?.level >= 50 },
+    { id: 'a6', icon: 'fa-cloud-sun', name: "Weather Watcher", desc: "Survive 5 weather events", req: () => state.stats.weatherEvents >= 5 },
+    { id: 'a7', icon: 'fa-handshake', name: "Shark Investor", desc: "Accept 5 NPC deals", req: () => state.stats.dealsAccepted >= 5 },
+    { id: 'a8', icon: 'fa-recycle', name: "Born Again", desc: "Rebirth for the first time", req: () => state.prestige.rebirths >= 1 },
+];
+
+const RelicsConfig = [
+    { id: 'r1', name: "Golden Clippers", icon: "✂️", desc: "Click Power x2" },
+    { id: 'r2', name: "Silver Stopwatch", icon: "⏱️", desc: "Sell Speed +20%" },
+    { id: 'r3', name: "Lucky Coin", icon: "🪙", desc: "Base Value +50%" },
+    { id: 'r4', name: "Magic Fertilizer", icon: "🧪", desc: "Production +25%" },
+    { id: 'r5', name: "Crystal Compass", icon: "🧭", desc: "Weather happens 2x more often" }
+];
+
+
+const getInitialState = () => ({
+    cash: 0,
+    totalCashEarned: 0,
+    inventory: 0,
+    lastPlayed: Date.now(),
+    buyAmountMode: 1, // 1, 10, or 'MAX'
+    
+    businesses: TiersConfig.reduce((acc, tier) => { acc[tier.id] = { level: 0, manager: false }; return acc; }, {}),
+    upgrades: UpgradesConfig.reduce((acc, upg) => { acc[upg.id] = 0; return acc; }, {}),
+
+    prestige: { rebirths: 0, investors: 0, ascensions: 0, cosmicPower: 0, evolutionStage: 0 },
+    faction: null, // 'sour' | 'sweet'
+    
+    stats: { totalClicks: 0, playTimeSeconds: 0, weatherEvents: 0, dealsAccepted: 0, sessionStart: Date.now() },
+    achievements: [], // array of IDs
+    relics: [] // array of IDs (max 3)
+});
+
+let state = getInitialState();
+let currentIncomePerSec = 0;
+let weather = { type: 'normal', multi: 1, duration: 0 };
+let activeDeal = null;
+
+let audioCtx = null;
+let soundEnabled = false;
+
+function toggleAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    soundEnabled = !soundEnabled;
+    document.getElementById('audio-icon').className = soundEnabled ? 'fas fa-volume-up text-green-400' : 'fas fa-volume-mute text-slate-300';
+    if(soundEnabled) playSound('click');
+}
+
+function playSound(type) {
+    if (!soundEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    
+    if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400 + Math.random()*100, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.start(now); osc.stop(now + 0.05);
+    } else if (type === 'buy') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.setValueAtTime(600, now + 0.05);
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'event') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.5);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 1);
+        osc.start(now); osc.stop(now + 1);
+    }
+}
+
+
+function getBuyAmountMultiplier() {
+    return state.buyAmountMode;
+}
+
+function setBuyAmount(amt) {
+    state.buyAmountMode = amt;
+    document.querySelectorAll('.buy-amt-btn').forEach(b => {
+        b.classList.remove('bg-yellow-600');
+        b.classList.add('bg-slate-700');
+    });
+    if (amt === 1) document.getElementById('btn-buy-1').classList.replace('bg-slate-700', 'bg-yellow-600');
+    if (amt === 10) document.getElementById('btn-buy-10').classList.replace('bg-slate-700', 'bg-yellow-600');
+    if (amt === 'MAX') document.getElementById('btn-buy-max').classList.replace('bg-slate-700', 'bg-yellow-600');
+    renderBusinesses();
+    renderUpgrades();
+}
+
+function calculateBulkCost(baseCost, costMulti, currentLvl, availableCash, mode) {
+    let currentCost = baseCost * Math.pow(costMulti, currentLvl);
+    
+    if (mode === 1) {
+        return { amount: 1, cost: currentCost };
+    } 
+    
+    if (mode === 10) {
+        // Geometric series sum: a * (1 - r^n) / (1 - r)
+        let totalCost = currentCost * (Math.pow(costMulti, 10) - 1) / (costMulti - 1);
+        return { amount: 10, cost: totalCost };
+    } 
+    
+    if (mode === 'MAX') {
+        if (availableCash < currentCost) return { amount: 0, cost: currentCost }; // Show cost of next 1 even if can't afford
+        let amount = Math.floor(Math.log(availableCash * (costMulti - 1) / currentCost + 1) / Math.log(costMulti));
+        if (amount < 1) amount = 1;
+        let totalCost = currentCost * (Math.pow(costMulti, amount) - 1) / (costMulti - 1);
+        return { amount, cost: totalCost };
+    }
+}
+
+
+function getGlobalMultiplier() {
+    let multi = 1 + (state.prestige.investors * 0.02) + (state.prestige.cosmicPower * 1.0);
+    multi *= weather.multi;
+    multi *= (1 + (state.achievements.length * 0.01)); // +1% per achievement
+    
+    if (state.relics.includes('r4')) multi *= 1.25; // Magic Fertilizer
+    if (state.faction === 'sour') multi *= 1.25; // Sour Syndicate boost
+    
+    return multi;
+}
+
+function getClickPower() {
+    let base = 1 + (state.upgrades['u1'] * UpgradesConfig[0].val);
+    if (state.relics.includes('r1')) base *= 2;
+    return base * getGlobalMultiplier();
+}
+
+function getBasePrice() {
+    let base = 1 + (state.upgrades['u3'] * UpgradesConfig[2].val);
+    base *= Evolutions[state.prestige.evolutionStage].baseValMulti;
+    if (state.relics.includes('r3')) base *= 1.5;
+    if (state.faction === 'sweet') base *= 1.25; // Sweet Cartel boost
+    return base;
+}
+
+function getSellSpeed() {
+    let base = 5 * Math.pow(1 + UpgradesConfig[1].val, state.upgrades['u2']);
+    if (state.relics.includes('r2')) base *= 1.2;
+    return base * getGlobalMultiplier();
+}
+
+function getBusinessProduction(tierId) {
+    let config = TiersConfig.find(t => t.id === tierId);
+    let lvl = state.businesses[tierId].level;
+    return lvl === 0 ? 0 : config.baseProd * lvl * getGlobalMultiplier();
+}
+
+function getTotalProductionRate() {
+    return TiersConfig.reduce((sum, t) => sum + getBusinessProduction(t.id), 0);
+}
+
+// Interaction
+document.getElementById('main-clicker').addEventListener('click', (e) => {
+    let amt = getClickPower();
+    state.inventory += amt;
+    state.stats.totalClicks++;
+    playSound('click');
+    spawnFloatingText(e.clientX, e.clientY, `+${formatNumber(amt)}`);
+    
+    // Relic Drop Logic (1 in 500 chance)
+    if (state.relics.length < 3 && Math.random() < 0.002) {
+        let available = RelicsConfig.filter(r => !state.relics.includes(r.id));
+        if (available.length > 0) {
+            let drop = available[Math.floor(Math.random() * available.length)];
+            state.relics.push(drop.id);
+            showNotification(`Found Relic: ${drop.name}!`, 'purple');
+            playSound('event');
+            if(document.querySelector('.tab-btn.active').innerText.includes('Evolve')) renderEvolution();
+        }
+    }
+    updateUIFast();
+});
+
+function buyBusiness(tierId) {
+    let config = TiersConfig.find(t => t.id === tierId);
+    let currLvl = state.businesses[tierId].level;
+    let purchase = calculateBulkCost(config.baseCost, 1.15, currLvl, state.cash, state.buyAmountMode);
+    
+    if (purchase.amount > 0 && state.cash >= purchase.cost) {
+        state.cash -= purchase.cost;
+        state.businesses[tierId].level += purchase.amount;
+        playSound('buy');
+        renderBusinesses();
+        updateUIFast();
+    }
+}
+
+function buyUpgrade(upgId) {
+    let config = UpgradesConfig.find(u => u.id === upgId);
+    let currLvl = state.upgrades[upgId];
+    let purchase = calculateBulkCost(config.baseCost, config.costMulti, currLvl, state.cash, state.buyAmountMode);
+    
+    if (purchase.amount > 0 && state.cash >= purchase.cost) {
+        state.cash -= purchase.cost;
+        state.upgrades[upgId] += purchase.amount;
+        playSound('buy');
+        renderUpgrades();
+        updateUIFast();
+    }
+}
+
+function buyManager(tierId) {
+    let config = TiersConfig.find(t => t.id === tierId);
+    if (state.cash >= config.managerCost && !state.businesses[tierId].manager) {
+        state.cash -= config.managerCost;
+        state.businesses[tierId].manager = true;
+        playSound('buy');
+        renderManagers(); renderBusinesses();
+        showNotification(`Hired ${config.managerName}!`, 'success');
+    }
+}
+
+
+let lastTime = Date.now();
+function gameLoop() {
+    let now = Date.now();
+    let dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    // Production & Selling
+    let prod = getTotalProductionRate() * dt;
+    state.inventory += prod;
+
+    let sellLimit = getSellSpeed() * dt;
+    let amountToSell = Math.min(state.inventory, sellLimit);
+    
+    if (amountToSell > 0) {
+        state.inventory -= amountToSell;
+        let revenue = amountToSell * getBasePrice();
+        state.cash += revenue;
+        state.totalCashEarned += revenue;
+        currentIncomePerSec = (revenue / dt);
+    } else {
+        currentIncomePerSec = 0;
+    }
+
+    // Weather Timer & Events
+    if (weather.duration > 0) {
+        weather.duration -= dt;
+        if (weather.duration <= 0) endWeather();
+    } else {
+        let weatherChance = dt / 180;
+        if (state.relics.includes('r5')) weatherChance *= 2; // Crystal Compass
+        if (Math.random() < weatherChance) startRandomWeather();
+    }
+
+    // NPC Deals
+    if (!activeDeal && Math.random() < dt / 300) generateNpcDeal();
+
+    // Achievements Check
+    if (Math.random() < 0.1) checkAchievements(); // Run roughly 10x a second
+
+    // Visuals & Stats
+    state.stats.playTimeSeconds += dt;
+    updateParticleSystem(dt);
+    updateUIFast();
+
+    if (Math.random() < dt / 10) saveGame(); // Auto Save
+    requestAnimationFrame(gameLoop);
+}
+
+function checkAchievements() {
+    let newlyUnlocked = false;
+    AchievementsConfig.forEach(ach => {
+        if (!state.achievements.includes(ach.id) && ach.req()) {
+            state.achievements.push(ach.id);
+            newlyUnlocked = true;
+            showNotification(`🏆 Achievement Unlocked: ${ach.name}!`, 'yellow');
+            playSound('event');
+        }
+    });
+    if (newlyUnlocked && document.querySelector('.tab-btn.active').innerText.includes('Trophies')) {
+        renderAchievements();
+    }
+}
+
+function calculateOfflineProgress() {
+    let now = Date.now();
+    let secondsAway = (now - state.lastPlayed) / 1000;
+    if (secondsAway > 86400) secondsAway = 86400; // Cap 24h
+
+    if (secondsAway > 60) {
+        let effectiveRate = Math.min(getTotalProductionRate(), getSellSpeed());
+        if (effectiveRate > 0) {
+            let offlineCash = effectiveRate * secondsAway * getBasePrice();
+            state.cash += offlineCash;
+            state.totalCashEarned += offlineCash;
+            
+            document.getElementById('offline-time').innerText = formatTime(secondsAway);
+            document.getElementById('offline-cash').innerText = `+$${formatNumber(offlineCash)}`;
+            openModal('offline-modal');
+        }
+    }
+    state.lastPlayed = now;
+}
+
+function formatTime(seconds) {
+    if (seconds < 3600) return Math.floor(seconds/60) + "m " + Math.floor(seconds%60) + "s";
+    return Math.floor(seconds/3600) + "h " + Math.floor((seconds%3600)/60) + "m";
+}
+
+
+function getPendingInvestors() {
+    if (state.totalCashEarned < 1e6) return 0;
+    return Math.max(0, Math.floor(Math.sqrt(state.totalCashEarned / 1e6)) - state.prestige.investors);
+}
+
+function performRebirth() {
+    let pending = getPendingInvestors();
+    if (pending <= 0) return;
+    state.prestige.investors += pending;
+    state.prestige.rebirths++;
+    resetProgression(false);
+    closeModal('rebirth-modal');
+    showNotification("Rebirthed successfully!", 'success');
+    playSound('event');
+    fullRender();
+}
+
+function getPendingAscension() {
+    if (state.prestige.investors < 1000) return 0;
+    return Math.floor(state.prestige.investors / 1000);
+}
+
+function performAscension() {
+    let pending = getPendingAscension();
+    if (pending <= 0) return;
+    state.prestige.cosmicPower += pending;
+    state.prestige.ascensions++;
+    resetProgression(true);
+    closeModal('ascend-modal');
+    showNotification("ASCENDED! Reality bends.", 'purple');
+    playSound('event');
+    fullRender();
+}
+
+function resetProgression(hard) {
+    state.cash = 0; state.totalCashEarned = 0; state.inventory = 0;
+    for (let t in state.businesses) { state.businesses[t].level = 0; state.businesses[t].manager = false; }
+    for (let u in state.upgrades) state.upgrades[u] = 0;
+    if (hard) { state.prestige.investors = 0; state.prestige.rebirths = 0; }
+}
+
+function evolveFruit() {
+    let nextStage = state.prestige.evolutionStage + 1;
+    if (nextStage >= Evolutions.length || state.cash < Evolutions[nextStage].cost) return;
+    
+    state.prestige.evolutionStage = nextStage;
+    resetProgression(true);
+    state.prestige.ascensions = 0; state.prestige.cosmicPower = 0;
+    
+    showNotification(`Evolved to ${Evolutions[nextStage].name}!`, 'success');
+    playSound('event');
+    
+    // Trigger Faction choice at Golden Fruit (Stage 3)
+    if (nextStage === 3 && !state.faction) openModal('faction-modal');
+    fullRender();
+}
+
+function joinFaction(faction) {
+    state.faction = faction;
+    applyFactionTheme();
+    closeModal('faction-modal');
+    playSound('event');
+    showNotification(`Joined ${faction === 'sour' ? 'The Sour Syndicate' : 'The Sweet Cartel'}!`, 'purple');
+    fullRender();
+}
+
+function applyFactionTheme() {
+    document.body.classList.remove('theme-sour', 'theme-sweet');
+    if (state.faction) document.body.classList.add(`theme-${state.faction}`);
+}
+
+
+function startRandomWeather() {
+    state.stats.weatherEvents++;
+    const types = [
+        { id: 'rain', name: 'Rainstorm', multi: 2, duration: 60, icon: 'fa-cloud-rain' },
+        { id: 'gold', name: 'Golden Sun', multi: 5, duration: 30, icon: 'fa-sun' }
+    ];
+    let pick = types[Math.floor(Math.random() * types.length)];
+    weather = { type: pick.id, multi: pick.multi, duration: pick.duration };
+    
+    document.getElementById('weather-indicator').classList.remove('hidden');
+    document.getElementById('weather-indicator').innerHTML = `<i class="fas ${pick.icon} mr-1"></i> ${pick.name} (x${pick.multi})`;
+    showNotification(`Weather Event: ${pick.name}! Profits x${pick.multi}`, 'blue');
+    playSound('event');
+    initParticles();
+}
+
+function endWeather() {
+    weather = { type: 'normal', multi: 1, duration: 0 };
+    document.getElementById('weather-indicator').classList.add('hidden');
+    particlesArray = []; // Clear particles
+}
+
+function generateNpcDeal() {
+    let offer = Math.max(currentIncomePerSec * 60, 100);
+    activeDeal = { type: 'cash', amount: offer };
+    document.getElementById('npc-text').innerText = `"I see potential. Take this $${formatNumber(offer)} investment to speed things up."`;
+    openModal('npc-modal');
+    playSound('event');
+}
+
+function acceptNpcDeal() {
+    if (activeDeal && activeDeal.type === 'cash') {
+        state.cash += activeDeal.amount;
+        state.totalCashEarned += activeDeal.amount;
+        state.stats.dealsAccepted++;
+        showNotification(`Accepted $${formatNumber(activeDeal.amount)}`, 'success');
+        playSound('buy');
+    }
+    activeDeal = null; closeModal('npc-modal');
+}
+
+/* --- Particle Canvas System --- */
+const fxCanvas = document.getElementById('fx-canvas');
+const ctx = fxCanvas.getContext('2d');
+let particlesArray = [];
+
+function resizeCanvas() { fxCanvas.width = window.innerWidth; fxCanvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+function initParticles() {
+    particlesArray = [];
+    let count = weather.type === 'rain' ? 100 : weather.type === 'gold' ? 50 : 0;
+    for(let i=0; i<count; i++) {
+        particlesArray.push({
+            x: Math.random() * fxCanvas.width,
+            y: Math.random() * fxCanvas.height - fxCanvas.height,
+            speedY: weather.type === 'rain' ? 10 + Math.random()*5 : 2 + Math.random()*3,
+            size: weather.type === 'rain' ? Math.random()*2+1 : Math.random()*4+2,
+            opacity: Math.random()*0.5 + 0.3
+        });
+    }
+}
+
+function updateParticleSystem(dt) {
+    if(weather.type === 'normal') return;
+    ctx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+    
+    ctx.fillStyle = weather.type === 'rain' ? 'rgba(147, 197, 253, opacity)' : 'rgba(253, 224, 71, opacity)';
+    
+    particlesArray.forEach(p => {
+        p.y += p.speedY;
+        if(p.y > fxCanvas.height) { p.y = -10; p.x = Math.random() * fxCanvas.width; }
+        
+        ctx.globalAlpha = p.opacity;
+        if(weather.type === 'rain') {
+            ctx.beginPath(); ctx.rect(p.x, p.y, p.size/2, p.size*5); ctx.fill();
+        } else {
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+        }
+    });
+    ctx.globalAlpha = 1;
+}
+
+
+function updateUIFast() {
+    document.getElementById('ui-cash').innerText = "$" + formatNumber(state.cash);
+    document.getElementById('ui-cash-sec').innerText = "+$" + formatNumber(currentIncomePerSec) + " / sec";
+    document.getElementById('ui-inventory').innerText = formatNumber(Math.floor(state.inventory));
+    document.getElementById('ui-multiplier').innerText = "x" + getGlobalMultiplier().toFixed(2);
+    document.getElementById('ui-click-power').innerText = formatNumber(getClickPower());
+
+    // Auto-update buttons states in active tab without full re-render
+    let activeTab = document.querySelector('.tab-btn.active').innerText.toLowerCase();
+    if (activeTab.includes('businesses')) {
+        TiersConfig.forEach(t => {
+            let btn = document.getElementById(`btn-buy-${t.id}`);
+            if (btn) {
+                let purchase = calculateBulkCost(t.baseCost, 1.15, state.businesses[t.id].level, state.cash, state.buyAmountMode);
+                btn.disabled = purchase.amount === 0;
+            }
+        });
+    } else if (activeTab.includes('upgrades')) {
+        UpgradesConfig.forEach(u => {
+            let btn = document.getElementById(`btn-upg-${u.id}`);
+            if (btn) {
+                let purchase = calculateBulkCost(u.baseCost, u.costMulti, state.upgrades[u.id], state.cash, state.buyAmountMode);
+                btn.disabled = purchase.amount === 0;
+            }
+        });
+    }
+
+    if (state.totalCashEarned >= 1e6 || state.prestige.rebirths > 0) document.getElementById('btn-rebirth').classList.remove('hidden');
+    if (state.prestige.investors >= 1000 || state.prestige.ascensions > 0) document.getElementById('btn-ascend').classList.remove('hidden');
+    
+    // Live update stats if open
+    if(activeTab.includes('stats')) {
+        document.getElementById('stat-time').innerText = formatTime(state.stats.playTimeSeconds);
+        document.getElementById('stat-cash').innerText = "$" + formatNumber(state.totalCashEarned);
+    }
+}
+
+function fullRender() {
+    let curEvo = Evolutions[state.prestige.evolutionStage];
+    document.getElementById('big-fruit').innerText = curEvo.icon;
+    document.getElementById('current-fruit-icon').innerText = curEvo.icon;
+    document.getElementById('fruit-name-label').innerText = curEvo.name;
+
+    setBuyAmount(state.buyAmountMode); // Also renders businesses and upgrades
+    renderManagers();
+    renderEvolution();
+    renderAchievements();
+    renderStats();
+    updateUIFast();
+    applyFactionTheme();
+}
+
+function renderBusinesses() {
+    let html = '';
+    TiersConfig.forEach((t, index) => {
+        let prevTierId = index > 0 ? TiersConfig[index-1].id : null;
+        let isUnlocked = !prevTierId || state.businesses[prevTierId].level > 0 || state.businesses[t.id].level > 0;
+        
+        if (isUnlocked) {
+            let lvl = state.businesses[t.id].level;
+            let purchase = calculateBulkCost(t.baseCost, 1.15, lvl, state.cash, state.buyAmountMode);
+            let prod = getBusinessProduction(t.id);
+            let hasMgr = state.businesses[t.id].manager;
+            
+            html += `
+            <div class="panel-bg p-4 rounded-xl border border-white/10 flex justify-between items-center transition hover:border-white/30">
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold flex items-center gap-2">
+                        ${t.name} <span class="bg-black/30 text-xs px-2 py-1 rounded-full text-slate-300">Lvl ${lvl}</span>
+                        ${hasMgr ? '<i class="fas fa-robot text-blue-400 text-xs" title="Manager Active"></i>' : ''}
+                    </h3>
+                    <p class="text-xs text-slate-400">${t.desc}</p>
+                    <p class="text-sm text-green-400 mt-1">Prod: ${formatNumber(prod)}/s</p>
+                </div>
+                <button id="btn-buy-${t.id}" onclick="buyBusiness('${t.id}')" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded shadow transition disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px]">
+                    Buy ${purchase.amount > 0 ? purchase.amount : 1}<br><span class="text-xs font-normal">$${formatNumber(purchase.cost)}</span>
+                </button>
+            </div>`;
+        } else {
+            html += `<div class="bg-black/20 p-4 rounded-xl border border-white/5 flex justify-center items-center opacity-50"><p class="text-slate-500"><i class="fas fa-lock mr-2"></i> Unlock previous tier first</p></div>`;
+        }
+    });
+    document.getElementById('tab-businesses').innerHTML = html;
+}
+
+function renderUpgrades() {
+    let html = '';
+    UpgradesConfig.forEach(u => {
+        let lvl = state.upgrades[u.id];
+        let purchase = calculateBulkCost(u.baseCost, u.costMulti, lvl, state.cash, state.buyAmountMode);
+        html += `
+        <div class="panel-bg p-4 rounded-xl border border-white/10 flex flex-col justify-between">
+            <div>
+                <h3 class="text-md font-bold">${u.name} <span class="text-xs text-slate-400 float-right">Lvl ${lvl}</span></h3>
+                <p class="text-xs text-slate-400 mt-1">${u.desc}</p>
+            </div>
+            <button id="btn-upg-${u.id}" onclick="buyUpgrade('${u.id}')" class="mt-4 bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded shadow transition disabled:opacity-50 disabled:cursor-not-allowed w-full">
+                Upgrade x${purchase.amount > 0 ? purchase.amount : 1} ($${formatNumber(purchase.cost)})
+            </button>
+        </div>`;
+    });
+    document.getElementById('tab-upgrades').innerHTML = html;
+}
+
+function renderManagers() {
+    let html = '';
+    TiersConfig.forEach(t => {
+        if (state.businesses[t.id].level > 0) {
+            let hasMgr = state.businesses[t.id].manager;
+            html += `
+            <div class="panel-bg p-3 rounded-xl border border-white/10 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-black/30 rounded-full flex items-center justify-center text-lg"><i class="fas fa-user-tie text-slate-300"></i></div>
+                    <div><h3 class="font-bold text-sm">${t.managerName}</h3><p class="text-xs text-slate-400">Automates ${t.name}</p></div>
+                </div>
+                <button id="btn-mgr-${t.id}" onclick="buyManager('${t.id}')" ${hasMgr ? 'disabled' : ''} class="${hasMgr ? 'bg-black/50 text-slate-400' : 'bg-blue-600 hover:bg-blue-500 text-white'} text-xs font-bold py-2 px-4 rounded transition disabled:cursor-not-allowed">
+                    ${hasMgr ? 'Hired' : 'Hire ($' + formatNumber(t.managerCost) + ')'}
+                </button>
+            </div>`;
+        }
+    });
+    if (html === '') html = '<p class="text-slate-500 text-center text-sm py-4">Buy businesses to unlock managers.</p>';
+    document.getElementById('manager-list').innerHTML = html;
+}
+
+function renderEvolution() {
+    let curStage = state.prestige.evolutionStage;
+    let nextStage = curStage + 1;
+    document.getElementById('evo-current').innerText = Evolutions[curStage].icon;
+    
+    if (nextStage < Evolutions.length) {
+        document.getElementById('evo-next').innerText = Evolutions[nextStage].icon;
+        document.getElementById('evo-next-name').innerText = "Next: " + Evolutions[nextStage].name;
+        document.getElementById('evo-bonus').innerText = `Effect: x${Evolutions[nextStage].baseValMulti} Base Sell Value`;
+        document.getElementById('evo-cost').innerText = "$" + formatNumber(Evolutions[nextStage].cost);
+        document.getElementById('btn-evolve').disabled = state.cash < Evolutions[nextStage].cost;
+    } else {
+        document.getElementById('evo-next').innerText = "❓";
+        document.getElementById('evo-next-name').innerText = "Maximum Evolution Reached";
+        document.getElementById('evo-bonus').innerText = "Syndicate Operations Authorized.";
+        document.getElementById('evo-cost').innerText = "MAX";
+        document.getElementById('btn-evolve').disabled = true;
+        document.getElementById('btn-evolve').innerText = "Fully Evolved";
+    }
+
+    // Render Relics
+    let relicsHtml = '';
+    state.relics.forEach(rid => {
+        let r = RelicsConfig.find(rc => rc.id === rid);
+        relicsHtml += `<div class="bg-black/20 p-2 border border-purple-500/30 rounded flex items-center gap-3"><span class="text-2xl">${r.icon}</span><div><p class="text-sm font-bold text-purple-300">${r.name}</p><p class="text-xs text-slate-400">${r.desc}</p></div></div>`;
+    });
+    if(state.relics.length === 0) relicsHtml = '<p class="text-slate-500 text-xs italic">No relics found yet. Keep clicking!</p>';
+    document.getElementById('relics-list').innerHTML = relicsHtml;
+}
+
+function renderAchievements() {
+    let html = '';
+    AchievementsConfig.forEach(ach => {
+        let unlocked = state.achievements.includes(ach.id);
+        html += `
+        <div class="panel-bg p-3 rounded-lg border border-white/5 achievement-card ${unlocked ? 'unlocked' : 'opacity-60 grayscale'} flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center text-lg ${unlocked ? 'text-yellow-400' : 'text-slate-500'}">
+                <i class="fas ${ach.icon}"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm text-slate-200">${ach.name}</h4>
+                <p class="text-xs text-slate-400">${ach.desc}</p>
+            </div>
+        </div>`;
+    });
+    document.getElementById('achievements-list').innerHTML = html;
+}
+
+function renderStats() {
+    document.getElementById('stats-grid').innerHTML = `
+        <div class="bg-black/20 p-3 rounded"><p class="text-xs text-slate-400">Total Clicks</p><p class="font-bold text-lg text-white">${formatNumber(state.stats.totalClicks)}</p></div>
+        <div class="bg-black/20 p-3 rounded"><p class="text-xs text-slate-400">Play Time</p><p class="font-bold text-lg text-white" id="stat-time">${formatTime(state.stats.playTimeSeconds)}</p></div>
+        <div class="bg-black/20 p-3 rounded"><p class="text-xs text-slate-400">Total Cash Earned</p><p class="font-bold text-lg text-yellow-400" id="stat-cash">$${formatNumber(state.totalCashEarned)}</p></div>
+        <div class="bg-black/20 p-3 rounded"><p class="text-xs text-slate-400">Weather Survived</p><p class="font-bold text-lg text-blue-300">${state.stats.weatherEvents}</p></div>
+        <div class="bg-black/20 p-3 rounded"><p class="text-xs text-slate-400">Deals Accepted</p><p class="font-bold text-lg text-green-300">${state.stats.dealsAccepted}</p></div>
+        <div class="bg-black/20 p-3 rounded"><p class="text-xs text-slate-400">Global Multiplier</p><p class="font-bold text-lg text-purple-400">x${getGlobalMultiplier().toFixed(2)}</p></div>
+    `;
+}
+
+function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    ['businesses', 'upgrades', 'managers', 'evolution', 'achievements', 'stats'].forEach(id => {
+        document.getElementById(`tab-${id}`).classList.add('hidden');
+    });
+    document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+    
+    // Toggle Buy Amount container visibility
+    let buyContainer = document.getElementById('buy-amount-container');
+    if (tabId === 'businesses' || tabId === 'upgrades') buyContainer.classList.remove('hidden');
+    else buyContainer.classList.add('hidden');
+
+    if (tabId === 'businesses') renderBusinesses();
+    if (tabId === 'upgrades') renderUpgrades();
+    if (tabId === 'managers') renderManagers();
+    if (tabId === 'evolution') renderEvolution();
+    if (tabId === 'achievements') renderAchievements();
+    if (tabId === 'stats') renderStats();
+}
+
+
+function openModal(id) {
+    document.getElementById(id).classList.remove('hidden');
+    if (id === 'rebirth-modal') {
+        document.getElementById('rb-current').innerText = formatNumber(state.prestige.investors);
+        let gain = getPendingInvestors();
+        document.getElementById('rb-gain').innerText = "+" + formatNumber(gain);
+        document.getElementById('rb-new-multi').innerText = ((state.prestige.investors + gain) * 2) + "%";
+        document.getElementById('btn-confirm-rebirth').disabled = gain <= 0;
+    }
+    if (id === 'ascend-modal') {
+        document.getElementById('asc-current').innerText = formatNumber(state.prestige.cosmicPower);
+        let gain = getPendingAscension();
+        document.getElementById('asc-gain').innerText = "+" + formatNumber(gain);
+        document.getElementById('btn-confirm-ascend').disabled = gain <= 0;
+    }
+}
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function spawnFloatingText(x, y, text) {
+    const el = document.createElement('div'); el.className = 'floating-text'; el.innerText = text;
+    el.style.left = (x + (Math.random()-0.5)*40) + 'px'; el.style.top = y + 'px';
+    document.body.appendChild(el); setTimeout(() => el.remove(), 1000);
+}
+
+function showNotification(msg, type='info') {
+    const container = document.getElementById('notification-container');
+    const el = document.createElement('div');
+    let bg = type === 'success' ? 'bg-green-600' : type === 'yellow' ? 'bg-yellow-600' : type === 'purple' ? 'bg-purple-600' : 'bg-blue-600';
+    el.className = `${bg} text-white px-4 py-2 rounded shadow-lg text-sm font-bold transform transition-all duration-300 translate-y-10 opacity-0`;
+    el.innerText = msg; container.appendChild(el);
+    setTimeout(() => el.classList.remove('translate-y-10', 'opacity-0'), 10);
+    setTimeout(() => { el.classList.add('opacity-0', 'translate-x-10'); setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+function saveGame(manual = false) {
+    state.lastPlayed = Date.now();
+    localStorage.setItem('citrusEmpireSave2', JSON.stringify(state));
+    if (manual) showNotification("Game Saved!", "success");
+}
+
+function loadGame() {
+    let saved = localStorage.getItem('citrusEmpireSave2') || localStorage.getItem('citrusEmpireSave'); // Fallback to old save
+    if (saved) {
+        try {
+            let parsed = JSON.parse(saved);
+            state = { ...getInitialState(), ...parsed };
+            state.businesses = { ...getInitialState().businesses, ...parsed.businesses };
+            state.upgrades = { ...getInitialState().upgrades, ...parsed.upgrades };
+            state.prestige = { ...getInitialState().prestige, ...parsed.prestige };
+            state.stats = { ...getInitialState().stats, ...parsed.stats };
+            state.achievements = parsed.achievements || [];
+            state.relics = parsed.relics || [];
+            return true;
+        } catch (e) { console.error("Load failed", e); return false; }
+    }
+    return false;
+}
+
+function hardReset() {
+    if(confirm("Completely wipe your save file? This CANNOT be undone!")) {
+        localStorage.removeItem('citrusEmpireSave'); localStorage.removeItem('citrusEmpireSave2'); location.reload();
+    }
+}
+
+window.onload = () => {
+    if (loadGame()) calculateOfflineProgress();
+    document.getElementById('btn-buy-1').click(); // trigger buy state visual
+    fullRender();
+    requestAnimationFrame(gameLoop);
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Pooping Fluff</title>
+    
+    <!-- 1. Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Babel to translate React/JSX for the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 3. Import Map to tell the browser where to find React, Lucide, and Firebase -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      }
+    }
+    </script>
+</head>
+<body class="bg-slate-900">
+    <!-- The container where React will render the game -->
+    <div id="root"></div>
+
+    <!-- 4. Your Game Code -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Timer, Trophy, Info, BookOpen, Zap, Trash2, X, BarChart3, Save, Globe, Settings, Upload, Download, AlertTriangle, PlusCircle, FastForward } from 'lucide-react';
+        import { initializeApp } from "firebase/app";
+        import { getAnalytics } from "firebase/analytics";
+        import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "firebase/firestore";
+
+        // --- YOUR FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBW3upjulvFrwIeTpglRITbbzA994KjvWY",
+            authDomain: "my-pooping-fluff.firebaseapp.com",
+            projectId: "my-pooping-fluff",
+            storageBucket: "my-pooping-fluff.firebasestorage.app",
+            messagingSenderId: "290733392660",
+            appId: "1:290733392660:web:c79db19438ef2336f83801",
+            measurementId: "G-SQFECK9X2Q"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'my-pooping-fluff-game';
+
+        // --- GAME DATA ---
+        const RARITY = {
+            COMMON:   { id: 'common',   name: 'Common',   color: 'bg-slate-100 border-slate-300', eggEmoji: '🥚', waitTime: 5000,    cost: 50,      poopRate: 1 },
+            UNCOMMON: { id: 'uncommon', name: 'Uncommon', color: 'bg-green-100 border-green-400', eggEmoji: '🟢', waitTime: 15000,   cost: 250,     poopRate: 3 },
+            RARE:     { id: 'rare',     name: 'Rare',     color: 'bg-blue-100 border-blue-400',   eggEmoji: '🔵', waitTime: 45000,   cost: 1500,    poopRate: 25 },
+            BEACH:    { id: 'beach',    name: 'Beach',    color: 'bg-cyan-100 border-cyan-400',   eggEmoji: '🏖️', waitTime: 90000,   cost: 3500,    poopRate: 200 },
+            MINER:    { id: 'miner',    name: 'Miner',    color: 'bg-stone-200 border-stone-400',  eggEmoji: '🪨', waitTime: 180000,  cost: 8000,    poopRate: 450 },
+            EPIC:     { id: 'epic',     name: 'Epic',     color: 'bg-purple-100 border-purple-400',eggEmoji: '🟣', waitTime: 300000,  cost: 20000,   poopRate: 1000 },
+            KINGDOM:  { id: 'kingdom',  name: 'Kingdom',  color: 'bg-yellow-100 border-yellow-400', eggEmoji: '👑', waitTime: 480000,  cost: 50000,   poopRate: 2500 },
+            NATURE:   { id: 'nature',   name: 'Nature',   color: 'bg-emerald-100 border-emerald-500', eggEmoji: '🍃', waitTime: 600000, cost: 120000,  poopRate: 6000 },
+            CANDY:    { id: 'candy',    name: 'Candy',    color: 'bg-pink-100 border-pink-400',    eggEmoji: '🍬', waitTime: 900000,  cost: 300000,  poopRate: 15000 },
+            VOLCANO:  { id: 'volcano',  name: 'Volcano',  color: 'bg-orange-100 border-orange-500', eggEmoji: '🌋', waitTime: 1200000, cost: 750000,  poopRate: 40000 },
+            WINTER:   { id: 'winter',   name: 'Winter',   color: 'bg-sky-50 border-sky-300',       eggEmoji: '❄️', waitTime: 1800000, cost: 2000000, poopRate: 100000 },
+            PUMPKIN:  { id: 'pumpkin',  name: 'Pumpkin',  color: 'bg-orange-200 border-orange-600',eggEmoji: '🎃', waitTime: 2700000, cost: 5000000, poopRate: 250000 },
+            ZOMBIE:   { id: 'zombie',   name: 'Zombie',   color: 'bg-lime-200 border-lime-600',    eggEmoji: '🧟', waitTime: 3600000, cost: 15000000,poopRate: 600000 },
+            GLITCHED: { id: 'glitched', name: 'Glitched', color: 'bg-black border-green-500 text-green-500', eggEmoji: '👾', waitTime: 7200000, cost: 50000000,poopRate: 1500000 },
+            SPACE:    { id: 'space',    name: 'Space',    color: 'bg-indigo-900 border-indigo-400 text-white', eggEmoji: '🌌', waitTime: 14400000,cost: 150000000,poopRate: 5000000 },
+            SECRET:   { id: 'secret',   name: 'Secret',   color: 'bg-fuchsia-900 border-fuchsia-400 text-white', eggEmoji: '🤫', waitTime: 28800000,cost: 500000000,poopRate: 15000000 },
+            BRAINROT: { id: 'brainrot', name: 'Brainrot', color: 'bg-red-900 border-red-500 text-white', eggEmoji: '🤯', waitTime: 43200000,cost: 1000000000,poopRate: 50000000 },
+        };
+
+        const FLUFFS = [
+            { id: 'fluff', name: 'Fluff', rarity: 'common', poopRate: 1, emoji: '🐼', accessory: '', desc: 'Just a regular panda.' },
+            { id: 'baker', name: 'Baker Fluff', rarity: 'common', poopRate: 2, emoji: '🐼', accessory: '🥖', desc: 'Loves carbs.' },
+            { id: 'messenger', name: 'Messenger Fluff', rarity: 'common', poopRate: 3, emoji: '🐼', accessory: '✉️', desc: 'Always delivers.' },
+            { id: 'fisher', name: 'Fisher Fluff', rarity: 'common', poopRate: 4, emoji: '🐼', accessory: '🎣', desc: 'Patient and hungry.' },
+            { id: 'artist', name: 'Artist Fluff', rarity: 'uncommon', poopRate: 10, emoji: '🐼', accessory: '🎨', desc: 'Visualizes bamboo.' },
+            { id: 'pirate', name: 'Pirate Fluff', rarity: 'uncommon', poopRate: 12, emoji: '🐼', accessory: '🏴‍☠️', desc: 'Yarrr.' },
+            { id: 'skater', name: 'Skater Fluff', rarity: 'uncommon', poopRate: 15, emoji: '🐼', accessory: '🛹', desc: 'He was a sk8er boi.' },
+            { id: 'gardener', name: 'Gardener Fluff', rarity: 'uncommon', poopRate: 18, emoji: '🐼', accessory: '🌻', desc: 'Green thumb.' },
+            { id: 'pharaoh', name: 'Pharaoh Fluff', rarity: 'rare', poopRate: 80, emoji: '🐼', accessory: '👑', desc: 'King of the Nile.' },
+            { id: 'astronaut', name: 'Astronaut Fluff', rarity: 'rare', poopRate: 90, emoji: '🐼', accessory: '🚀', desc: 'To the moon!' },
+            { id: 'ninja', name: 'Ninja Fluff', rarity: 'rare', poopRate: 100, emoji: '🐼', accessory: '🗡️', desc: 'Silent but deadly.' },
+            { id: 'samurai', name: 'Samurai Fluff', rarity: 'rare', poopRate: 120, emoji: '🐼', accessory: '⚔️', desc: 'Honor bound.' },
+            { id: 'surfer', name: 'Surfer Fluff', rarity: 'beach', poopRate: 200, emoji: '🐼', accessory: '🏄', desc: 'Catching waves.' },
+            { id: 'lifeguard', name: 'Lifeguard Fluff', rarity: 'beach', poopRate: 225, emoji: '🐼', accessory: '🛟', desc: 'Safety first.' },
+            { id: 'seashell', name: 'Seashell Fluff', rarity: 'beach', poopRate: 250, emoji: '🐼', accessory: '🐚', desc: 'Found on the shore.' },
+            { id: 'miner', name: 'Miner Fluff', rarity: 'miner', poopRate: 400, emoji: '🐼', accessory: '⛏️', desc: 'Diggy diggy hole.' },
+            { id: 'minecart', name: 'Minecart Fluff', rarity: 'miner', poopRate: 450, emoji: '🐼', accessory: '🛒', desc: 'Going down.' },
+            { id: 'crystal', name: 'Crystal Fluff', rarity: 'miner', poopRate: 500, emoji: '🐼', accessory: '💎', desc: 'Shiny!' },
+            { id: 'gladiator', name: 'Gladiator Fluff', rarity: 'epic', poopRate: 800, emoji: '🐼', accessory: '🛡️', desc: 'Are you not entertained?' },
+            { id: 'shadow', name: 'Shadow Fluff', rarity: 'epic', poopRate: 900, emoji: '🐼', accessory: '👻', desc: 'Now you see me...' },
+            { id: 'cyberpunk', name: 'Cyberpunk Fluff', rarity: 'epic', poopRate: 1000, emoji: '🐼', accessory: '🥽', desc: 'High tech, low life.' },
+            { id: 'crown', name: 'Crown Fluff', rarity: 'kingdom', poopRate: 2000, emoji: '🐼', accessory: '👑', desc: 'Royal highness.' },
+            { id: 'knight', name: 'Knight Fluff', rarity: 'kingdom', poopRate: 2500, emoji: '🐼', accessory: '⚔️', desc: 'Protector of the realm.' },
+            { id: 'priest', name: 'Priest Fluff', rarity: 'kingdom', poopRate: 3000, emoji: '🐼', accessory: '⛪', desc: 'Wololo.' },
+            { id: 'blossom', name: 'Blossom Fluff', rarity: 'nature', poopRate: 5000, emoji: '🐼', accessory: '🌸', desc: 'Blooming lovely.' },
+            { id: 'nature', name: 'Nature Fluff', rarity: 'nature', poopRate: 6000, emoji: '🐼', accessory: '🌿', desc: 'One with the forest.' },
+            { id: 'golem', name: 'Golem Fluff', rarity: 'nature', poopRate: 7000, emoji: '🐼', accessory: '🗿', desc: 'Rock solid.' },
+            { id: 'chocolate', name: 'Chocolate Fluff', rarity: 'candy', poopRate: 12000, emoji: '🐼', accessory: '🍫', desc: 'Sweet tooth.' },
+            { id: 'candycane', name: 'Candycane Fluff', rarity: 'candy', poopRate: 15000, emoji: '🐼', accessory: '🍬', desc: 'Minty fresh.' },
+            { id: 'cake', name: 'Cake Fluff', rarity: 'candy', poopRate: 18000, emoji: '🐼', accessory: '🍰', desc: 'The cake is a lie.' },
+            { id: 'fire', name: 'Fire Fluff', rarity: 'volcano', poopRate: 35000, emoji: '🐼', accessory: '🔥', desc: 'Hot stuff.' },
+            { id: 'magma', name: 'Magma Fluff', rarity: 'volcano', poopRate: 40000, emoji: '🐼', accessory: '🌋', desc: 'Liquid hot magma.' },
+            { id: 'volcano', name: 'Volcano Fluff', rarity: 'volcano', poopRate: 45000, emoji: '🐼', accessory: '🏔️', desc: 'Erupting with joy.' },
+            { id: 'snow', name: 'Snow Fluff', rarity: 'winter', poopRate: 90000, emoji: '🐼', accessory: '❄️', desc: 'Brrr.' },
+            { id: 'elf', name: 'Elf Fluff', rarity: 'winter', poopRate: 100000, emoji: '🐼', accessory: '🧝', desc: 'Santas helper.' },
+            { id: 'santa', name: 'Santa Fluff', rarity: 'winter', poopRate: 110000, emoji: '🐼', accessory: '🎅', desc: 'Ho ho ho.' },
+            { id: 'pumpkin', name: 'Pumpkin Fluff', rarity: 'pumpkin', poopRate: 200000, emoji: '🐼', accessory: '🎃', desc: 'Spooky scary.' },
+            { id: 'ghost', name: 'Ghost Fluff', rarity: 'pumpkin', poopRate: 250000, emoji: '🐼', accessory: '👻', desc: 'Boo!' },
+            { id: 'reaper', name: 'Reaper Fluff', rarity: 'pumpkin', poopRate: 300000, emoji: '🐼', accessory: '💀', desc: 'The end is nigh.' },
+            { id: 'zombie', name: 'Zombie Fluff', rarity: 'zombie', poopRate: 500000, emoji: '🐼', accessory: '🧟', desc: 'Braaaains.' },
+            { id: 'skeleton', name: 'Skeleton Fluff', rarity: 'zombie', poopRate: 600000, emoji: '🐼', accessory: '☠️', desc: 'Rattle rattle.' },
+            { id: 'frank', name: 'Frank Fluff', rarity: 'zombie', poopRate: 700000, emoji: '🐼', accessory: '🤖', desc: 'Its alive!' },
+            { id: 'glitched', name: 'Glitched Fluff', rarity: 'glitched', poopRate: 1200000, emoji: '🐼', accessory: '👾', desc: 'Err_0r Found.' },
+            { id: 'hacked', name: 'Hacked Fluff', rarity: 'glitched', poopRate: 1500000, emoji: '🐼', accessory: '💻', desc: 'Access granted.' },
+            { id: 'earth', name: 'Earth Fluff', rarity: 'space', poopRate: 4000000, emoji: '🐼', accessory: '🌍', desc: 'Home sweet home.' },
+            { id: 'start', name: 'Star Fluff', rarity: 'space', poopRate: 5000000, emoji: '🐼', accessory: '⭐', desc: 'Twinkle twinkle.' },
+            { id: 'space', name: 'Space Fluff', rarity: 'space', poopRate: 6000000, emoji: '🐼', accessory: '🌌', desc: 'The final frontier.' },
+            { id: 'cyborg', name: 'Cyborg Fluff', rarity: 'secret', poopRate: 12000000, emoji: '🐼', accessory: '🦾', desc: 'Resistance is futile.' },
+            { id: 'alien', name: 'Alien Fluff', rarity: 'secret', poopRate: 15000000, emoji: '🐼', accessory: '👽', desc: 'Take me to your leader.' },
+            { id: 'triple', name: 'Triple Fluff', rarity: 'secret', poopRate: 18000000, emoji: '🐼', accessory: '3️⃣', desc: 'Three times the charm.' },
+            { id: 'tungtung', name: 'Tung Tung Fluff', rarity: 'brainrot', poopRate: 40000000, emoji: '🐼', accessory: '🔔', desc: 'Tung tung tung.' },
+            { id: 'tralala', name: 'Tralala Fluff', rarity: 'brainrot', poopRate: 50000000, emoji: '🐼', accessory: '🎶', desc: 'Mmm tralala.' },
+            { id: '67', name: '67 Fluff', rarity: 'brainrot', poopRate: 60000000, emoji: '🐼', accessory: '🪪', desc: 'Subject 67.' },
+        ];
+
+        const BELT_SPEED = 0.5;
+        const SPAWN_RATE = 200;
+        const FUSE_TIME = 600000;
+        const AUTO_SAVE_INTERVAL = 15000;
+        const MAX_SLOTS = 8;
+
+        function MyPoopingFluff() {
+            const [user, setUser] = useState(null);
+            const [username, setUsername] = useState('New Player');
+            const [loading, setLoading] = useState(true);
+            const [saving, setSaving] = useState(false);
+            const [leaderboard, setLeaderboard] = useState([]);
+            const [debugLog, setDebugLog] = useState([]);
+
+            const [poop, setPoop] = useState(50);
+            const [inventory, setInventory] = useState([]);
+            const [incubators, setIncubators] = useState([
+                { id: 1, egg: null, hatchTime: null, ready: false },
+                { id: 2, egg: null, hatchTime: null, ready: false },
+                { id: 3, egg: null, hatchTime: null, ready: false },
+                { id: 4, egg: null, hatchTime: null, ready: false },
+            ]);
+            
+            const [beltEggs, setBeltEggs] = useState([]);
+            const [view, setView] = useState('incubator'); 
+            const [notification, setNotification] = useState(null);
+            const [fuseSlots, setFuseSlots] = useState({ slot1: null, slot2: null });
+            const [fuseStatus, setFuseStatus] = useState({ 
+                active: false, startTime: null, finishTime: null, ready: false, rewardEgg: null
+            });
+            const [releaseConfirm, setReleaseConfirm] = useState(null);
+
+            const requestRef = useRef();
+            const frameCount = useRef(0);
+
+            const addToLog = (msg) => setDebugLog(prev => [msg, ...prev].slice(0, 50));
+
+            const formatNumber = (num) => {
+                if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+                if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+                if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+                return Math.floor(num).toLocaleString();
+            };
+
+            const currentPoopRate = inventory.reduce((acc, curr) => acc + curr.poopRate, 0);
+
+            // Auth
+            useEffect(() => {
+                const initAuth = async () => {
+                    addToLog("Starting Auth Init...");
+                    // Try to force persistence
+                    try {
+                        await setPersistence(auth, browserLocalPersistence);
+                        addToLog("Persistence set to LOCAL");
+                    } catch (e) {
+                        addToLog("WARN: Local Persistence failed (" + e.message + "). Trying Session...");
+                        try {
+                            await setPersistence(auth, browserSessionPersistence);
+                            addToLog("Persistence set to SESSION");
+                        } catch (e2) {
+                            addToLog("WARN: Persistence completely failed. Save will be temporary.");
+                        }
+                    }
+
+                    try {
+                        const userCred = await signInAnonymously(auth);
+                        addToLog("Sign In Success! UID: " + userCred.user.uid.substring(0, 6) + "...");
+                    } catch (error) {
+                        addToLog("AUTH ERROR: " + error.code);
+                        addToLog(error.message);
+                        if (error.code === 'auth/operation-not-allowed') {
+                            addToLog("FIX: Go to Firebase Console -> Authentication -> Sign-in method -> Enable Anonymous");
+                        } else if (error.code === 'auth/unauthorized-domain') {
+                            addToLog("FIX: Go to Firebase Console -> Authentication -> Settings -> Authorized Domains -> Add this website domain");
+                        }
+                    }
+                };
+                initAuth();
+                
+                const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    setUser(currentUser);
+                    if (currentUser) {
+                        addToLog("Auth State: Connected");
+                    } else {
+                        addToLog("Auth State: Disconnected");
+                        setLoading(false);
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            // Load Game
+            useEffect(() => {
+                if (!user) return;
+                addToLog("Loading data for user...");
+                
+                const gameDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'save');
+                const unsubscribe = onSnapshot(gameDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (loading) {
+                            if (data.poop) setPoop(data.poop);
+                            if (data.inventory) setInventory(data.inventory);
+                            if (data.incubators) setIncubators(data.incubators);
+                            if (data.fuseStatus) setFuseStatus(data.fuseStatus);
+                            if (data.username) setUsername(data.username);
+                            setLoading(false);
+                            showNotification("Game Loaded!");
+                            addToLog("Data loaded successfully.");
+                        }
+                    } else {
+                        setLoading(false);
+                        addToLog("No save file found. Starting fresh.");
+                    }
+                }, (error) => {
+                    addToLog("LOAD ERROR: " + error.code);
+                    if (error.code === 'permission-denied') {
+                        addToLog("FIX: Check Firestore Rules in Firebase Console.");
+                    }
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, [user, loading]);
+
+            // Leaderboard
+            useEffect(() => {
+                if (view !== 'leaderboard') return;
+                const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                const unsubscribe = onSnapshot(leaderboardRef, (snapshot) => {
+                    const entries = [];
+                    snapshot.forEach(doc => entries.push(doc.data()));
+                    entries.sort((a, b) => b.poopRate - a.poopRate);
+                    setLeaderboard(entries.slice(0, 50));
+                }, (e) => addToLog("Leaderboard Error: " + e.message));
+                return () => unsubscribe();
+            }, [view]);
+
+            // Auto Save
+            useEffect(() => {
+                if (!user || loading) return;
+                const saveGame = async () => {
+                    setSaving(true);
+                    try {
+                        const gameState = { poop, inventory, incubators, fuseStatus, username, lastSave: Date.now() };
+                        await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'save'), gameState);
+                        const leaderboardEntry = { username, poopRate: currentPoopRate, userId: user.uid, totalPoop: poop };
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', user.uid), leaderboardEntry);
+                        // addToLog("Auto-saved."); // Too spammy
+                    } catch (e) { 
+                        console.error("Save failed", e);
+                        addToLog("Auto-save Failed: " + e.code); 
+                    }
+                    finally { setSaving(false); }
+                };
+                const interval = setInterval(saveGame, AUTO_SAVE_INTERVAL);
+                return () => clearInterval(interval);
+            }, [user, loading, poop, inventory, incubators, fuseStatus, username, currentPoopRate]);
+
+            // Manual Save/Load
+            const handleManualSave = async () => {
+                if (!user) return;
+                setSaving(true);
+                try {
+                    const gameState = { poop, inventory, incubators, fuseStatus, username, lastSave: Date.now() };
+                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'save'), gameState);
+                    const leaderboardEntry = { username, poopRate: currentPoopRate, userId: user.uid, totalPoop: poop };
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', user.uid), leaderboardEntry);
+                    showNotification("Game Saved!");
+                    addToLog("Manual Save Successful.");
+                } catch (e) { 
+                    showNotification("Save Failed!"); 
+                    addToLog("Save Error: " + e.message);
+                } 
+                finally { setSaving(false); }
+            };
+
+            const handleManualLoad = async () => {
+                if (!user) return;
+                setLoading(true);
+                try {
+                    const docSnap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'data', 'save'));
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setPoop(data.poop || 50);
+                        setInventory(data.inventory || []);
+                        setIncubators(data.incubators || incubators);
+                        setFuseStatus(data.fuseStatus || fuseStatus);
+                        setUsername(data.username || username);
+                        showNotification("Loaded!");
+                        addToLog("Manual Load Successful.");
+                    } else { showNotification("No save found."); addToLog("Manual Load: No save found."); }
+                } catch (e) { 
+                    showNotification("Load Failed!"); 
+                    addToLog("Load Error: " + e.message);
+                }
+                finally { setLoading(false); }
+            };
+
+            // Game Loop
+            const animate = () => {
+                frameCount.current++;
+                if (frameCount.current % SPAWN_RATE === 0) {
+                    const rand = Math.random();
+                    let type = 'common';
+                    if (rand < 0.0001) type = 'brainrot';
+                    else if (rand < 0.0005) type = 'secret';
+                    else if (rand < 0.001) type = 'space';
+                    else if (rand < 0.002) type = 'glitched';
+                    else if (rand < 0.005) type = 'zombie';
+                    else if (rand < 0.01) type = 'pumpkin';
+                    else if (rand < 0.015) type = 'winter';
+                    else if (rand < 0.025) type = 'volcano';
+                    else if (rand < 0.04) type = 'candy';
+                    else if (rand < 0.06) type = 'nature';
+                    else if (rand < 0.08) type = 'kingdom';
+                    else if (rand < 0.10) type = 'epic';
+                    else if (rand < 0.14) type = 'miner';
+                    else if (rand < 0.20) type = 'beach';
+                    else if (rand < 0.30) type = 'rare';
+                    else if (rand < 0.50) type = 'uncommon';
+                    else type = 'common';
+                    setBeltEggs(prev => [...prev, { id: Date.now(), x: -80, type }]);
+                }
+                setBeltEggs(prev => prev.map(egg => ({ ...egg, x: egg.x + BELT_SPEED })).filter(egg => egg.x < 2000));
+                requestRef.current = requestAnimationFrame(animate);
+            };
+
+            useEffect(() => { requestRef.current = requestAnimationFrame(animate); return () => cancelAnimationFrame(requestRef.current); }, []);
+
+            useEffect(() => {
+                const interval = setInterval(() => { if (currentPoopRate > 0) setPoop(prev => prev + currentPoopRate); }, 1000);
+                return () => clearInterval(interval);
+            }, [currentPoopRate]);
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    const now = Date.now();
+                    setIncubators(prev => prev.map(slot => (!slot.egg || slot.ready || now < slot.hatchTime) ? slot : { ...slot, ready: true }));
+                    setFuseStatus(prev => {
+                        if (!prev.active || prev.ready) return prev;
+                        if (now >= prev.finishTime) {
+                            const r = Math.random();
+                            let reward = r < 0.01 ? 'brainrot' : r < 0.03 ? 'secret' : r < 0.05 ? 'space' : r < 0.08 ? 'glitched' : r < 0.12 ? 'zombie' : r < 0.16 ? 'pumpkin' : r < 0.20 ? 'winter' : r < 0.25 ? 'volcano' : r < 0.35 ? 'candy' : r < 0.45 ? 'nature' : r < 0.55 ? 'kingdom' : r < 0.70 ? 'epic' : r < 0.85 ? 'miner' : 'beach';
+                            return { ...prev, ready: true, rewardEgg: reward };
+                        }
+                        return prev;
+                    });
+                }, 500);
+                return () => clearInterval(timer);
+            }, []);
+
+            const handleBeltClick = (eggId, eggType) => {
+                const cost = RARITY[eggType.toUpperCase()].cost;
+                if (poop < cost) { showNotification(`Need ${formatNumber(cost)} 💩`); return; }
+                const slotIdx = incubators.findIndex(s => s.egg === null);
+                if (slotIdx === -1) { showNotification("Incubators full!"); return; }
+                setPoop(prev => prev - cost);
+                setBeltEggs(prev => prev.filter(e => e.id !== eggId));
+                setIncubators(prev => {
+                    const n = [...prev];
+                    n[slotIdx] = { ...n[slotIdx], egg: eggType, hatchTime: Date.now() + RARITY[eggType.toUpperCase()].waitTime, ready: false };
+                    return n;
+                });
+            };
+
+            const buyIncubatorSlot = () => {
+                if (incubators.length >= MAX_SLOTS) {
+                    showNotification("Max slots reached!");
+                    return;
+                }
+                // Cost scales with slot number. Slot 5 costs 5000, 6 costs 25000, etc.
+                // Simple scaling: 1000 * 5^(slot_number - 4)
+                // Slot 5 (index 4 in array is wrong, length is 4): Cost for 5th slot
+                const nextSlotNum = incubators.length + 1;
+                let cost = 0;
+                if (nextSlotNum === 5) cost = 5000;
+                else if (nextSlotNum === 6) cost = 25000;
+                else if (nextSlotNum === 7) cost = 100000;
+                else if (nextSlotNum === 8) cost = 500000;
+                else cost = 1000000; // Fallback
+
+                if (poop < cost) {
+                    showNotification(`Need ${formatNumber(cost)} 💩`);
+                    return;
+                }
+
+                setPoop(prev => prev - cost);
+                setIncubators(prev => [...prev, { id: Date.now(), egg: null, hatchTime: null, ready: false }]);
+                showNotification("New Slot Purchased!");
+            };
+
+            const instantHatch = (slotId) => {
+                const slot = incubators.find(s => s.id === slotId);
+                if (!slot || !slot.egg || slot.ready) return;
+
+                const rarityData = RARITY[slot.egg.toUpperCase()];
+                const totalTime = rarityData.waitTime;
+                const timeLeft = Math.max(0, slot.hatchTime - Date.now());
+                const percentLeft = timeLeft / totalTime;
+                
+                // Cost is roughly 50% of egg cost if just bought, scaling down as time passes.
+                // Minimum cost 100 poop
+                const cost = Math.max(100, Math.ceil(rarityData.cost * 0.5 * percentLeft));
+
+                if (poop < cost) {
+                    showNotification(`Need ${formatNumber(cost)} 💩 to speed up`);
+                    return;
+                }
+
+                setPoop(prev => prev - cost);
+                setIncubators(prev => prev.map(s => s.id === slotId ? { ...s, hatchTime: Date.now(), ready: true } : s));
+                showNotification("Instantly Hatched!");
+            };
+
+            const hatchEgg = (slotId) => {
+                const slot = incubators.find(s => s.id === slotId);
+                if (!slot || !slot.ready) return;
+                const pool = FLUFFS.filter(f => f.rarity === slot.egg);
+                const fluff = pool[Math.floor(Math.random() * pool.length)];
+                setInventory(prev => [...prev, { ...fluff, instanceId: Date.now() }]);
+                setIncubators(prev => prev.map(s => s.id === slotId ? { ...s, egg: null, hatchTime: null, ready: false } : s));
+                showNotification(`Hatched ${fluff.name}!`);
+            };
+
+            const startFuse = () => {
+                if (!fuseSlots.slot1 || !fuseSlots.slot2) return;
+                setInventory(prev => prev.filter(i => i.instanceId !== fuseSlots.slot1.instanceId && i.instanceId !== fuseSlots.slot2.instanceId));
+                setFuseStatus({ active: true, startTime: Date.now(), finishTime: Date.now() + FUSE_TIME, ready: false, rewardEgg: null });
+                setFuseSlots({ slot1: null, slot2: null });
+                showNotification("Fusing started!");
+            };
+
+            const claimFuseReward = () => {
+                const slotIdx = incubators.findIndex(s => s.egg === null);
+                if (slotIdx === -1) { showNotification("Incubator full!"); return; }
+                const egg = fuseStatus.rewardEgg;
+                setIncubators(prev => {
+                    const n = [...prev];
+                    n[slotIdx] = { ...n[slotIdx], egg, hatchTime: Date.now() + RARITY[egg.toUpperCase()].waitTime, ready: false };
+                    return n;
+                });
+                setFuseStatus({ active: false, startTime: null, finishTime: null, ready: false, rewardEgg: null });
+                showNotification(`Got a ${egg} egg!`);
+            };
+
+            const toggleFuseSelect = (fluff) => {
+                if (fuseStatus.active) return;
+                if (fuseSlots.slot1?.instanceId === fluff.instanceId) setFuseSlots(prev => ({ ...prev, slot1: null }));
+                else if (fuseSlots.slot2?.instanceId === fluff.instanceId) setFuseSlots(prev => ({ ...prev, slot2: null }));
+                else if (!fuseSlots.slot1) setFuseSlots(prev => ({ ...prev, slot1: fluff }));
+                else if (!fuseSlots.slot2) setFuseSlots(prev => ({ ...prev, slot2: fluff }));
+            };
+
+            const confirmRelease = () => {
+                if (!releaseConfirm) return;
+                setInventory(prev => prev.filter(i => i.instanceId !== releaseConfirm.instanceId));
+                const refund = Math.floor(RARITY[releaseConfirm.rarity.toUpperCase()].cost * 0.5);
+                setPoop(prev => prev + refund);
+                showNotification(`Sold for ${formatNumber(refund)} 💩`);
+                setReleaseConfirm(null);
+            };
+
+            const getProgress = (slot) => {
+                if (!slot.egg || slot.ready) return 100;
+                const total = RARITY[slot.egg.toUpperCase()].waitTime;
+                const left = slot.hatchTime - Date.now();
+                return Math.max(0, Math.min(100, 100 - ((left / total) * 100)));
+            };
+
+            const showNotification = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
+
+            return (
+                <div className="flex flex-col h-screen w-full bg-amber-50 font-sans overflow-hidden">
+                    {/* Header */}
+                    <div className="bg-amber-800 text-white p-4 shadow-md flex justify-between items-center z-10 shrink-0">
+                        <div>
+                            <h1 className="text-xl font-bold flex items-center gap-2">🐼 My Pooping Fluff</h1>
+                            <div className="flex items-center gap-2 text-xs text-amber-200">
+                                {saving ? <span className="animate-pulse flex items-center gap-1"><Save size={10}/> Saving...</span> : <span>Autosave On</span>}
+                                <span>•</span>
+                                <span>{username}</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-1 bg-amber-900 px-3 py-1 rounded-full border border-amber-700">
+                                <span className="text-2xl">💩</span>
+                                <span className="font-mono font-bold text-lg">{formatNumber(poop)}</span>
+                            </div>
+                            <span className="text-xs text-amber-200 mt-1">{formatNumber(currentPoopRate)}/sec</span>
+                        </div>
+                    </div>
+
+                    {/* Belt */}
+                    <div className="relative h-48 bg-slate-200 overflow-hidden border-b-4 border-slate-300 shadow-inner shrink-0">
+                        <div className="absolute inset-0 opacity-10 flex" style={{ width: '200%' }}>
+                            {[...Array(40)].map((_, i) => <div key={i} className="h-full w-10 border-r border-slate-400 transform -skew-x-12 bg-slate-300 mx-4"></div>)}
+                        </div>
+                        {beltEggs.map(egg => {
+                            const r = RARITY[egg.type.toUpperCase()];
+                            const canBuy = poop >= r.cost;
+                            return (
+                                <button key={egg.id} onClick={() => handleBeltClick(egg.id, egg.type)} className="absolute top-1/2 transform -translate-y-1/2 transition-transform active:scale-95 hover:scale-110 cursor-pointer group" style={{ left: `${egg.x}px`, fontSize: '4rem', filter: 'drop-shadow(0px 6px 3px rgba(0,0,0,0.2))' }}>
+                                    {r.eggEmoji}
+                                    <div className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-sm flex items-center gap-1 min-w-[max-content] z-20 ${canBuy ? 'bg-amber-600' : 'bg-red-500'}`}>
+                                        <span>{formatNumber(r.cost)}</span><span className="text-[8px]">💩</span>
+                                    </div>
+                                    <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] px-1.5 py-0.5 rounded-full text-white font-bold uppercase whitespace-nowrap shadow-sm ${r.color.includes('bg-black') ? 'bg-slate-800' : 'bg-black/50'} backdrop-blur-sm`}>
+                                        {r.name}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Main Area */}
+                    <div className="flex-1 bg-amber-50 p-4 overflow-y-auto w-full max-w-4xl mx-auto">
+                        <div className="flex gap-2 mb-4 bg-amber-200 p-1 rounded-lg overflow-x-auto no-scrollbar">
+                            <button onClick={() => setView('incubator')} className={`flex-shrink-0 py-2 px-4 rounded-md font-bold text-sm transition-colors flex justify-center items-center gap-2 ${view === 'incubator' ? 'bg-white text-amber-900 shadow-sm' : 'text-amber-800'}`}><Timer size={16}/> Hatchery</button>
+                            <button onClick={() => setView('fuse')} className={`flex-shrink-0 py-2 px-4 rounded-md font-bold text-sm transition-colors flex justify-center items-center gap-2 ${view === 'fuse' ? 'bg-white text-purple-900 shadow-sm' : 'text-amber-800'}`}><Zap size={16}/> Fuse</button>
+                            <button onClick={() => setView('collection')} className={`flex-shrink-0 py-2 px-4 rounded-md font-bold text-sm transition-colors flex justify-center items-center gap-2 ${view === 'collection' ? 'bg-white text-amber-900 shadow-sm' : 'text-amber-800'}`}><Trophy size={16}/> Habitat</button>
+                            <button onClick={() => setView('index')} className={`flex-shrink-0 py-2 px-4 rounded-md font-bold text-sm transition-colors flex justify-center items-center gap-2 ${view === 'index' ? 'bg-white text-amber-900 shadow-sm' : 'text-amber-800'}`}><BookOpen size={16}/> Index</button>
+                            <button onClick={() => setView('leaderboard')} className={`flex-shrink-0 py-2 px-4 rounded-md font-bold text-sm transition-colors flex justify-center items-center gap-2 ${view === 'leaderboard' ? 'bg-white text-blue-900 shadow-sm' : 'text-amber-800'}`}><BarChart3 size={16}/> Rank</button>
+                            <button onClick={() => setView('settings')} className={`flex-shrink-0 py-2 px-4 rounded-md font-bold text-sm transition-colors flex justify-center items-center gap-2 ${view === 'settings' ? 'bg-white text-slate-900 shadow-sm' : 'text-amber-800'}`}><Settings size={16}/> Settings</button>
+                        </div>
+
+                        {view === 'incubator' && (
+                            <div className="space-y-4">
+                                <h2 className="text-amber-900 font-bold flex items-center gap-2"><Timer size={18} /> Incubators</h2>
+                                <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
+                                    {incubators.map(slot => (
+                                        <div key={slot.id} className="bg-white rounded-xl p-3 shadow-sm border-2 border-amber-100 flex items-center gap-4 h-24 relative">
+                                            <div className="text-3xl">{slot.egg ? RARITY[slot.egg.toUpperCase()].eggEmoji : '🥚'}</div>
+                                            <div className="flex-1 min-w-0">
+                                                {!slot.egg ? <p className="text-slate-400 text-sm">Empty Slot</p> : (
+                                                    <div className="w-full">
+                                                        <div className="flex justify-between text-xs font-bold mb-1"><span className="uppercase text-amber-800">{slot.egg}</span>{slot.ready ? <span className="text-amber-600 animate-pulse">READY!</span> : <span className="text-slate-400">Incubating...</span>}</div>
+                                                        <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200"><div className={`h-full transition-all duration-300 ${slot.ready ? 'bg-amber-500' : 'bg-blue-400'}`} style={{ width: `${getProgress(slot)}%` }}></div></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Action Buttons */}
+                                            {slot.egg && !slot.ready && (
+                                                <button onClick={() => instantHatch(slot.id)} className="absolute top-1 right-1 text-[10px] bg-sky-100 text-sky-700 p-1.5 rounded-full hover:bg-sky-200 transition-colors shadow-sm" title="Instant Hatch (Cost based on time left)">
+                                                    <FastForward size={14} />
+                                                </button>
+                                            )}
+                                            
+                                            {slot.ready && <button onClick={() => hatchEgg(slot.id)} className="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-lg font-bold text-xs shadow-md active:translate-y-1 transition-all">HATCH</button>}
+                                        </div>
+                                    ))}
+                                    
+                                    {/* Buy Slot Button */}
+                                    {incubators.length < MAX_SLOTS && (
+                                        <button onClick={buyIncubatorSlot} className="bg-slate-100 rounded-xl p-3 shadow-sm border-2 border-dashed border-slate-300 flex items-center justify-center gap-2 h-24 hover:bg-amber-50 transition-colors group">
+                                            <PlusCircle size={24} className="text-slate-400 group-hover:text-amber-500" />
+                                            <div className="text-left">
+                                                <div className="text-sm font-bold text-slate-500 group-hover:text-amber-700">Buy Slot</div>
+                                                <div className="text-xs text-amber-600 font-mono">
+                                                    {formatNumber(
+                                                        incubators.length + 1 === 5 ? 5000 : 
+                                                        incubators.length + 1 === 6 ? 25000 : 
+                                                        incubators.length + 1 === 7 ? 100000 : 500000
+                                                    )} 💩
+                                                </div>
+                                            </div>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'collection' && (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-amber-900 font-bold flex items-center gap-2"><Trophy size={18} /> My Fluffs</h2>
+                                    <span className="text-xs bg-amber-200 px-2 py-1 rounded text-amber-900 font-mono">Total: {inventory.length}</span>
+                                </div>
+                                {inventory.length === 0 ? <div className="text-center py-12 text-amber-400/50"><div className="text-4xl mb-2">🐼❓</div><p>No Fluffs yet.</p></div> : (
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                        {inventory.map((fluff, idx) => (
+                                            <div key={idx} className={`relative p-3 rounded-xl border-2 shadow-sm flex flex-col items-center text-center group ${RARITY[fluff.rarity.toUpperCase()].color}`}>
+                                                <div className="text-4xl relative mb-2 h-12 w-12 flex items-center justify-center">
+                                                    <span className="absolute">{fluff.emoji}</span><span className="absolute text-2xl -bottom-1 -right-1 drop-shadow-md">{fluff.accessory}</span>
+                                                </div>
+                                                <h3 className="font-bold text-sm leading-tight text-slate-700">{fluff.name}</h3>
+                                                <div className="mt-2 bg-white/80 px-2 py-1 rounded-full text-[10px] font-bold text-amber-800 shadow-sm">💩 +{formatNumber(fluff.poopRate)}/s</div>
+                                                <button onClick={(e) => { e.stopPropagation(); setReleaseConfirm(fluff); }} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:scale-110"><Trash2 size={12} /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {view === 'fuse' && (
+                            <div className="space-y-4">
+                                <h2 className="text-purple-900 font-bold flex items-center gap-2"><Zap size={18} /> Fluff Fuser 3000</h2>
+                                <div className="bg-purple-100 border-2 border-purple-300 rounded-xl p-6 flex flex-col items-center justify-center gap-4 relative">
+                                    {fuseStatus.active ? (
+                                        <div className="text-center w-full">
+                                            <div className="text-4xl mb-2 animate-pulse">⚡⚙️⚡</div>
+                                            {fuseStatus.ready ? (
+                                                <div className="space-y-4">
+                                                    <h3 className="text-xl font-bold text-purple-900">FUSION COMPLETE!</h3>
+                                                    <button onClick={claimFuseReward} className="bg-green-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg animate-bounce">Claim {fuseStatus.rewardEgg?.toUpperCase()} Egg</button>
+                                                </div>
+                                            ) : <div className="space-y-2"><h3 className="font-bold text-purple-800">Fusing...</h3><p className="text-xs text-purple-600">10 minutes</p></div>}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-4">
+                                                {[fuseSlots.slot1, fuseSlots.slot2].map((slot, i) => (
+                                                    <div key={i} className="w-20 h-20 bg-white border-2 border-purple-200 rounded-lg flex items-center justify-center text-3xl shadow-inner relative">
+                                                        {slot ? <><span className="absolute">{slot.emoji}</span><span className="absolute bottom-0 right-0 text-lg">{slot.accessory}</span><button onClick={() => toggleFuseSelect(slot)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><X size={12}/></button></> : <span className="opacity-20 text-sm">Select</span>}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button onClick={startFuse} disabled={!fuseSlots.slot1 || !fuseSlots.slot2} className="px-8 py-3 rounded-full font-bold shadow-md bg-purple-600 text-white hover:bg-purple-700 disabled:bg-purple-200 disabled:text-purple-400">FUSE</button>
+                                        </>
+                                    )}
+                                </div>
+                                {!fuseStatus.active && (
+                                    <div className="bg-white p-4 rounded-xl border-2 border-slate-100">
+                                        <h3 className="font-bold text-slate-700 mb-2">Select 2 Fluffs:</h3>
+                                        <div className="grid grid-cols-3 md:grid-cols-5 gap-2 max-h-60 overflow-y-auto">
+                                            {inventory.map(fluff => {
+                                                const isSel = fuseSlots.slot1?.instanceId === fluff.instanceId || fuseSlots.slot2?.instanceId === fluff.instanceId;
+                                                return (
+                                                    <button key={fluff.instanceId} onClick={() => toggleFuseSelect(fluff)} className={`p-2 rounded-lg border flex flex-col items-center gap-1 ${isSel ? 'bg-purple-100 border-purple-500' : 'bg-slate-50 border-slate-200'}`}>
+                                                        <div className="relative"><span className="text-xl">{fluff.emoji}</span><span className="text-lg absolute -bottom-1 -right-1">{fluff.accessory}</span></div>
+                                                        <span className="text-[10px] truncate w-full text-center">{fluff.name}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {view === 'index' && (
+                            <div className="space-y-4">
+                                <h2 className="text-amber-900 font-bold flex items-center gap-2"><BookOpen size={18} /> Index</h2>
+                                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {FLUFFS.map((fluff, idx) => {
+                                        const disc = inventory.some(i => i.id === fluff.id);
+                                        const r = RARITY[fluff.rarity.toUpperCase()];
+                                        return (
+                                            <div key={idx} className={`relative p-3 rounded-xl border-2 shadow-sm flex flex-col items-center text-center h-full justify-between ${disc ? r.color : 'bg-slate-100 border-slate-200'}`}>
+                                                <div className="flex-1 flex flex-col items-center justify-center">
+                                                    {disc ? <><span className="text-4xl">{fluff.emoji}</span><span className="absolute text-2xl bottom-8 right-2">{fluff.accessory}</span></> : <span className="text-4xl opacity-20 grayscale">🐼</span>}
+                                                    <h3 className={`font-bold text-xs mt-1 ${disc ? 'text-slate-700' : 'text-slate-300'}`}>{disc ? fluff.name : '???'}</h3>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'leaderboard' && (
+                            <div className="space-y-4">
+                                <h2 className="text-blue-900 font-bold flex items-center gap-2"><Globe size={18} /> Rankings</h2>
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-2">
+                                    <span className="text-sm font-bold text-slate-600">Name:</span>
+                                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value.substring(0, 15))} className="border rounded px-2 py-1 text-sm flex-1" />
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="grid grid-cols-12 bg-slate-50 p-2 text-xs font-bold text-slate-500 border-b">
+                                        <div className="col-span-2 text-center">Rank</div><div className="col-span-6">Player</div><div className="col-span-4 text-right">Poop/Sec</div>
+                                    </div>
+                                    {leaderboard.map((entry, idx) => (
+                                        <div key={idx} className={`grid grid-cols-12 p-3 border-b text-sm items-center ${entry.userId === user?.uid ? 'bg-amber-50' : ''}`}>
+                                            <div className="col-span-2 text-center font-bold text-slate-400">#{idx + 1}</div>
+                                            <div className="col-span-6 font-medium text-slate-700">{entry.username}</div>
+                                            <div className="col-span-4 text-right font-mono text-slate-600">{formatNumber(entry.poopRate)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'settings' && (
+                            <div className="space-y-4">
+                                <h2 className="text-slate-900 font-bold flex items-center gap-2"><Settings size={18} /> Settings</h2>
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button onClick={handleManualSave} disabled={saving} className="bg-green-500 text-white py-3 px-4 rounded-lg font-bold shadow-md flex items-center justify-center gap-2">{saving ? '...' : <Upload size={18} />} Save</button>
+                                        <button onClick={handleManualLoad} disabled={loading} className="bg-amber-500 text-white py-3 px-4 rounded-lg font-bold shadow-md flex items-center justify-center gap-2">{loading ? '...' : <Download size={18} />} Load</button>
+                                    </div>
+                                    <div className="border-t border-slate-100 pt-4">
+                                        <span className="text-xs font-bold text-slate-400 uppercase">User ID</span>
+                                        <div className="bg-slate-50 p-2 rounded mt-1 font-mono text-[10px] text-slate-500 break-all">{user?.uid || 'Not connected'}</div>
+                                    </div>
+                                    <div className="border-t border-slate-100 pt-4">
+                                        <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2"><AlertTriangle size={12} /> Debug Log</span>
+                                        <div className="bg-black p-2 rounded mt-1 font-mono text-[10px] text-green-400 h-32 overflow-y-auto">
+                                            {debugLog.length === 0 ? "Waiting for events..." : debugLog.map((log, i) => <div key={i}>&gt; {log}</div>)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {notification && (
+                        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold z-50 animate-bounce whitespace-nowrap">
+                            {notification}
+                        </div>
+                    )}
+
+                    {releaseConfirm && (
+                        <div className="absolute inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-2xl">
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Release Fluff?</h3>
+                                <p className="text-center text-slate-600 mb-4">Release <strong>{releaseConfirm.name}</strong> for +{formatNumber(Math.floor(RARITY[releaseConfirm.rarity.toUpperCase()].cost * 0.5))} 💩?</p>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setReleaseConfirm(null)} className="flex-1 py-3 rounded-lg font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
+                                    <button onClick={confirmRelease} className="flex-1 py-3 rounded-lg font-bold text-white bg-red-500 hover:bg-red-600">Yes</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {loading && (
+                        <div className="absolute inset-0 bg-amber-50 z-[100] flex flex-col items-center justify-center">
+                            <div className="text-6xl animate-bounce mb-4">🐼</div>
+                            <h2 className="text-2xl font-bold text-amber-800">Loading...</h2>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<MyPoopingFluff />);
+    </script>
+</body>
+</html>

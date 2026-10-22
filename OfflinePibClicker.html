@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Using a deceptive title so the browser tab looks innocent -->
+    <title>My Drive - Google Drive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ensuring the body takes up the full screen and hides overflow */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #111827; /* Tailwind gray-900 */
+        }
+        
+        /* Panic screen overlay styling */
+        #panic-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body class="flex flex-col text-white font-sans">
+
+    <div id="app-ui" class="flex flex-col h-full w-full">
+        <!-- Top Navigation Bar -->
+        <div class="bg-gray-800 p-3 flex items-center justify-between shadow-lg z-10">
+            <div class="flex items-center space-x-4 w-full max-w-4xl mx-auto">
+                <!-- Branding -->
+                <h1 class="text-xl font-bold text-blue-400 tracking-wider select-none">GoBaby</h1>
+                
+                <!-- Navigation Controls -->
+                <div class="flex items-center space-x-1">
+                    <button id="back-btn" class="bg-gray-700 hover:bg-gray-600 p-2 rounded text-gray-300 hover:text-white transition-colors" title="Back">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button id="forward-btn" class="bg-gray-700 hover:bg-gray-600 p-2 rounded text-gray-300 hover:text-white transition-colors" title="Forward">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                    <button id="refresh-btn" class="bg-gray-700 hover:bg-gray-600 p-2 rounded text-gray-300 hover:text-white transition-colors" title="Reload">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button id="home-btn" class="bg-gray-700 hover:bg-gray-600 p-2 rounded text-gray-300 hover:text-white transition-colors" title="Home">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- URL Input Field -->
+                <div class="flex-grow flex shadow-sm rounded-md overflow-hidden">
+                    <input 
+                        type="text" 
+                        id="url-input" 
+                        placeholder="Enter URL (e.g., example.com)" 
+                        class="w-full px-4 py-2 bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <button 
+                        id="go-btn" 
+                        class="bg-blue-600 hover:bg-blue-500 transition-colors px-6 py-2 font-semibold"
+                    >
+                        GO
+                    </button>
+                </div>
+
+                <!-- Fullscreen Button -->
+                <button 
+                    id="fullscreen-btn" 
+                    class="bg-gray-700 hover:bg-gray-600 transition-colors p-2 rounded-md border border-gray-600"
+                    title="Fullscreen"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                </button>
+                
+                <!-- Instructions -->
+                <div class="text-xs text-gray-400 ml-2 hidden md:block">
+                    Press <kbd class="bg-gray-700 px-1 rounded text-white">[</kbd> to hide
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Links Bar -->
+        <div class="bg-gray-900 border-b border-gray-800 px-4 py-1.5 flex items-center space-x-2 text-xs overflow-x-auto">
+            <span class="text-gray-500 font-medium mr-1">Bookmarks:</span>
+            <button class="quick-link bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded transition-colors" data-url="https://wikipedia.org">Wikipedia</button>
+            <button class="quick-link bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded transition-colors" data-url="https://duckmath.org/">DuckMath</button>
+            <button class="quick-link bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded transition-colors" data-url="https://coreportals.github.io/">Core Portals</button>
+            <button class="quick-link bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded transition-colors" data-url="https://unblockedgames911.gitsites.io/">Unblocked Games 911</button>
+            <button class="quick-link bg-gray-800 hover:bg-gray-700 text-gray-300 px-2.5 py-1 rounded transition-colors" data-url="https://lite2048.firebaseapp.com/games/dogeminer/index.html">Dogeminer</button>
+        </div>
+
+        <!-- Iframe Container -->
+        <div class="flex-grow w-full bg-white relative">
+            <div id="placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500 flex-col bg-gray-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                <p>Enter a URL above to load it inside this frame.</p>
+                <p class="text-sm mt-2 text-gray-400">Note: Many major sites (like Google/YouTube) block iframe embedding.</p>
+            </div>
+            
+            <iframe 
+                id="content-frame" 
+                class="w-full h-full border-0 absolute inset-0 z-10 hidden"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                allow="fullscreen"
+                allowfullscreen="true"
+            ></iframe>
+        </div>
+    </div>
+
+    <!-- Panic Screen (Hidden by default) -->
+    <!-- When triggered, this covers the whole screen to look like a generic Google Drive error/loading page -->
+    <div id="panic-screen">
+        <iframe src="https://drive.google.com" style="width: 100%; height: 100%; border: none;"></iframe>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('url-input');
+        const goBtn = document.getElementById('go-btn');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const contentFrame = document.getElementById('content-frame');
+        const placeholder = document.getElementById('placeholder');
+        const panicScreen = document.getElementById('panic-screen');
+        const appUi = document.getElementById('app-ui');
+
+        const backBtn = document.getElementById('back-btn');
+        const forwardBtn = document.getElementById('forward-btn');
+        const refreshBtn = document.getElementById('refresh-btn');
+        const homeBtn = document.getElementById('home-btn');
+        const quickLinks = document.querySelectorAll('.quick-link');
+
+        // Function to load the URL into the iframe
+        function loadUrl(inputVal) {
+            let url = typeof inputVal === 'string' ? inputVal : urlInput.value.trim();
+            if (!url) return;
+
+            // Smart search: if input doesn't contain a dot or space, search DuckDuckGo
+            if (!url.includes('.') && !url.startsWith('localhost')) {
+                url = 'https://duckduckgo.com/?q=' + encodeURIComponent(url);
+            } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+
+            urlInput.value = url;
+
+            // Hide placeholder and show iframe
+            placeholder.style.display = 'none';
+            contentFrame.style.display = 'block';
+            
+            // Set iframe source
+            contentFrame.src = url;
+        }
+
+        // Navigation Controls Event Listeners
+        backBtn.addEventListener('click', () => {
+            try { contentFrame.contentWindow.history.back(); } catch (e) { console.warn("Cross-origin navigation restricted"); }
+        });
+
+        forwardBtn.addEventListener('click', () => {
+            try { contentFrame.contentWindow.history.forward(); } catch (e) { console.warn("Cross-origin navigation restricted"); }
+        });
+
+        refreshBtn.addEventListener('click', () => {
+            if (contentFrame.src) contentFrame.src = contentFrame.src;
+        });
+
+        homeBtn.addEventListener('click', () => {
+            contentFrame.src = '';
+            contentFrame.style.display = 'none';
+            placeholder.style.display = 'flex';
+            urlInput.value = '';
+        });
+
+        // Quick links handler
+        quickLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const target = link.getAttribute('data-url');
+                loadUrl(target);
+            });
+        });
+
+        // Event listener for the GO button
+        goBtn.addEventListener('click', loadUrl);
+
+        // Event listener for hitting Enter in the input field
+        urlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadUrl();
+            }
+        });
+
+        // Event listener for the Fullscreen button
+        fullscreenBtn.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                // Request fullscreen on the iframe container for a better experience
+                try {
+                    if (contentFrame.requestFullscreen) {
+                        let promise = contentFrame.requestFullscreen();
+                        if (promise !== undefined) {
+                            promise.catch(err => console.warn("Fullscreen blocked by browser permissions: " + err.message));
+                        }
+                    } else if (contentFrame.mozRequestFullScreen) { /* Firefox */
+                        contentFrame.mozRequestFullScreen();
+                    } else if (contentFrame.webkitRequestFullscreen) { /* Chrome, Safari and Opera */
+                        contentFrame.webkitRequestFullscreen();
+                    } else if (contentFrame.msRequestFullscreen) { /* IE/Edge */
+                        contentFrame.msRequestFullscreen();
+                    }
+                } catch (e) {
+                    console.warn("Fullscreen API is restricted in this environment.");
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    let promise = document.exitFullscreen();
+                    if (promise !== undefined) {
+                        promise.catch(err => console.warn("Exit fullscreen blocked: " + err.message));
+                    }
+                }
+            }
+        });
+
+        // Event listener for the Panic Button (The '[' key)
+        document.addEventListener('keydown', function(e) {
+            // Check if the pressed key is '['
+            // We ignore it if the user is typing inside the URL input box
+            if (e.key === '[' && document.activeElement !== urlInput) {
+                
+                // Hide the entire app UI
+                appUi.style.display = 'none';
+                
+                // Show the panic screen
+                panicScreen.style.display = 'block';
+
+                // Change the document title to look like Google Drive
+                document.title = "My Drive - Google Drive";
+
+                // Optional: To be completely safe, you can instantly redirect the browser tab
+                // window.location.replace("https://drive.google.com");
+            }
+        });
+    </script>
+</body>
+</html>

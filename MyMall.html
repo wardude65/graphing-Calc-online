@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Mall Tycoon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #f0f4f8;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .belt-container {
+            position: relative;
+            overflow: hidden;
+            background: repeating-linear-gradient(45deg, #334155, #334155 10px, #1e293b 10px, #1e293b 20px);
+            border-radius: 0.5rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .belt-track {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            transition: transform 3s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+
+        .belt-item {
+            min-width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: relative;
+            border: 4px solid transparent;
+        }
+
+        .rare-common { border-color: #94a3b8; }
+        .text-common { color: #64748b; }
+        .rare-uncommon { border-color: #22c55e; }
+        .text-uncommon { color: #16a34a; }
+        .rare-rare { border-color: #3b82f6; }
+        .text-rare { color: #2563eb; }
+        .rare-epic { border-color: #a855f7; }
+        .text-epic { color: #9333ea; }
+        .rare-legendary { border-color: #eab308; }
+        .text-legendary { color: #ca8a04; }
+
+        .rare-mythic { 
+            border-color: #ef4444; 
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+            animation: pulse-border 2s infinite;
+        }
+        .text-mythic { color: #dc2626; }
+
+        .rare-godly {
+            border-color: #ec4899;
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+            animation: pulse-godly 1.5s infinite;
+            background: linear-gradient(135deg, #fff1f2 0%, #fdf2f8 100%);
+        }
+        .text-godly { color: #db2777; text-shadow: 0 0 2px rgba(219, 39, 119, 0.2); }
+        .bg-godly { background-color: #fdf2f8; }
+
+        .rare-secret {
+            border-color: #000000;
+            background-color: #1a1a1a;
+            color: #ef4444;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            animation: shake-secret 3s infinite;
+        }
+        .text-secret { color: #ff0000; font-family: monospace; }
+        .bg-secret { background-color: #000000; color: white; }
+
+        .rare-exclusive {
+            border-color: #06b6d4;
+            background: linear-gradient(to bottom right, #cffafe, #67e8f9);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
+            animation: pulse-border 3s infinite;
+        }
+        .text-exclusive { color: #0891b2; font-weight: 800; }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        @keyframes pulse-godly {
+            0% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.6); border-color: #ec4899; }
+            50% { border-color: #d946ef; }
+            70% { box-shadow: 0 0 0 8px rgba(236, 72, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0); border-color: #ec4899; }
+        }
+
+        @keyframes shake-secret {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-1px, -1px); }
+            20% { transform: translate(1px, 1px); }
+            30% { transform: translate(0, 0); }
+        }
+
+        .pointer-arrow {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; 
+            height: 0; 
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 20px solid #ef4444;
+            z-index: 10;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        .character-card {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 0.2s;
+        }
+        
+        .character-card:hover { transform: translateY(-2px); z-index: 10; }
+
+        .coin-pop {
+            position: absolute;
+            color: #16a34a;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 50;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-30px); opacity: 0; }
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.2s;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        #admin-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #0f172a;
+            color: white;
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            display: none;
+            width: 500px;
+            max-width: 95vw;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .worker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+        .index-item { opacity: 0.4; filter: grayscale(100%); transition: all 0.3s; }
+        .index-item.discovered { opacity: 1; filter: grayscale(0%); }
+        .index-item:hover { transform: scale(1.05); }
+
+        .auto-active {
+            animation: pulse-green 1.5s infinite;
+            background-color: #16a34a !important;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        #global-toast {
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 300;
+            text-align: center;
+            border: 2px solid white;
+        }
+        #global-toast.active { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        
+        #firebase-status { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #334155; color: #94a3b8; display: inline-block; margin-top: 4px; }
+        #firebase-status.connected { background: #064e3b; color: #34d399; }
+        #firebase-status.error { background: #450a0a; color: #f87171; }
+
+        .lucky-block-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 250;
+            display: none;
+        }
+        .lucky-block-overlay.active { display: flex; }
+        .lucky-cube {
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(135deg, #fbbf24, #d97706);
+            border: 4px solid #fff;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 0 50px #fbbf24;
+            animation: float 2s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        
+        #save-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: #10b981;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        #save-indicator.saving { opacity: 1; }
+    </style>
+</head>
+<body class="h-screen flex flex-col text-slate-800 overflow-hidden">
+
+    <div id="global-toast">SERVER: Welcome to My Mall!</div>
+
+    <div id="lucky-block-modal" class="lucky-block-overlay">
+        <div class="flex flex-col items-center gap-8">
+            <h2 class="text-3xl font-bold text-white tracking-wider animate-pulse">LUCKY BLOCK EVENT</h2>
+            <div id="lucky-cube" class="lucky-cube">?</div>
+            <p class="text-white text-sm opacity-70">Click to Open!</p>
+        </div>
+    </div>
+
+    <!-- Header Stats -->
+    <header class="bg-white shadow-sm p-4 z-20 relative">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-bold text-indigo-600 flex items-center gap-2">
+                🛍️ My Mall <span class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">v3.1</span>
+            </h1>
+            
+            <div class="flex gap-6 text-sm md:text-base font-semibold items-center">
+                <button onclick="window.game.openIndex()" class="bg-slate-100 hover:bg-slate-200 p-2 rounded-full text-xl" title="Staff Index">
+                    📖
+                </button>
+                <div class="flex flex-col items-center">
+                    <span class="text-slate-400 text-xs uppercase tracking-wider">Cash</span>
+                    <span class="text-green-600 text-xl" id="display-money">$0</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-slate-400 text-xs uppercase tracking-wider">Income</span>
+                    <span class="text-blue-600" id="display-income">$0/s</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-slate-400 text-xs uppercase tracking-wider">Rebirths</span>
+                    <span class="text-pink-600 font-bold" id="display-rebirths">0</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-slate-400 text-xs uppercase tracking-wider">Storage</span>
+                    <span id="display-storage">0 / 5</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-slate-400 text-xs uppercase tracking-wider">Multiplier</span>
+                    <span class="text-purple-600" id="display-multiplier">x1.0</span>
+                </div>
+            </div>
+        </div>
+        <div id="save-indicator" onclick="window.game.saveGame(true)" title="Click to Force Save">💾</div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="flex-1 overflow-hidden relative flex flex-col max-w-7xl mx-auto w-full p-4 gap-4">
+        
+        <!-- Top Section: Conveyor & Controls -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 shrink-0">
+            
+            <!-- Conveyor Belt -->
+            <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700">Staff Recruitment</h2>
+                    <span class="text-xs text-slate-400" id="luck-display">Luck: 1.0x</span>
+                </div>
+                
+                <div class="belt-container h-32 w-full relative">
+                    <div class="pointer-arrow"></div>
+                    <div class="belt-track" id="belt-track">
+                        <!-- Items injected by JS -->
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="spin-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md active:transform active:scale-95 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span>Spin Conveyor</span>
+                        <span class="bg-indigo-800 px-2 py-0.5 rounded text-sm" id="spin-cost-display">$50</span>
+                    </button>
+                    
+                    <button id="autospin-btn" onclick="window.game.toggleAutoSpin()" class="hidden w-24 bg-slate-600 hover:bg-slate-700 text-white font-bold px-2 rounded-lg shadow-md transition-all flex flex-col items-center justify-center text-xs">
+                        <span>🔄 Auto</span>
+                        <span>Spin</span>
+                    </button>
+
+                    <button id="autosell-btn" class="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold px-4 rounded-lg shadow-md transition-all flex flex-col items-center justify-center text-xs w-24">
+                        <span>♻️ Auto</span>
+                        <span>Sell</span>
+                    </button>
+                </div>
+                <p id="spin-msg" class="text-center text-sm text-red-500 font-semibold h-5"></p>
+            </div>
+
+            <!-- Rebirth Panel -->
+            <div class="bg-gradient-to-br from-purple-50 to-white p-4 rounded-xl shadow-sm border border-purple-100 flex flex-col justify-between">
+                <div>
+                    <h2 class="font-bold text-purple-800 flex items-center gap-2">
+                        🚀 Rebirth
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Reset your <b class="text-red-500">CASH</b> to $0.
+                        <br>Keep your <b class="text-green-600">CHARACTERS</b>.
+                        <br>Gain <b class="text-blue-600">+Storage</b> & <b class="text-purple-600">Multiplier</b>.
+                        <br><b class="text-yellow-600">++Luck Boost</b>
+                        <br><span class="text-xs text-slate-400">Milestones: R10(Lvl 100), R15(Lvl 150), R20(Lvl 200)</span>
+                    </p>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="text-xs text-center mb-1 text-slate-400 uppercase tracking-widest">Requirement</div>
+                    <div class="text-center font-bold text-2xl text-slate-700 mb-4" id="rebirth-cost-display">$1,000</div>
+                    
+                    <button id="rebirth-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow active:transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        Rebirth Now
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Section: The Mall Grid -->
+        <div class="flex-1 bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col overflow-hidden">
+            <h2 class="font-bold text-slate-700 mb-4 flex justify-between items-center">
+                <span>Your Mall</span>
+                <div class="flex items-center gap-2">
+                    <button id="autoupgrade-btn" onclick="window.game.toggleAutoUpgrade()" class="hidden bg-slate-500 hover:bg-slate-600 text-white text-xs px-3 py-1 rounded font-bold shadow-sm active:scale-95 transition-transform">
+                        ⚡ Auto Upgrade
+                    </button>
+                    <button onclick="window.game.upgradeAll()" class="bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded font-bold shadow-sm active:scale-95 transition-transform">
+                        Upgrade All
+                    </button>
+                    <span id="level-cap-display" class="text-xs font-normal text-slate-400 bg-slate-100 px-2 py-1 rounded">Max Level: 50</span>
+                </div>
+            </h2>
+            
+            <div id="mall-grid" class="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 pb-20">
+                <!-- Characters injected here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden absolute inset-0 top-16 flex flex-col items-center justify-center text-slate-300 pointer-events-none">
+                <span class="text-6xl mb-2">🏪</span>
+                <p>Your mall is empty. Spin to hire staff!</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Custom Modal for General Messages -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-2">Title</h3>
+            <div id="modal-body" class="text-slate-600 mb-6 text-sm leading-relaxed">Message</div>
+            <div class="flex gap-3 justify-end">
+                <button id="modal-cancel" class="px-4 py-2 rounded text-slate-500 font-semibold hover:bg-slate-100">Cancel</button>
+                <button id="modal-confirm" class="px-4 py-2 rounded bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="admin-login-modal" class="modal-overlay">
+        <div class="modal-content text-center">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">🔐 Admin Access</h3>
+            <input type="password" id="admin-code-input" placeholder="Enter Code" class="w-full p-2 border border-slate-300 rounded mb-4 text-center">
+            <div class="flex gap-2 justify-center">
+                <button onclick="window.game.closeAdminLogin()" class="px-4 py-2 rounded text-slate-500 hover:bg-slate-100">Cancel</button>
+                <button onclick="window.game.submitAdminCode()" class="px-4 py-2 rounded bg-indigo-600 text-white font-bold hover:bg-indigo-700">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Give Worker Modal (Admin) -->
+    <div id="admin-worker-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">🎁 Gift Worker</h3>
+            <div class="worker-grid" id="admin-worker-list">
+                <!-- Injected via JS -->
+            </div>
+            <div class="flex gap-3 justify-end mt-4">
+                <button onclick="document.getElementById('admin-worker-modal').classList.remove('active')" class="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Index Modal -->
+    <div id="index-modal" class="modal-overlay">
+        <div class="modal-content w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800">📖 Staff Index</h3>
+                <span id="index-count" class="text-sm text-slate-500 font-mono">0/0 Discovered</span>
+            </div>
+            <div class="worker-grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5" id="index-list">
+                <!-- Injected via JS -->
+            </div>
+            <div class="flex gap-3 justify-end mt-4">
+                <button onclick="document.getElementById('index-modal').classList.remove('active')" class="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto Sell Settings Modal -->
+    <div id="autosell-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">♻️ Auto Sell Settings</h3>
+            <p class="text-sm text-slate-500 mb-4">Select rarities to automatically discard when spun (saves storage space).</p>
+            
+            <div class="flex flex-col gap-2 mb-6" id="autosell-options">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="flex gap-3 justify-end">
+                <button id="autosell-close" class="px-4 py-2 rounded bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel (Advanced) -->
+    <div id="admin-panel">
+        <div class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center">
+            <div>
+                <h2 class="text-lg font-bold text-indigo-400">⚡ ADMIN COMMAND CENTER</h2>
+                <div id="firebase-status">Offline (Local Mode)</div>
+            </div>
+            <button onclick="document.getElementById('admin-panel').style.display='none'" class="text-slate-400 hover:text-white font-bold">X</button>
+        </div>
+        
+        <div class="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            
+            <!-- Identity -->
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 mb-2">
+                <div class="flex gap-2">
+                    <input id="admin-name-input" type="text" placeholder="Custom Display Name (Default: SERVER)" class="w-full bg-slate-800 border border-slate-600 rounded px-2 text-sm text-white">
+                    <button onclick="window.game.setAdminName()" class="bg-slate-600 hover:bg-slate-500 px-3 rounded text-xs font-bold text-white">Set</button>
+                </div>
+            </div>
+
+            <!-- Luck Controls -->
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 mb-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase mb-2">Luck Modifiers</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] text-slate-400">Personal Luck</label>
+                        <div class="flex gap-1">
+                            <input id="admin-p-luck" type="number" placeholder="1.0" class="w-full bg-slate-800 border border-slate-600 rounded px-2 text-sm text-white">
+                            <button onclick="window.game.setPersonalLuck()" class="bg-indigo-600 hover:bg-indigo-500 px-2 rounded text-xs font-bold text-white">Set</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400">Global Luck (Event)</label>
+                        <div class="flex gap-1">
+                            <input id="admin-g-luck" type="number" placeholder="1.0" class="w-full bg-slate-800 border border-slate-600 rounded px-2 text-sm text-white">
+                            <button onclick="window.game.setGlobalLuck()" class="bg-pink-600 hover:bg-pink-500 px-2 rounded text-xs font-bold text-white">Set</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources -->
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                <h3 class="text-xs font-bold text-slate-400 uppercase mb-2">Resources (Local)</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex gap-1">
+                        <input id="admin-money-in" type="number" placeholder="Amt" class="w-full bg-slate-800 border border-slate-600 rounded px-2 text-sm text-white">
+                        <button onclick="window.game.adminCustomMoney()" class="bg-green-600 hover:bg-green-500 px-3 rounded text-xs font-bold text-white">+$</button>
+                    </div>
+                    <div class="flex gap-1">
+                        <input id="admin-rebirth-in" type="number" placeholder="Amt" class="w-full bg-slate-800 border border-slate-600 rounded px-2 text-sm text-white">
+                        <button onclick="window.game.adminCustomRebirth()" class="bg-purple-600 hover:bg-purple-500 px-3 rounded text-xs font-bold text-white">+R</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global / Server -->
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                <h3 class="text-xs font-bold text-slate-400 uppercase mb-2">Server Simulation / Global</h3>
+                
+                <div class="flex gap-1 mb-2">
+                    <input id="admin-msg-in" type="text" placeholder="Global Broadcast Message" class="w-full bg-slate-800 border border-slate-600 rounded px-2 text-sm text-white">
+                    <button onclick="window.game.adminBroadcast()" class="bg-blue-600 hover:bg-blue-500 px-3 rounded text-xs font-bold text-white">Send</button>
+                </div>
+
+                <div class="flex gap-1 items-center justify-between mt-2">
+                    <label class="text-xs text-slate-300">Guarantee Spin:</label>
+                    <select id="admin-spin-force" class="bg-slate-800 border border-slate-600 rounded text-xs p-1 text-white">
+                        <option value="">None</option>
+                        <option value="godly">Godly</option>
+                        <option value="mythic">Mythic</option>
+                        <option value="legendary">Legendary</option>
+                        <option value="secret">Secret</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="window.game.spawnAdminBlock()" class="bg-yellow-600 hover:bg-yellow-500 py-2 rounded text-sm font-bold shadow text-white border border-yellow-400">📦 Spawn Admin Block</button>
+                <button onclick="window.game.openWorkerSelector()" class="bg-indigo-600 hover:bg-indigo-500 py-2 rounded text-sm font-bold shadow text-white">🎁 Global Spawn (Gift)</button>
+                <button onclick="window.game.adminReset()" class="bg-red-900 hover:bg-red-700 py-2 rounded text-sm font-bold border border-red-700 text-white col-span-2">⚠ Wipe Save</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        Notification
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, limit, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE CONFIGURATION (PASTE YOURS HERE) ---
+        // 1. Create a Firebase Project
+        // 2. Enable Firestore & Auth (Anonymous)
+        // 3. Paste config below
+        const firebaseConfig = {
+            apiKey: "AIzaSyCg0ALRpPuyKzx6wninwRSmP8x8WbIE_cQ",
+            authDomain: "my-mall-990af.firebaseapp.com",
+            projectId: "my-mall-990af",
+            storageBucket: "my-mall-990af.firebasestorage.app",
+            messagingSenderId: "916288579044",
+            appId: "1:916288579044:web:5bb570fc34c551e0c913f1",
+            measurementId: "G-0QK2F6C330"
+        };
+
+        // Determine which config to use
+        const isUserConfig = firebaseConfig.apiKey && firebaseConfig.apiKey.startsWith("AIza");
+        const config = isUserConfig ? firebaseConfig : ((typeof __firebase_config !== 'undefined') ? JSON.parse(__firebase_config) : firebaseConfig);
+        
+        let db = null;
+        let auth = null;
+        let eventsUnsub = null;
+
+        // --- Game Config & Data ---
+        const RARITY = {
+            COMMON: { id: 'common', color: 'text-slate-500', border: 'border-slate-300', bg: 'bg-slate-50', label: 'Common' },
+            UNCOMMON: { id: 'uncommon', color: 'text-green-600', border: 'border-green-300', bg: 'bg-green-50', label: 'Uncommon' },
+            RARE: { id: 'rare', color: 'text-blue-600', border: 'border-blue-300', bg: 'bg-blue-50', label: 'Rare' },
+            EPIC: { id: 'epic', color: 'text-purple-600', border: 'border-purple-300', bg: 'bg-purple-50', label: 'Epic' },
+            LEGENDARY: { id: 'legendary', color: 'text-yellow-600', border: 'border-yellow-300', bg: 'bg-yellow-50', label: 'Legendary' },
+            MYTHIC: { id: 'mythic', color: 'text-mythic', border: 'rare-mythic', bg: 'bg-mythic', label: 'Mythic' },
+            GODLY: { id: 'godly', color: 'text-godly', border: 'rare-godly', bg: 'bg-godly', label: 'GODLY' },
+            SECRET: { id: 'secret', color: 'text-secret', border: 'rare-secret', bg: 'bg-secret', label: 'SECRET' },
+            EXCLUSIVE: { id: 'exclusive', color: 'text-exclusive', border: 'rare-exclusive', bg: 'bg-white', label: 'EXCLUSIVE' }
+        };
+
+        const CHARACTERS = [
+            // Commons
+            { name: "Intern Ian", icon: "😐", baseIncome: 2, rarity: RARITY.COMMON, weight: 60 },
+            { name: "Leaflet Larry", icon: "📄", baseIncome: 3, rarity: RARITY.COMMON, weight: 50 },
+            { name: "Sample Susan", icon: "🧀", baseIncome: 4, rarity: RARITY.COMMON, weight: 50 },
+            { name: "Greeter Gary", icon: "👋", baseIncome: 5, rarity: RARITY.COMMON, weight: 50 },
+            { name: "Mall Rat", icon: "🐀", baseIncome: 6, rarity: RARITY.COMMON, weight: 45 },
+            { name: "Lost Child", icon: "👶", baseIncome: 1, rarity: RARITY.COMMON, weight: 40 },
+            { name: "Window Shopper", icon: "👀", baseIncome: 2, rarity: RARITY.COMMON, weight: 40 },
+            { name: "Pigeon", icon: "🐦", baseIncome: 2, rarity: RARITY.COMMON, weight: 40 },
+            { name: "Dust Bunny", icon: "🌫️", baseIncome: 1, rarity: RARITY.COMMON, weight: 45 },
+            { name: "Lost Dad", icon: "🤷‍♂️", baseIncome: 5, rarity: RARITY.COMMON, weight: 35 },
+            { name: "Bench Warmer", icon: "🪑", baseIncome: 4, rarity: RARITY.COMMON, weight: 35 },
+            { name: "Parking Attendant", icon: "🚗", baseIncome: 5, rarity: RARITY.COMMON, weight: 35 },
+            { name: "Bag Boy", icon: "🛍️", baseIncome: 5, rarity: RARITY.COMMON, weight: 35 },
+            { name: "Sample Lady", icon: "🧁", baseIncome: 6, rarity: RARITY.COMMON, weight: 35 },
+            { name: "Coupon Clipper", icon: "✂️", baseIncome: 4, rarity: RARITY.COMMON, weight: 35 },
+            
+            // Uncommons
+            { name: "Janitor", icon: "🧹", baseIncome: 8, rarity: RARITY.UNCOMMON, weight: 30 },
+            { name: "Barista", icon: "☕", baseIncome: 15, rarity: RARITY.UNCOMMON, weight: 25 },
+            { name: "Tech Support Tim", icon: "💻", baseIncome: 18, rarity: RARITY.UNCOMMON, weight: 25 },
+            { name: "Kiosk Guy", icon: "📱", baseIncome: 20, rarity: RARITY.UNCOMMON, weight: 20 },
+            { name: "Pretzel Maker", icon: "🥨", baseIncome: 22, rarity: RARITY.UNCOMMON, weight: 20 },
+            { name: "Balloon Artist", icon: "🎈", baseIncome: 24, rarity: RARITY.UNCOMMON, weight: 18 },
+            { name: "Face Painter", icon: "🎨", baseIncome: 25, rarity: RARITY.UNCOMMON, weight: 18 },
+            { name: "Hot Dog Vendor", icon: "🌭", baseIncome: 28, rarity: RARITY.UNCOMMON, weight: 18 },
+            { name: "Balloon Popper", icon: "📌", baseIncome: 20, rarity: RARITY.UNCOMMON, weight: 18 },
+            { name: "Flower Arranger", icon: "💐", baseIncome: 22, rarity: RARITY.UNCOMMON, weight: 18 },
+            { name: "Ice Cream Scooper", icon: "🍦", baseIncome: 25, rarity: RARITY.UNCOMMON, weight: 18 },
+            { name: "Burger Flipper", icon: "🍔", baseIncome: 26, rarity: RARITY.UNCOMMON, weight: 18 },
+            
+            // Rares
+            { name: "Security", icon: "👮", baseIncome: 25, rarity: RARITY.RARE, weight: 15 },
+            { name: "Manager Karen", icon: "👱‍♀️", baseIncome: 50, rarity: RARITY.RARE, weight: 12 },
+            { name: "Arcade Fixer", icon: "🕹️", baseIncome: 55, rarity: RARITY.RARE, weight: 12 },
+            { name: "Personal Stylist", icon: "💇", baseIncome: 60, rarity: RARITY.RARE, weight: 10 },
+            { name: "Perfume Sprayer", icon: "🧴", baseIncome: 65, rarity: RARITY.RARE, weight: 10 },
+            { name: "Massage Chair Guy", icon: "💆", baseIncome: 70, rarity: RARITY.RARE, weight: 9 },
+            { name: "Yoga Instructor", icon: "🧘", baseIncome: 75, rarity: RARITY.RARE, weight: 9 },
+            { name: "DJ", icon: "🎧", baseIncome: 80, rarity: RARITY.RARE, weight: 8 },
+            { name: "Piano Player", icon: "🎹", baseIncome: 85, rarity: RARITY.RARE, weight: 8 },
+            { name: "Sommelier", icon: "🍷", baseIncome: 90, rarity: RARITY.RARE, weight: 8 },
+            { name: "Magician", icon: "🎩", baseIncome: 95, rarity: RARITY.RARE, weight: 7 },
+            
+            // Epics
+            { name: "Mascot", icon: "🦊", baseIncome: 150, rarity: RARITY.EPIC, weight: 8 },
+            { name: "Manager", icon: "💼", baseIncome: 100, rarity: RARITY.EPIC, weight: 8 },
+            { name: "Santa's Elf", icon: "🧝", baseIncome: 120, rarity: RARITY.EPIC, weight: 7 },
+            { name: "Sushi Master", icon: "🍣", baseIncome: 180, rarity: RARITY.EPIC, weight: 6 },
+            { name: "Apple Genius", icon: "🤓", baseIncome: 200, rarity: RARITY.EPIC, weight: 6 },
+            { name: "Lego Master", icon: "🧱", baseIncome: 220, rarity: RARITY.EPIC, weight: 5 },
+            { name: "VR Arcade Operator", icon: "🥽", baseIncome: 250, rarity: RARITY.EPIC, weight: 5 },
+            { name: "Luxury Watch Seller", icon: "⌚", baseIncome: 280, rarity: RARITY.EPIC, weight: 4 },
+            { name: "Car Salesman", icon: "🚘", baseIncome: 300, rarity: RARITY.EPIC, weight: 4 },
+            { name: "Stock Broker", icon: "📉", baseIncome: 320, rarity: RARITY.EPIC, weight: 3 },
+            { name: "Pro Gamer", icon: "🎮", baseIncome: 350, rarity: RARITY.EPIC, weight: 3 },
+
+            // Legendaries
+            { name: "Celebrity", icon: "🌟", baseIncome: 400, rarity: RARITY.LEGENDARY, weight: 3 },
+            { name: "Mall Santa", icon: "🎅", baseIncome: 500, rarity: RARITY.LEGENDARY, weight: 3 },
+            { name: "Movie Star", icon: "🎬", baseIncome: 600, rarity: RARITY.LEGENDARY, weight: 2.5 },
+            { name: "Crypto Bro", icon: "📉", baseIncome: 700, rarity: RARITY.LEGENDARY, weight: 2 },
+            { name: "Pro Skater", icon: "🛹", baseIncome: 750, rarity: RARITY.LEGENDARY, weight: 2 },
+            { name: "Ex-President", icon: "🕴️", baseIncome: 800, rarity: RARITY.LEGENDARY, weight: 1.5 },
+            { name: "Famous Streamer", icon: "📹", baseIncome: 900, rarity: RARITY.LEGENDARY, weight: 1.5 },
+            { name: "Oil Baron", icon: "🛢️", baseIncome: 1000, rarity: RARITY.LEGENDARY, weight: 1 },
+            { name: "Oil Prince", icon: "👳", baseIncome: 1200, rarity: RARITY.LEGENDARY, weight: 1 },
+            { name: "Tech Mogul", icon: "💻", baseIncome: 1300, rarity: RARITY.LEGENDARY, weight: 1 },
+            { name: "Astronaut", icon: "👨‍🚀", baseIncome: 1400, rarity: RARITY.LEGENDARY, weight: 1 },
+            
+            // Mythics
+            { name: "Gordon Ramsay", icon: "🤬", baseIncome: 1500, rarity: RARITY.MYTHIC, weight: 0.5 },
+            { name: "Alien Tourist", icon: "👽", baseIncome: 2500, rarity: RARITY.MYTHIC, weight: 0.3 },
+            { name: "Robot CEO", icon: "🤖", baseIncome: 4000, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Best Buy Tom", icon: "🟦", baseIncome: 8000, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Mcdonalds Worker", icon: "🍟", baseIncome: 5000, rarity: RARITY.MYTHIC, weight: 0.2 },
+            { name: "Burger King Foot Lettuce", icon: "🥬", baseIncome: 6666, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Homeless Joe", icon: "📦", baseIncome: 9999, rarity: RARITY.MYTHIC, weight: 0.01 },
+            { name: "Walmart Worker", icon: "🛒", baseIncome: 5500, rarity: RARITY.MYTHIC, weight: 0.2 },
+            { name: "Mcdonalds Foot Big Mac", icon: "🍔", baseIncome: 6000, rarity: RARITY.MYTHIC, weight: 0.15 },
+            { name: "Security Guard Mike Schmidt", icon: "🔦", baseIncome: 7000, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Garfield", icon: "🐱", baseIncome: 7500, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Vault-Tec Worker", icon: "☢️", baseIncome: 8500, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Freddy Fazbear Worker", icon: "🐻", baseIncome: 9000, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Chica", icon: "🐤", baseIncome: 6000, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Westek Store", icon: "🧪", baseIncome: 7000, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "NCR Solider", icon: "🎖️", baseIncome: 7500, rarity: RARITY.MYTHIC, weight: 0.08 },
+            { name: "Cheese Store Worker", icon: "🧀", baseIncome: 8000, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Suspicious Walter", icon: "⚗️", baseIncome: 9500, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Taco Bell Worker", icon: "🌮", baseIncome: 12000, rarity: RARITY.MYTHIC, weight: 0.01 },
+            { name: "Florida Man", icon: "🐊", baseIncome: 5800, rarity: RARITY.MYTHIC, weight: 0.15 },
+            { name: "Area 51 Guard", icon: "👽", baseIncome: 7200, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Shrek", icon: "👹", baseIncome: 11000, rarity: RARITY.MYTHIC, weight: 0.02 },
+            { name: "Sole Survivor of Walmart '88", icon: "🏚️", baseIncome: 666666, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Vampire", icon: "🧛", baseIncome: 4500, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Werewolf", icon: "🐺", baseIncome: 4800, rarity: RARITY.MYTHIC, weight: 0.1 },
+            { name: "Cthulhu", icon: "🐙", baseIncome: 10000, rarity: RARITY.MYTHIC, weight: 0.02 },
+            { name: "Loch Ness Monster", icon: "🦕", baseIncome: 8500, rarity: RARITY.MYTHIC, weight: 0.03 },
+            { name: "Slenderman", icon: "🌲", baseIncome: 9000, rarity: RARITY.MYTHIC, weight: 0.03 },
+            { name: "Bigfoot", icon: "👣", baseIncome: 7800, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Time Traveler", icon: "⏳", baseIncome: 8200, rarity: RARITY.MYTHIC, weight: 0.05 },
+            { name: "Ninja", icon: "🥷", baseIncome: 6500, rarity: RARITY.MYTHIC, weight: 0.1 },
+
+            // GODLY
+            { name: "William Afton", icon: "🟣", baseIncome: 25000, rarity: RARITY.GODLY, weight: 0.005 },
+            { name: "Freddy Fazbear", icon: "🎩", baseIncome: 30000, rarity: RARITY.GODLY, weight: 0.005 },
+            { name: "Tired Mall Santa", icon: "🎅💤", baseIncome: 40000, rarity: RARITY.GODLY, weight: 0.001 },
+            { name: "Mr Beast", icon: "🤑", baseIncome: 50000, rarity: RARITY.GODLY, weight: 0.002 },
+            { name: "Elon Musk", icon: "🚀", baseIncome: 60000, rarity: RARITY.GODLY, weight: 0.002 },
+            { name: "Joe Bart", icon: "🛹", baseIncome: 70000, rarity: RARITY.GODLY, weight: 0.001 },
+            { name: "T-45 Power Armor Store", icon: "🦾", baseIncome: 80000, rarity: RARITY.GODLY, weight: 0.001 },
+            { name: "Shaggy (1% Power)", icon: "✨", baseIncome: 99999, rarity: RARITY.GODLY, weight: 0.0005 },
+            { name: "Golden Freddy", icon: "🐻", baseIncome: 120000, rarity: RARITY.GODLY, weight: 0.0005 },
+            { name: "The Rock", icon: "🤨", baseIncome: 150000, rarity: RARITY.GODLY, weight: 0.0001 },
+            { name: "Zeus", icon: "⚡", baseIncome: 35000, rarity: RARITY.GODLY, weight: 0.002 },
+            { name: "Santa Prime", icon: "🎄", baseIncome: 45000, rarity: RARITY.GODLY, weight: 0.002 },
+            { name: "Giga Chad", icon: "🗿", baseIncome: 65000, rarity: RARITY.GODLY, weight: 0.001 },
+            { name: "Hades", icon: "🔥", baseIncome: 38000, rarity: RARITY.GODLY, weight: 0.002 },
+            { name: "Poseidon", icon: "🔱", baseIncome: 39000, rarity: RARITY.GODLY, weight: 0.002 },
+            { name: "Anubis", icon: "💀", baseIncome: 42000, rarity: RARITY.GODLY, weight: 0.001 },
+            { name: "Thanos", icon: "🫰", baseIncome: 95000, rarity: RARITY.GODLY, weight: 0.0005 },
+
+            // EXCLUSIVE (Admin Block Only)
+            { name: "Fluff", icon: "", customImage: "https://www.dropbox.com/scl/fi/l77wdsy17gpbwjflw5fn0/Fluff.jpg?rlkey=7rb10mh1in2x9vxf7me9fdz64&st=84i67vmy&raw=1", baseIncome: 100000, rarity: RARITY.EXCLUSIVE, weight: 0 },
+
+            // SECRET (No Index, No Weight)
+            { name: "Baby Jayce", icon: "👶👑", baseIncome: 1000000, rarity: RARITY.SECRET, weight: 0.00001 },
+            { name: "Ramen and Ribs Store CEO", icon: "🍜🍖", baseIncome: 2000000, rarity: RARITY.SECRET, weight: 0.000005 }
+        ];
+
+        // --- Game State ---
+        let state = {
+            money: 100,
+            multiplier: 1.0,
+            storageLimit: 5,
+            rebirthCount: 0,
+            inventory: [],
+            discovered: [], 
+            spinCost: 50,
+            rebirthCost: 1000,
+            lastLogin: Date.now(),
+            adminName: "SERVER",
+            personalLuckMult: 1.0,
+            globalLuckMult: 1.0,
+            autoSell: {
+                common: false,
+                uncommon: false,
+                rare: false,
+                epic: false,
+                legendary: false,
+                mythic: false,
+                godly: false,
+                secret: false
+            }
+        };
+
+        let autoSpinActive = false;
+        let autoSpinInterval = null;
+        let autoUpgradeActive = false;
+        let autoUpgradeInterval = null;
+        let forcedSpinRarity = null;
+        let isSpinning = false;
+        
+        // Modal logic
+        let pendingModalCallback = null;
+
+        // --- Firebase Init ---
+        async function initFirebase() {
+            if (!config || !config.apiKey) {
+                console.log("Firebase config missing");
+                return;
+            }
+            try {
+                const app = initializeApp(config);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // IMPORTANT: Authenticate based on environment tokens first
+                if (isUserConfig) {
+                    await signInAnonymously(auth);
+                } else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                document.getElementById('firebase-status').textContent = "Online (Global Live)";
+                document.getElementById('firebase-status').classList.add('connected');
+                listenToGlobalEvents();
+            } catch (e) {
+                console.error("Firebase Init Failed", e);
+                document.getElementById('firebase-status').textContent = "Connection Error";
+                document.getElementById('firebase-status').classList.add('error');
+            }
+        }
+
+        function listenToGlobalEvents() {
+            if (!db) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'events'), orderBy('timestamp', 'desc'), limit(1));
+            
+            eventsUnsub = onSnapshot(q, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const data = change.doc.data();
+                        if (Date.now() - data.timestamp < 8000) {
+                            handleGlobalEvent(data);
+                        }
+                    }
+                });
+            }, (error) => {
+                console.error("Firestore Listen Error:", error);
+                if(error.code === 'permission-denied') {
+                     document.getElementById('firebase-status').textContent = "Perms Denied (Check Rules)";
+                     document.getElementById('firebase-status').classList.add('error');
+                }
+            });
+        }
+
+        function handleGlobalEvent(data) {
+            if (data.type === 'broadcast') {
+                const toast = document.getElementById('global-toast');
+                toast.textContent = `${data.sender || "SERVER"}: ${data.msg}`;
+                toast.classList.add('active');
+                setTimeout(() => toast.classList.remove('active'), 5000);
+            }
+            if (data.type === 'spawn_worker') {
+                const char = CHARACTERS.find(c => c.name === data.charName);
+                if (char) {
+                    state.inventory.push({ ...char, level: 1, id: Date.now() + Math.random() });
+                    markDiscovered(char.name);
+                    saveGame();
+                    renderInventory();
+                    showToast(`Global Gift: ${char.name}!`);
+                }
+            }
+            if (data.type === 'force_spin') {
+                forcedSpinRarity = data.rarity;
+                showToast(`Event: Next Spin is ${data.rarity.toUpperCase()}!`);
+            }
+            if (data.type === 'update_luck') {
+                state.globalLuckMult = parseFloat(data.mult) || 1.0;
+                showToast(`Global Luck Updated: ${state.globalLuckMult}x`);
+            }
+            if (data.type === 'lucky_block') {
+                triggerLuckyBlockEvent(data.blockType);
+            }
+        }
+
+        // --- Lucky Block Logic ---
+        function triggerLuckyBlockEvent(blockType) {
+            const overlay = document.getElementById('lucky-block-modal');
+            const cube = document.getElementById('lucky-cube');
+            
+            overlay.classList.add('active');
+            
+            cube.onclick = () => {
+                cube.onclick = null;
+                cube.style.animation = 'spin 0.5s infinite linear';
+                cube.textContent = "🎲";
+                
+                setTimeout(() => {
+                    const roll = Math.random() * 100;
+                    let winnerName = "Mall Santa";
+                    
+                    if (roll < 1) winnerName = "Fluff";
+                    else if (roll < 4) winnerName = "Tired Mall Santa";
+                    else if (roll < 14) winnerName = "Vault-Tec Worker";
+                    else if (roll < 34) winnerName = "Burger King Foot Lettuce";
+                    else winnerName = "Mall Santa";
+
+                    const winningChar = CHARACTERS.find(c => c.name === winnerName);
+                    
+                    overlay.classList.remove('active');
+                    
+                    if(winningChar) {
+                        state.inventory.push({ ...winningChar, level: 1, id: Date.now() + Math.random() });
+                        markDiscovered(winningChar.name);
+                        saveGame();
+                        renderInventory();
+                        showConfirm("LUCKY BLOCK REWARD!", `<div class="text-center"><div class="text-6xl mb-2">${winningChar.customImage ? `<img src='${winningChar.customImage}' class='w-24 h-24 mx-auto object-contain'>` : (winningChar.icon || '📦')}</div><div class="font-bold text-xl">${winningChar.name}</div><div class="text-sm ${winningChar.rarity.color}">${winningChar.rarity.label}</div></div>`, () => {});
+                    }
+                }, 2000);
+            };
+        }
+
+        // --- Core Helper Functions ---
+        function formatMoney(num) {
+            if (num >= 1000000000) return '$' + (num / 1000000000).toFixed(2) + 'B';
+            if (num >= 1000000) return '$' + (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return '$' + (num / 1000).toFixed(1) + 'k';
+            return '$' + Math.floor(num);
+        }
+
+        function getUpgradeCost(char) { return Math.floor(char.baseIncome * 15 * (char.level || 1)); }
+        
+        function getMaxLevel() {
+            if(state.rebirthCount >= 20) return 200;
+            if(state.rebirthCount >= 15) return 150;
+            if(state.rebirthCount >= 10) return 100;
+            return 50;
+        }
+
+        function showToast(text) {
+            const t = document.getElementById('toast');
+            t.textContent = text; t.style.opacity = '1';
+            setTimeout(() => t.style.opacity = '0', 3000);
+        }
+
+        function showConfirm(title, htmlContent, onConfirm, showCancel = true) {
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const modalOverlay = document.getElementById('modal-overlay');
+            
+            modalTitle.textContent = title;
+            modalBody.innerHTML = htmlContent;
+            pendingModalCallback = onConfirm;
+            document.getElementById('modal-cancel').style.display = showCancel ? 'block' : 'none';
+            modalOverlay.classList.add('active');
+        }
+        
+        function hideModal() {
+            const modalOverlay = document.getElementById('modal-overlay');
+            modalOverlay.classList.remove('active');
+            pendingModalCallback = null;
+        }
+
+        // --- Game Logic Functions ---
+        function saveGame(manual = false) {
+            state.lastLogin = Date.now();
+            localStorage.setItem('myMallSave_v9', JSON.stringify(state)); // v9 Save Key
+            if(manual) {
+                const ind = document.getElementById('save-indicator');
+                ind.classList.add('saving');
+                setTimeout(() => ind.classList.remove('saving'), 1000);
+                showToast("Game Saved!");
+            } else {
+                const ind = document.getElementById('save-indicator');
+                ind.classList.add('saving');
+                setTimeout(() => ind.classList.remove('saving'), 500);
+            }
+        }
+
+        function loadGame() {
+            // New migration logic: Check v9, then v8, then v7
+            const saved = localStorage.getItem('myMallSave_v9') || localStorage.getItem('myMallSave_v8') || localStorage.getItem('myMallSave_v7');
+            
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Sanitization: Ensure critical values are not NaN/null
+                    state = { ...state, ...parsed };
+                    if(isNaN(state.money) || state.money === null) state.money = 100;
+                    if(isNaN(state.rebirthCount)) state.rebirthCount = 0;
+                    if(!Array.isArray(state.inventory)) state.inventory = [];
+                    
+                    state.inventory.forEach(char => { if (typeof char.level === 'undefined') char.level = 1; });
+                    if(!state.autoSell) state.autoSell = {};
+                    if(!state.discovered) state.discovered = [];
+                    if(!state.adminName) state.adminName = "SERVER";
+                } catch(e) {
+                    console.error("Save Corrupt, resetting");
+                    // Optionally reset or keep default state
+                }
+            }
+        }
+
+        function calculateIncome(applyMulti = true) {
+            let total = 0;
+            state.inventory.forEach(char => { total += (char.baseIncome * (char.level || 1)); });
+            if(applyMulti) total *= state.multiplier;
+            return total;
+        }
+
+        function checkOfflineEarnings() {
+            const now = Date.now();
+            const last = state.lastLogin || now;
+            let diff = now - last;
+            const MAX_OFFLINE_MS = 4 * 60 * 60 * 1000;
+            if (diff > 5000) { 
+                if (diff > MAX_OFFLINE_MS) diff = MAX_OFFLINE_MS;
+                const secondsOffline = Math.floor(diff / 1000);
+                const incomePerSec = calculateIncome(false);
+                const earned = Math.floor(secondsOffline * incomePerSec);
+                if (earned > 0) {
+                    state.money += earned;
+                    showConfirm("Welcome Back!", `<p>You were gone for <b>${Math.floor(secondsOffline/60)}m ${secondsOffline%60}s</b>.</p><p>Your staff earned: <b class="text-green-600">$${formatMoney(earned)}</b></p>`, () => {}, false);
+                }
+            }
+            state.lastLogin = now;
+        }
+
+        // --- Render Functions ---
+        function renderStats() {
+            document.getElementById('display-money').textContent = formatMoney(state.money);
+            document.getElementById('display-income').textContent = formatMoney(calculateIncome()) + '/s';
+            document.getElementById('display-rebirths').textContent = state.rebirthCount;
+            
+            const storageEl = document.getElementById('display-storage');
+            storageEl.textContent = `${state.inventory.length} / ${state.storageLimit}`;
+            if(state.inventory.length >= state.storageLimit) {
+                storageEl.classList.add('text-red-500', 'font-bold');
+            } else {
+                storageEl.classList.remove('text-red-500', 'font-bold');
+            }
+
+            document.getElementById('display-multiplier').textContent = 'x' + state.multiplier.toFixed(1);
+            document.getElementById('spin-cost-display').textContent = formatMoney(state.spinCost);
+            document.getElementById('rebirth-cost-display').textContent = formatMoney(state.rebirthCost);
+            
+            const totalLuck = (1 + (state.rebirthCount * 0.2)) * state.personalLuckMult * state.globalLuckMult;
+            document.getElementById('luck-display').textContent = `Luck: ${totalLuck.toFixed(1)}x`;
+        }
+
+        function renderInventory() {
+            const grid = document.getElementById('mall-grid');
+            const emptyState = document.getElementById('empty-state');
+            grid.innerHTML = '';
+
+            if (state.inventory.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                state.inventory.forEach((char, index) => {
+                    const el = document.createElement('div');
+                    const isMythic = char.rarity.id === 'mythic';
+                    const isGodly = char.rarity.id === 'godly';
+                    const isSecret = char.rarity.id === 'secret';
+                    const isExclusive = char.rarity.id === 'exclusive';
+                    
+                    let borderClass = char.rarity.border;
+                    let textClass = char.rarity.color;
+                    
+                    if(isSecret) {
+                        borderClass = 'rare-secret';
+                        textClass = 'text-secret';
+                    } else if(isGodly) {
+                        borderClass = 'rare-godly';
+                        textClass = 'text-godly';
+                    } else if(isMythic) {
+                        borderClass = 'rare-mythic';
+                        textClass = 'text-mythic';
+                    } else if(isExclusive) {
+                        borderClass = 'rare-exclusive';
+                        textClass = 'text-exclusive';
+                    }
+
+                    const level = char.level || 1;
+                    const upgradeCost = getUpgradeCost(char);
+                    const canAfford = state.money >= upgradeCost;
+                    const maxLvl = getMaxLevel();
+                    const isMax = level >= maxLvl;
+                    const income = Math.floor(char.baseIncome * state.multiplier * level);
+
+                    el.className = `character-card relative bg-white border-2 rounded-xl p-2 flex flex-col items-center justify-between shadow-sm ${borderClass} h-48`;
+                    
+                    let iconHtml = `<div class="text-3xl mt-1 select-none transform transition-transform hover:scale-110">${char.icon}</div>`;
+                    if(char.customImage) {
+                        iconHtml = `<img src="${char.customImage}" class="w-16 h-16 object-contain mt-1 select-none transform transition-transform hover:scale-110" onerror="this.src='https://placehold.co/64x64?text=?'" />`;
+                    }
+
+                    el.innerHTML = `
+                        <div class="absolute top-2 right-2 cursor-pointer text-slate-300 hover:text-red-500 transition-colors z-20" onclick="window.game.fireCharacter(${index})" title="Fire Staff">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                        
+                        ${iconHtml}
+                        
+                        <div class="text-center w-full leading-tight">
+                            <div class="font-bold text-sm text-slate-700 truncate px-1">${char.name}</div>
+                            <div class="text-[10px] uppercase font-bold tracking-wider ${textClass}">${char.rarity.label}</div>
+                            <div class="text-xs font-mono text-slate-400">Lvl ${level}</div>
+                        </div>
+
+                        <div class="w-full bg-slate-50 rounded py-0.5 px-1 text-center border border-slate-100 mb-1">
+                            <span class="text-green-600 font-bold text-sm">$${formatMoney(income)}/s</span>
+                        </div>
+
+                        ${!isMax ? `
+                        <button onclick="window.game.upgradeCharacter(${index})" class="w-full text-xs py-1 rounded font-bold text-white transition-colors ${canAfford ? 'bg-blue-500 hover:bg-blue-600 shadow-sm' : 'bg-slate-300 cursor-not-allowed'}">
+                            Upgrade ($${formatMoney(upgradeCost)})
+                        </button>
+                        ` : `
+                        <div class="w-full text-center text-xs font-bold text-yellow-500 py-1">MAX LEVEL</div>
+                        `}
+                    `;
+                    grid.appendChild(el);
+                });
+            }
+        }
+
+        function updateButtonStates() {
+            const spinBtn = document.getElementById('spin-btn');
+            const rebirthBtn = document.getElementById('rebirth-btn');
+            const msg = document.getElementById('spin-msg');
+            const inventoryFull = state.inventory.length >= state.storageLimit;
+            const autoSpinBtn = document.getElementById('autospin-btn');
+            const autoUpgradeBtn = document.getElementById('autoupgrade-btn');
+            const levelCapDisplay = document.getElementById('level-cap-display');
+            const maxLvl = getMaxLevel();
+
+            if (state.rebirthCount >= 5) autoSpinBtn.classList.remove('hidden');
+            if (state.rebirthCount >= 10) autoUpgradeBtn.classList.remove('hidden');
+            levelCapDisplay.textContent = `Max Level: ${maxLvl}`;
+
+            if (isSpinning) {
+                spinBtn.disabled = true; msg.textContent = "Spinning...";
+            } else if (inventoryFull) {
+                spinBtn.disabled = true; msg.textContent = "Mall Full! Sell staff or Rebirth.";
+            } else if (state.money < state.spinCost) {
+                spinBtn.disabled = true; msg.textContent = "Not enough cash.";
+            } else {
+                spinBtn.disabled = false; msg.textContent = "";
+            }
+            rebirthBtn.disabled = state.money < state.rebirthCost;
+        }
+
+        // --- Interaction Functions ---
+        function spawnCoins() {
+            if(state.inventory.length === 0) return;
+            const grid = document.getElementById('mall-grid');
+            const cards = grid.children;
+            if(cards.length > 0) {
+                const randomIdx = Math.floor(Math.random() * cards.length);
+                const card = cards[randomIdx];
+                if(!card) return;
+                const char = state.inventory[randomIdx];
+                const income = Math.floor(char.baseIncome * state.multiplier * (char.level || 1));
+                const rect = card.getBoundingClientRect();
+                const floatEl = document.createElement('div');
+                floatEl.textContent = `+$${formatMoney(income)}`;
+                floatEl.className = 'coin-pop';
+                floatEl.style.left = (rect.left + rect.width/2 - 10) + 'px';
+                floatEl.style.top = rect.top + 'px';
+                document.body.appendChild(floatEl);
+                setTimeout(() => floatEl.remove(), 1000);
+            }
+        }
+
+        function upgradeCharacter(index) {
+            const char = state.inventory[index];
+            if (!char.level) char.level = 1;
+            
+            const maxLvl = getMaxLevel();
+            if (char.level >= maxLvl) {
+                showToast("Max Level Reached!");
+                return;
+            }
+
+            const cost = getUpgradeCost(char);
+            
+            if (state.money >= cost) {
+                state.money -= cost;
+                char.level++;
+                saveGame();
+                renderStats();
+                renderInventory();
+                
+                if(!autoUpgradeActive) {
+                    const grid = document.getElementById('mall-grid');
+                    const card = grid.children[index];
+                    if(card) {
+                        const rect = card.getBoundingClientRect();
+                        const floatEl = document.createElement('div');
+                        floatEl.textContent = `LEVEL UP!`;
+                        floatEl.className = 'fixed text-yellow-500 font-bold text-xl z-50 pointer-events-none animate-bounce';
+                        floatEl.style.left = (rect.left + 20) + 'px';
+                        floatEl.style.top = (rect.top) + 'px';
+                        document.body.appendChild(floatEl);
+                        setTimeout(() => floatEl.remove(), 1000);
+                    }
+                }
+            } else {
+                if(!autoUpgradeActive) showToast("Not enough cash!");
+            }
+        }
+
+        function upgradeAll() {
+            let upgradedCount = 0;
+            let totalSpent = 0;
+            const maxLvl = getMaxLevel();
+            const upgradable = state.inventory.map((char, index) => ({
+                index: index, cost: getUpgradeCost(char), level: char.level || 1
+            })).filter(u => u.level < maxLvl);
+            upgradable.sort((a, b) => a.cost - b.cost);
+            for (const item of upgradable) {
+                if (state.money >= item.cost) {
+                    state.money -= item.cost;
+                    state.inventory[item.index].level++;
+                    totalSpent += item.cost;
+                    upgradedCount++;
+                } else { break; }
+            }
+            if (upgradedCount > 0) {
+                saveGame();
+                renderStats();
+                renderInventory();
+                if(!autoUpgradeActive) showToast(`Upgraded ${upgradedCount} staff for $${formatMoney(totalSpent)}`);
+            } else {
+                if(!autoUpgradeActive) showToast("Can't afford upgrades!");
+            }
+        }
+
+        function fireCharacter(index) {
+            const char = state.inventory[index];
+            showConfirm(
+                "Fire Employee?", 
+                `Are you sure you want to fire <b>${char.name}</b> (Lvl ${char.level||1})?<br><span class="text-xs text-slate-500">You won't get any money back.</span>`,
+                () => {
+                    state.inventory.splice(index, 1);
+                    renderInventory();
+                    renderStats();
+                    saveGame();
+                    showToast("Employee Fired");
+                }
+            );
+        }
+
+        // --- Spin Logic ---
+        function initBelt() {
+            const track = document.getElementById('belt-track');
+            for(let i=0; i<20; i++) { track.appendChild(createRandomBeltItem()); }
+        }
+
+        function createRandomBeltItem(forceChar = null) {
+            let char = forceChar;
+            if(!char) { char = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)]; }
+            const div = document.createElement('div');
+            let borderClass = `rare-${char.rarity.id}`;
+            if(char.rarity.id === 'secret') borderClass = 'rare-secret';
+            if(char.rarity.id === 'exclusive') borderClass = 'rare-exclusive';
+            div.className = `belt-item ${borderClass}`;
+            div.innerHTML = `<div>${char.icon || '📦'}</div><div class="text-xs text-slate-400 mt-1 hidden">${char.rarity.label}</div>`;
+            return div;
+        }
+
+        function getWeightedRandomCharacter() {
+            if (forcedSpinRarity) {
+                const available = CHARACTERS.filter(c => c.rarity.id === forcedSpinRarity);
+                if (available.length > 0) return available[Math.floor(Math.random() * available.length)];
+            }
+            const luckMultiplier = (1 + (state.rebirthCount * 0.2)) * state.personalLuckMult * state.globalLuckMult;
+            const totalWeight = CHARACTERS.reduce((sum, char) => {
+                let w = char.weight;
+                if (['rare', 'epic', 'legendary', 'mythic', 'godly'].includes(char.rarity.id)) w = w * luckMultiplier;
+                return sum + w;
+            }, 0);
+            let random = Math.random() * totalWeight;
+            for (const char of CHARACTERS) {
+                let w = char.weight;
+                if (['rare', 'epic', 'legendary', 'mythic', 'godly'].includes(char.rarity.id)) w = w * luckMultiplier;
+                if (random < w) return char;
+                random -= w;
+            }
+            return CHARACTERS[0];
+        }
+
+        function triggerSpin(isAuto = false) {
+            if (isSpinning || state.money < state.spinCost || state.inventory.length >= state.storageLimit) return;
+            state.money -= state.spinCost;
+            renderStats();
+            isSpinning = true;
+            updateButtonStates();
+            const track = document.getElementById('belt-track');
+            const winningChar = getWeightedRandomCharacter();
+            if(forcedSpinRarity) { forcedSpinRarity = null; document.getElementById('admin-spin-force').value = ""; showToast("Admin Force Used"); }
+            markDiscovered(winningChar.name);
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0)';
+            track.innerHTML = '';
+            const targetIndex = 25; 
+            for(let i=0; i < 35; i++) {
+                if (i === targetIndex) track.appendChild(createRandomBeltItem(winningChar)); 
+                else track.appendChild(createRandomBeltItem()); 
+            }
+            track.offsetHeight;
+            const moveDistance = (targetIndex * 116) - (track.parentElement.offsetWidth / 2) + 50 + 16; 
+            const duration = isAuto ? 1.5 : 4;
+            setTimeout(() => {
+                track.style.transition = `transform ${duration}s cubic-bezier(0.15, 0.9, 0.3, 1)`;
+                track.style.transform = `translateX(-${moveDistance}px)`;
+            }, 50);
+            setTimeout(() => {
+                isSpinning = false;
+                const shouldAutoSell = state.autoSell && state.autoSell[winningChar.rarity.id];
+                if(shouldAutoSell) {
+                    showToast(`Auto-Sold: ${winningChar.name}`);
+                } else {
+                    state.inventory.push({ ...winningChar, level: 1, id: Date.now() + Math.random() });
+                    if(!isAuto) showToast(`Hired: ${winningChar.name}!`);
+                }
+                saveGame();
+                renderInventory();
+                renderStats();
+            }, (duration * 1000) + 100);
+        }
+
+        function toggleAutoSpin() {
+            const btn = document.getElementById('autospin-btn');
+            if (autoSpinActive) {
+                autoSpinActive = false;
+                clearInterval(autoSpinInterval);
+                btn.classList.remove('auto-active');
+            } else {
+                autoSpinActive = true;
+                btn.classList.add('auto-active');
+                autoSpinInterval = setInterval(() => {
+                    if (!autoSpinActive) return;
+                    if (state.money < state.spinCost) return;
+                    if (state.inventory.length >= state.storageLimit) {
+                            autoSpinActive = false;
+                            clearInterval(autoSpinInterval);
+                            btn.classList.remove('auto-active');
+                            showToast("Auto Spin Stopped: Storage Full");
+                            return;
+                    }
+                    if (isSpinning) return;
+                    triggerSpin(true);
+                }, 1000);
+            }
+        }
+
+        function toggleAutoUpgrade() {
+            const btn = document.getElementById('autoupgrade-btn');
+            if (autoUpgradeActive) {
+                autoUpgradeActive = false;
+                clearInterval(autoUpgradeInterval);
+                btn.classList.remove('auto-active');
+            } else {
+                autoUpgradeActive = true;
+                btn.classList.add('auto-active');
+                autoUpgradeInterval = setInterval(() => {
+                    if (!autoUpgradeActive) return;
+                    upgradeAll();
+                }, 1000);
+            }
+        }
+
+        function markDiscovered(charName) {
+            if(!state.discovered.includes(charName)) state.discovered.push(charName);
+        }
+
+        // --- Auto Sell Functions ---
+        function toggleAutoSell(rarityId, isChecked) {
+            if(!state.autoSell) state.autoSell = {};
+            state.autoSell[rarityId] = isChecked;
+        }
+
+        function renderAutoSellOptions() {
+            const autoSellOptions = document.getElementById('autosell-options');
+            autoSellOptions.innerHTML = '';
+            Object.keys(RARITY).forEach(key => {
+                const r = RARITY[key];
+                if(r.id === 'secret' || r.id === 'exclusive') return;
+
+                const isChecked = state.autoSell && state.autoSell[r.id];
+                
+                const label = document.createElement('label');
+                label.className = `flex items-center justify-between p-3 rounded border cursor-pointer hover:bg-slate-50 ${r.border}`;
+                label.innerHTML = `
+                    <span class="font-bold ${r.color}">${r.label}</span>
+                    <input type="checkbox" class="w-5 h-5 accent-indigo-600" ${isChecked ? 'checked' : ''} onchange="window.game.toggleAutoSell('${r.id}', this.checked)">
+                `;
+                autoSellOptions.appendChild(label);
+            });
+        }
+
+        // --- Admin Functions ---
+        function closeAdminLogin() { document.getElementById('admin-login-modal').classList.remove('active'); }
+        
+        function submitAdminCode() {
+            const code = document.getElementById('admin-code-input').value;
+            // Updated Admin Password
+            if (code === "JaycedaBaby123") {
+                document.getElementById('admin-login-modal').classList.remove('active');
+                document.getElementById('admin-panel').style.display = 'block';
+                showToast("Admin Panel Unlocked");
+            } else { showToast("Invalid Code"); }
+        }
+
+        function adminCustomMoney() {
+            const amt = parseInt(document.getElementById('admin-money-in').value);
+            if(amt) { state.money += amt; renderStats(); showToast(`Admin: +$${formatMoney(amt)}`); }
+        }
+
+        function adminCustomRebirth() {
+            const amt = parseInt(document.getElementById('admin-rebirth-in').value);
+            if(amt) { state.rebirthCount += amt; state.multiplier += (amt * 0.5); state.storageLimit += (amt * 3); renderStats(); showToast(`Admin: +${amt} Rebirths`); }
+        }
+
+        function setAdminName() {
+            const name = document.getElementById('admin-name-input').value;
+            if(name) { state.adminName = name; showToast(`Name set to: ${name}`); }
+        }
+
+        function setPersonalLuck() {
+            const luck = parseFloat(document.getElementById('admin-p-luck').value);
+            if(luck) { state.personalLuckMult = luck; renderStats(); showToast(`Personal Luck: ${luck}x`); }
+        }
+
+        async function setGlobalLuck() {
+            const luck = parseFloat(document.getElementById('admin-g-luck').value);
+            if(luck) {
+                if(db) {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    try {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
+                            type: 'update_luck', mult: luck, timestamp: Date.now()
+                        });
+                        showToast(`Broadcasting Global Luck: ${luck}x`);
+                    } catch(e) {
+                        showToast("Firebase Error: " + e.message);
+                    }
+                } else {
+                    state.globalLuckMult = luck; renderStats(); showToast(`Local Global Luck: ${luck}x`);
+                }
+            }
+        }
+
+        async function spawnAdminBlock() {
+            if(db) {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
+                        type: 'lucky_block', blockType: 'admin', timestamp: Date.now()
+                    });
+                    showToast("Admin Blocks Deployed!");
+                } catch(e) {
+                    showToast("Firebase Error: " + e.message);
+                }
+            } else {
+                triggerLuckyBlockEvent('admin');
+            }
+        }
+
+        async function adminBroadcast() {
+            const msg = document.getElementById('admin-msg-in').value;
+            if(msg) {
+                if (db) {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    try {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
+                            type: 'broadcast', sender: state.adminName, msg: msg, timestamp: Date.now()
+                        });
+                        showToast("Sent Global Broadcast");
+                    } catch (e) {
+                        showToast("Firebase Error: " + e.message);
+                    }
+                } else {
+                    handleGlobalEvent({ type: 'broadcast', sender: state.adminName, msg: msg });
+                }
+            }
+        }
+
+        function openWorkerSelector() {
+            const list = document.getElementById('admin-worker-list');
+            list.innerHTML = '';
+            CHARACTERS.forEach((char, idx) => {
+                const btn = document.createElement('button');
+                const isMythic = char.rarity.id === 'mythic';
+                const isGodly = char.rarity.id === 'godly';
+                const isSecret = char.rarity.id === 'secret';
+                btn.className = `p-2 rounded border flex flex-col items-center justify-center hover:bg-slate-100 transition-colors`;
+                if(isSecret) { btn.style.borderColor = '#000'; btn.style.backgroundColor = '#222'; btn.style.color = '#fff'; }
+                else if(isGodly) btn.style.borderColor = '#ec4899';
+                else if(isMythic) btn.style.borderColor = '#ef4444';
+                else if(char.rarity.id === 'legendary') btn.style.borderColor = '#eab308';
+                else btn.style.borderColor = '#cbd5e1';
+                btn.innerHTML = `<div class="text-xl">${char.icon}</div><div class="text-[9px] font-bold text-center leading-none mt-1 truncate w-full">${char.name}</div>`;
+                btn.onclick = () => { adminGiveWorker(idx); };
+                list.appendChild(btn);
+            });
+            document.getElementById('admin-worker-modal').classList.add('active');
+        }
+
+        async function adminGiveWorker(charIndex) {
+            const char = CHARACTERS[charIndex];
+            if (db) {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
+                        type: 'spawn_worker', charName: char.name, timestamp: Date.now()
+                    });
+                    showToast(`Global Gift Sent: ${char.name}`);
+                } catch(e) {
+                    showToast("Firebase Error: " + e.message);
+                }
+            } else {
+                state.inventory.push({ ...char, level: 1, id: Date.now() + Math.random() });
+                markDiscovered(char.name);
+                saveGame();
+                renderInventory();
+                renderStats();
+                showToast(`Admin Gave: ${char.name}`);
+            }
+        }
+
+        function adminReset() {
+            showConfirm("Reset Save?", "Are you sure?", () => {
+                localStorage.removeItem('myMallSave_v9');
+                location.reload();
+            });
+        }
+        
+        // --- Index Logic ---
+        function openIndex() {
+            const list = document.getElementById('index-list');
+            const countDisplay = document.getElementById('index-count');
+            list.innerHTML = '';
+            let foundCount = 0; let totalCount = 0;
+            CHARACTERS.forEach((char) => {
+                if (char.rarity.id === 'secret') return;
+                totalCount++;
+                const discovered = state.discovered.includes(char.name);
+                if(discovered) foundCount++;
+                const div = document.createElement('div');
+                div.className = `index-item p-2 rounded border flex flex-col items-center justify-center ${discovered ? 'discovered' : ''} bg-white shadow-sm`;
+                if(discovered) {
+                    const isMythic = char.rarity.id === 'mythic'; const isGodly = char.rarity.id === 'godly';
+                    if(isGodly) { div.style.borderColor = '#ec4899'; div.classList.add('rare-godly'); }
+                    else if(isMythic) { div.style.borderColor = '#ef4444'; div.classList.add('rare-mythic'); }
+                    else if(char.rarity.id === 'legendary') div.style.borderColor = '#eab308';
+                    else div.style.borderColor = '#e2e8f0';
+                }
+                div.innerHTML = `<div class="text-2xl">${discovered ? char.icon : '❓'}</div><div class="text-[10px] font-bold text-center leading-none mt-1 truncate w-full">${discovered ? char.name : '???'}</div><div class="text-[9px] text-slate-400 uppercase tracking-widest mt-1">${char.rarity.label}</div>`;
+                list.appendChild(div);
+            });
+            countDisplay.textContent = `${foundCount}/${totalCount} Discovered`;
+            document.getElementById('index-modal').classList.add('active');
+        }
+
+        function gameLoop() {
+            setInterval(() => {
+                const income = calculateIncome();
+                if (income > 0) { state.money += income; renderStats(); spawnCoins(); }
+            }, 1000);
+            setInterval(updateButtonStates, 100);
+        }
+
+        function init() {
+            loadGame();
+            checkOfflineEarnings();
+            renderStats();
+            renderInventory();
+            initBelt();
+            gameLoop();
+            setInterval(saveGame, 5000);
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '`') {
+                    document.getElementById('admin-login-modal').classList.add('active');
+                    document.getElementById('admin-code-input').value = '';
+                    document.getElementById('admin-code-input').focus();
+                }
+            });
+            
+            // Modal Listeners
+            document.getElementById('modal-cancel').addEventListener('click', hideModal);
+            document.getElementById('modal-confirm').addEventListener('click', () => {
+                if (pendingModalCallback) pendingModalCallback();
+                hideModal();
+            });
+
+            // Auto Sell Listeners
+            document.getElementById('autosell-btn').addEventListener('click', () => {
+                renderAutoSellOptions();
+                document.getElementById('autosell-modal').classList.add('active');
+            });
+            document.getElementById('autosell-close').addEventListener('click', () => {
+                document.getElementById('autosell-modal').classList.remove('active');
+                saveGame();
+            });
+
+            document.getElementById('spin-btn').addEventListener('click', () => triggerSpin(false));
+            document.getElementById('rebirth-btn').addEventListener('click', () => {
+                if(state.money < state.rebirthCost) return;
+                const currentMoney = formatMoney(state.money);
+                showConfirm("Perform Rebirth?", `<div class="space-y-2"><p class="font-bold text-red-500">⚠ WARNING: RESET AHEAD</p><p>You will <b class="text-red-500">LOSE ALL CASH</b> (${currentMoney}).</p><p>You will <b class="text-green-600">KEEP</b> your staff.</p><div class="bg-purple-50 p-2 rounded text-xs border border-purple-100"><b>Rewards:</b><br>• +3 Storage Slots<br>• +0.5x Income Multiplier<br>• +0.2x Luck Boost</div></div>`, () => {
+                    state.money = 0; state.storageLimit += 3; state.multiplier += 0.5; state.rebirthCount++;
+                    state.rebirthCost = Math.floor(state.rebirthCost * 2.5);
+                    saveGame(); renderStats(); renderInventory(); showToast("Rebirth Successful! Multiplier Increased!");
+                });
+            });
+            document.getElementById('admin-spin-force').addEventListener('change', async (e) => {
+                const val = e.target.value;
+                if (!val) return;
+                if (db) {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'events'), {
+                        type: 'force_spin', rarity: val, timestamp: Date.now()
+                    });
+                } else {
+                    forcedSpinRarity = val;
+                    showToast(`Local Force: ${val.toUpperCase()}`);
+                }
+            });
+            
+            initFirebase();
+        }
+
+        // --- Window Game Object Mapping (Defined Last) ---
+        window.game = {
+            toggleAutoSpin: toggleAutoSpin,
+            toggleAutoUpgrade: toggleAutoUpgrade,
+            upgradeAll: upgradeAll,
+            upgradeCharacter: upgradeCharacter,
+            fireCharacter: fireCharacter,
+            openIndex: openIndex,
+            openWorkerSelector: openWorkerSelector,
+            adminGiveWorker: adminGiveWorker,
+            adminBroadcast: adminBroadcast,
+            adminCustomMoney: adminCustomMoney,
+            adminCustomRebirth: adminCustomRebirth,
+            adminReset: adminReset,
+            closeAdminLogin: closeAdminLogin,
+            submitAdminCode: submitAdminCode,
+            toggleAutoSell: toggleAutoSell,
+            setAdminName: setAdminName,
+            setPersonalLuck: setPersonalLuck,
+            setGlobalLuck: setGlobalLuck,
+            spawnAdminBlock: spawnAdminBlock,
+            saveGame: saveGame
+        };
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

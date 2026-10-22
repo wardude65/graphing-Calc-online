@@ -1,0 +1,958 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pibble Clicker: Universe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #fef3c7;
+            user-select: none;
+            overflow: hidden;
+            touch-action: manipulation;
+            transition: background 0.5s ease;
+        }
+
+        /* --- Area Backgrounds --- */
+        .bg-forest {
+            background-color: #f0fdf4;
+            background-image: radial-gradient(#bbf7d0 15%, transparent 16%), radial-gradient(#bbf7d0 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+        }
+        
+        .bg-lava {
+            background-color: #450a0a;
+            background-image: radial-gradient(#ef4444 15%, transparent 16%), radial-gradient(#b91c1c 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            animation: lavaPulse 10s infinite alternate;
+        }
+
+        .bg-water {
+            background-color: #0c4a6e; /* Sky 900 */
+            background-image: radial-gradient(#0ea5e9 15%, transparent 16%), radial-gradient(#0284c7 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+            animation: waterFlow 20s linear infinite;
+        }
+
+        .bg-desert {
+            background-color: #fff7ed; /* Orange 50 */
+            background-image: radial-gradient(#fdba74 15%, transparent 16%), radial-gradient(#fed7aa 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
+        }
+
+        @keyframes lavaPulse { 0% { background-color: #450a0a; } 100% { background-color: #7f1d1d; } }
+        @keyframes waterFlow { 0% { background-position: 0 0, 30px 30px; } 100% { background-position: 60px 60px, 90px 90px; } }
+
+        /* --- Animations & Effects --- */
+        .pibble-main {
+            transition: transform 0.05s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            z-index: 20;
+        }
+        .pibble-main:active { transform: scale(0.9); }
+        .clicked { animation: bounce 0.15s; }
+        @keyframes bounce { 0% { transform: scale(1); } 50% { transform: scale(0.95); } 100% { transform: scale(1); } }
+
+        .floater {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            font-weight: bold;
+            color: #d97706;
+            text-shadow: 2px 2px 0px #fff;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* Theme Text Colors */
+        .lava-mode .floater { color: #fbbf24; text-shadow: 2px 2px 0px #7f1d1d; }
+        .water-mode .floater { color: #e0f2fe; text-shadow: 2px 2px 0px #0369a1; }
+        .desert-mode .floater { color: #c2410c; text-shadow: 2px 2px 0px #ffedd5; }
+
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-100px) scale(1.5); } }
+
+        /* Orbiting Pets */
+        .orbit-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 300px; height: 300px; pointer-events: none; z-index: 10;
+        }
+        @media (max-width: 768px) { .orbit-container { width: 220px; height: 220px; } }
+
+        .orbiting-pet {
+            position: absolute; top: 0; left: 50%; width: 50px; height: 50px;
+            margin-left: -25px; transform-origin: 50% 150px; animation: orbit 10s linear infinite;
+        }
+        @media (max-width: 768px) { .orbiting-pet { transform-origin: 50% 110px; } }
+        
+        @keyframes orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .orbiting-pet img { width: 100%; height: 100%; object-fit: contain; animation: counter-orbit 10s linear infinite; }
+        @keyframes counter-orbit { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+        /* Modal */
+        .modal { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 60; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        
+        /* Rarity Colors */
+        .rarity-common { color: #6b7280; }
+        .rarity-rare { color: #3b82f6; }
+        .rarity-epic { color: #9333ea; }
+        .rarity-legendary { color: #eab308; text-shadow: 0 0 10px #fde047; }
+        .rarity-mythical { color: #ef4444; text-shadow: 0 0 10px #fca5a5; }
+        .rarity-godly { color: #22d3ee; text-shadow: 0 0 10px #67e8f9; animation: pulse 2s infinite; }
+
+        /* Multi Delete Selection */
+        .pet-card.selected {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+            transform: scale(0.95);
+        }
+        .pet-card.selected::after {
+            content: '❌';
+            position: absolute;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 24px; pointer-events: none;
+        }
+    </style>
+</head>
+<body id="game-body" class="h-screen w-screen flex flex-col text-gray-800 relative overflow-hidden bg-forest">
+
+    <!-- Audio -->
+    <audio id="bgm" loop>
+        <source src="https://www.dropbox.com/scl/fi/vvon9xafx9b07jl8ciaa7/pibble-theme-song-made-with-Voicemod.mp3?rlkey=jwr2xl0urd6r0c2q62mgnpk3d&st=rrrtf7i3&dl=1" type="audio/mpeg">
+    </audio>
+    <audio id="sfx-click-base" src="https://www.dropbox.com/scl/fi/h9voxecvwr5alqo53hpe0/wash-my-belly-yay-made-with-Voicemod.mp3?rlkey=z32mem9oc74n2oo5pywxfjfx8&st=37iimp94&dl=1"></audio>
+    <audio id="sfx-rare" src="https://www.dropbox.com/scl/fi/lwmw607dlzsepnog48q0p/wash-ma-belly-made-with-Voicemod.mp3?rlkey=tltp7tw8cj2xqzvjj170kztdk&st=b9wjyo5h&dl=1"></audio>
+
+    <!-- Particles -->
+    <div id="particles" class="absolute inset-0 pointer-events-none z-50"></div>
+
+    <!-- Top Bar -->
+    <div class="w-full bg-white/90 backdrop-blur border-b border-amber-200 p-4 flex justify-between items-center z-40 shadow-sm h-16 transition-colors duration-500" id="top-bar">
+        <div class="font-bold text-lg md:text-xl text-amber-800 flex items-center gap-2">
+            <span id="area-icon">🌲</span> <span id="area-name">Pibble Forest</span>
+        </div>
+        
+        <button onclick="window.toggleMusic()" id="music-btn" class="text-xs bg-amber-100 px-2 py-1 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-200 transition">
+            🎵 Music: Off
+        </button>
+
+        <div class="font-bold text-xl md:text-2xl text-amber-600 flex items-center gap-2 bg-amber-100 px-4 py-1 rounded-full border border-amber-300">
+            <span id="score">0</span>
+            <img src="https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1" class="w-6 h-6 object-contain">
+        </div>
+    </div>
+
+    <!-- MAIN GAME AREA -->
+    <div class="flex-1 relative flex items-center justify-center">
+        
+        <div id="orbit-ring" class="orbit-container"></div>
+
+        <div class="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center group z-20">
+            <div class="absolute inset-0 bg-white rounded-full opacity-60 blur-2xl animate-pulse group-hover:opacity-80"></div>
+            <div id="pibble-btn" class="pibble-main w-full h-full flex items-center justify-center" onclick="window.clickPibble(event)">
+                <img src="https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1" 
+                     alt="Pibble" class="w-full h-full object-contain drop-shadow-2xl hover:brightness-105" draggable="false">
+            </div>
+        </div>
+
+        <div class="absolute bottom-24 font-bold text-amber-700/80 text-sm md:text-base bg-white/50 px-3 py-1 rounded-full backdrop-blur-sm">
+            Click Multiplier: <span id="click-mult">x1.00</span>
+        </div>
+    </div>
+
+    <!-- Bottom Menu -->
+    <div class="h-20 md:h-24 bg-white border-t border-amber-200 flex items-center justify-center gap-2 md:gap-4 px-2 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <button onclick="window.openModal('egg-store')" class="menu-btn flex flex-col items-center justify-center w-20 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition-all gap-1">
+            <div class="text-3xl">🥚</div>
+            <div class="text-xs font-bold text-amber-800">Shop</div>
+        </button>
+
+        <button onclick="window.openModal('inventory')" class="menu-btn flex flex-col items-center justify-center w-20 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition-all gap-1 relative">
+            <div class="text-3xl">🎒</div>
+            <div class="text-xs font-bold text-amber-800">Pets</div>
+            <div id="inv-count" class="absolute top-2 right-4 bg-red-500 text-white text-[10px] rounded-full px-1.5 hidden">0</div>
+        </button>
+
+        <button onclick="window.openModal('travel')" class="menu-btn flex flex-col items-center justify-center w-20 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition-all gap-1">
+            <div class="text-3xl">🗺️</div>
+            <div class="text-xs font-bold text-amber-800">Travel</div>
+        </button>
+
+        <button onclick="window.openModal('cloud')" class="menu-btn flex flex-col items-center justify-center w-20 md:w-24 h-full hover:bg-amber-50 active:scale-95 transition-all gap-1">
+            <div class="text-3xl">☁️</div>
+            <div class="text-xs font-bold text-amber-800">Cloud</div>
+        </button>
+        
+        <button onclick="window.resetGame()" class="menu-btn flex flex-col items-center justify-center w-16 h-full hover:bg-red-50 active:scale-95 transition-all gap-1 text-red-300 hover:text-red-500">
+            <div class="text-xl">🗑️</div>
+            <div class="text-[10px] font-bold">Reset</div>
+        </button>
+    </div>
+
+    <!-- MODAL: Egg Store -->
+    <div id="modal-egg-store" class="modal">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-6 m-4 shadow-2xl border-4 border-amber-200 relative animate-bounce-in flex flex-col h-[80vh]">
+            <button onclick="window.closeModal('egg-store')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold z-10">&times;</button>
+            <h2 class="text-2xl font-bold text-amber-800 mb-2 border-b border-amber-100 pb-2 flex-shrink-0">🥚 Egg Store</h2>
+            <p class="text-xs text-gray-500 mb-4">Eggs in <span id="store-area-name" class="font-bold">Current Area</span></p>
+            <div class="flex-1 overflow-y-auto space-y-4 p-2">
+                <div id="egg-list" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Inventory -->
+    <div id="modal-inventory" class="modal">
+        <div class="bg-white w-full max-w-3xl h-[85vh] rounded-2xl p-6 m-4 shadow-2xl border-4 border-amber-200 relative flex flex-col">
+            <button onclick="window.closeModal('inventory')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-amber-100 pb-2 mb-4 gap-2">
+                <div>
+                    <h2 class="text-2xl font-bold text-amber-800">🎒 My Pets</h2>
+                    <span class="text-sm text-amber-600 font-bold">Equipped: <span id="equipped-count">0</span>/5</span>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="window.equipBest()" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition active:scale-95 flex items-center gap-1">⚡ Best</button>
+                    <button id="multi-delete-btn" onclick="window.toggleMultiDelete()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold py-2 px-3 rounded-lg shadow transition active:scale-95 flex items-center gap-1">🗑️ Delete</button>
+                    <button id="confirm-delete-btn" onclick="window.confirmDelete()" class="hidden bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition active:scale-95 animate-pulse">Confirm</button>
+                </div>
+            </div>
+            <div id="inventory-grid" class="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-2"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: Travel -->
+    <div id="modal-travel" class="modal">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 m-4 shadow-2xl border-4 border-amber-200 relative h-[80vh] flex flex-col">
+            <button onclick="window.closeModal('travel')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            <h2 class="text-2xl font-bold text-amber-800 mb-4 border-b border-amber-100 pb-2">🗺️ Travel</h2>
+            <div id="travel-list" class="space-y-4 flex-1 overflow-y-auto p-2">
+                <!-- Injected via JS -->
+            </div>
+            <div class="text-center text-gray-400 text-xs mt-4 p-4 border-t border-dashed border-gray-200">
+                ✨ More Worlds Coming Soon ✨
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Cloud / Leaderboard -->
+    <div id="modal-cloud" class="modal">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-6 m-4 shadow-2xl border-4 border-amber-200 relative flex flex-col h-[70vh]">
+            <button onclick="window.closeModal('cloud')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            <h2 class="text-2xl font-bold text-amber-800 mb-4 border-b border-amber-100 pb-2">☁️ Cloud & Leaderboard</h2>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <button onclick="window.syncSave()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl shadow-md active:scale-95 transition">
+                    💾 Save to Cloud
+                </button>
+                <button onclick="window.loadSave()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl shadow-md active:scale-95 transition">
+                    📥 Load from Cloud
+                </button>
+            </div>
+
+            <h3 class="font-bold text-amber-700 mb-2">🏆 Top Players</h3>
+            <div id="leaderboard-list" class="flex-1 bg-amber-50 rounded-xl overflow-y-auto p-2 border border-amber-200">
+                <div class="text-center text-gray-400 mt-10">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Hatch Overlay -->
+    <div id="hatch-overlay" class="fixed inset-0 bg-black/90 z-[70] hidden flex-col items-center justify-center text-white p-4 text-center">
+        <div id="hatch-egg" class="text-9xl animate-bounce cursor-pointer mb-8">🥚</div>
+        <div class="text-2xl font-bold animate-pulse text-amber-300">Hatching...</div>
+    </div>
+
+    <!-- MODAL: Setup Guide (Hidden by default) -->
+    <div id="modal-setup" class="modal z-[100]">
+        <div class="bg-white w-full max-w-2xl rounded-2xl p-6 m-4 shadow-2xl border-4 border-red-500 relative flex flex-col">
+            <button onclick="window.closeModal('setup')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            <h2 class="text-2xl font-bold text-red-600 mb-4 flex items-center gap-2">⚠️ Action Required: Database Setup</h2>
+            
+            <div class="space-y-4 text-sm text-gray-700 overflow-y-auto max-h-[60vh]">
+                <p class="font-bold">Your game cannot save or load because your Firestore Database is locked.</p>
+                
+                <div class="bg-gray-100 p-4 rounded-lg border border-gray-300">
+                    <p class="font-bold mb-2">1. Go to Firebase Console:</p>
+                    <a href="https://console.firebase.google.com/project/pibble-clicker/firestore/rules" target="_blank" class="text-blue-500 underline">Click here to open your Database Rules</a>
+                </div>
+
+                <div class="bg-gray-100 p-4 rounded-lg border border-gray-300">
+                    <p class="font-bold mb-2">2. Paste these Exact Rules:</p>
+                    <pre class="bg-gray-800 text-green-400 p-3 rounded text-xs font-mono overflow-x-auto select-all">
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+                    <p class="text-xs text-gray-500 mt-1">Note: This sets your database to public mode for testing.</p>
+                </div>
+
+                <div class="bg-gray-100 p-4 rounded-lg border border-gray-300">
+                    <p class="font-bold">3. Click "Publish"</p>
+                </div>
+                
+                <button onclick="location.reload()" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl">I have fixed it, Refresh Game!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logic Module -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, limit, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- ASSETS ---
+        const IMG_PIBBLE = "https://www.dropbox.com/scl/fi/st1kw1y86rnnp5l3sklif/Pibblepng.png?rlkey=px7fn1ymhvjv74syzj24ljqzu&st=dnqxvzc1&raw=1";
+        const IMG_SWING = "https://www.dropbox.com/scl/fi/s6f4hge7p0jydmhu3o8nt/5UtnH4J6bAhKrPqFkhSpb1lW5J5ghJmAtgLSAdi0J9U.webp?rlkey=c75ps17cq0qirmyaq4184w0kd&st=d8xyu7vm&raw=1";
+        const IMG_BEAR = "https://www.dropbox.com/scl/fi/lp8sty0a059uxp30enipw/Screenshot-2025-11-23-213538.png?rlkey=s45dxgtiymajs012c664kwth7&st=sikccue7&raw=1";
+        const IMG_FROG = "https://www.dropbox.com/scl/fi/enlbb7knaler8qt1qhxo7/Frog-Pibble.jfif?rlkey=jgproft8ccpc6uyqu34fwr1g1&st=8xi6mwxp&raw=1";
+        const IMG_ALIEN = "https://www.dropbox.com/scl/fi/4x13whcqa2v3mec9x0qev/AlienPibble.webp?rlkey=ck3h400vy56vlt04j01yqonx4&st=vmqjhrri&raw=1";
+        const IMG_FRY = "https://www.dropbox.com/scl/fi/7mrgozgdyi0ez325j5wtz/Screenshot-2025-11-23-214401.png?rlkey=3l5w7sevvw943npqevq3idawd&st=csamx6dm&raw=1";
+        const IMG_PUMPKIN = "https://www.dropbox.com/scl/fi/uq9t3ll907dt51f4b0iv7/Screenshot-2025-11-23-214058.png?rlkey=t4x0y6oalnxla1vfh4golujai&st=52pb3t26&raw=1";
+        const IMG_CARTI = "https://www.dropbox.com/scl/fi/8b3gd5o0hj0ib4uto4hsx/Screenshot-2025-11-23-214442.png?rlkey=6wesf1goww69h9xci9c9lgnuw&st=3nuwxefm&raw=1";
+        const IMG_TARGET = "https://www.dropbox.com/scl/fi/zm7lzdkstptg90ajhfj52/Screenshot-2025-11-23-220426.png?rlkey=g6uw11dyj8gto1tttpxndqpi3&st=v3twapkk&raw=1";
+        const IMG_SAVE = "https://www.dropbox.com/scl/fi/5s528frsmulk8dqg6g99g/Screenshot-2025-11-23-220434.png?rlkey=d16510b29sb1mzm8fb743voy9&st=38452i28&raw=1";
+        
+        // Water Assets
+        const IMG_FLOPPA = "https://www.dropbox.com/scl/fi/6eqisepsgst9z5rvtc23r/Pet_floppa.webp?rlkey=v2y3g46husabjc4zbq8lml0u3&st=eopbi1sd&raw=1";
+        const IMG_UNDERWATER = "https://www.dropbox.com/scl/fi/j5h3krggeldgz3zv20y4g/water.jpg?rlkey=0dlu29ikmcds4n8si9a6w73op&st=3ijnh1fx&raw=1";
+        const IMG_SCARY = "https://www.dropbox.com/scl/fi/fw6ke1z4092u1sq3ymch4/Screenshot-2025-11-23-222453.png?rlkey=ikm3dw9ak3ey27te7jzcyrlw1&st=5w87w44l&raw=1";
+
+        // Desert Assets
+        const IMG_FLYING = "https://www.dropbox.com/scl/fi/shz36dk1aqc0bkgraeynk/Screenshot-2025-11-23-222759.png?rlkey=6ru7cjmvgc6ckdc1e979eolpo&st=dirm4toa&raw=1";
+        const IMG_ANGRY = "https://www.dropbox.com/scl/fi/8h8c1dujqsn60irwa7av2/Screenshot-2025-11-23-222749.png?rlkey=f4a4dca339vabph6iggy3kci4&st=mxmh33f9&raw=1";
+
+        // --- GAME DATA ---
+        let game = {
+            pibbles: 0,
+            currentArea: 'forest',
+            unlockedAreas: ['forest'],
+            pets: [], 
+            equipped: []
+        };
+        
+        let isDeleteMode = false;
+        let selectedForDelete = [];
+        let musicPlaying = false;
+        let currentUser = null;
+        window.hasShownSetup = false; // Ensure setup modal shows only once per session
+
+        // --- FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCg4qoatQoGKVEkaYUeTkdgAwN5fJH1cAc",
+            authDomain: "pibble-clicker.firebaseapp.com",
+            projectId: "pibble-clicker",
+            storageBucket: "pibble-clicker.firebasestorage.app",
+            messagingSenderId: "222881804808",
+            appId: "1:222881804808:web:2a7118d351c90190c097bd",
+            measurementId: "G-5K0Y6SY2MD"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Auth Init
+        const initAuth = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Auth failed.", error);
+            }
+        };
+        initAuth();
+        
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if(user) fetchLeaderboard();
+        });
+
+        // --- CONFIGS ---
+        const AREAS = {
+            'forest': { name: "Pibble Forest", icon: "🌲", className: "bg-forest", cost: 0, eggs: ['starter', 'advanced', 'food'] },
+            'lava': { name: "Lava Pit", icon: "🌋", className: "bg-lava", cost: 50000, eggs: ['lava'] },
+            'water': { name: "Water World", icon: "🌊", className: "bg-water", cost: 250000, eggs: ['water'] },
+            'desert': { name: "Desert Dunes", icon: "🌵", className: "bg-desert", cost: 1000000, eggs: ['desert'] }
+        };
+
+        const EGGS = {
+            'starter': { name: "Starter Egg", cost: 100, color: "bg-amber-100 border-amber-300", drops: [ {id:'pibble', c:57.85}, {id:'swing', c:41.32}, {id:'giant', c:0.83} ] },
+            'advanced': { name: "Advanced Egg", cost: 2500, color: "bg-blue-100 border-blue-300", drops: [ {id:'bear', c:51.95}, {id:'froggy', c:32.47}, {id:'alien', c:15.58} ] },
+            'food': { name: "Food Egg", cost: 15000, color: "bg-red-100 border-red-300", drops: [ {id:'fry', c:58.82}, {id:'pumpkin', c:35.29}, {id:'carti', c:5.88} ] },
+            'lava': { name: "Lava Egg", cost: 100000, color: "bg-orange-600 border-orange-800 text-white", drops: [ {id:'target', c:49.50}, {id:'save', c:49.50}, {id:'giant_alien', c:0.99} ] },
+            'water': { name: "Water Egg", cost: 500000, color: "bg-cyan-200 border-cyan-500", drops: [ {id:'floppa', c:49.0}, {id:'underwater', c:49.0}, {id:'scary', c:2.0} ] },
+            'desert': { name: "Desert Egg", cost: 2000000, color: "bg-yellow-200 border-yellow-500", drops: [ {id:'flying', c:49.59}, {id:'angry', c:49.59}, {id:'giant_angry', c:0.83} ] }
+        };
+
+        const PET_TYPES = {
+            'pibble': { name: "Pibble", mult: 1.2, img: IMG_PIBBLE, rarity: 'common' },
+            'swing': { name: "Swing Pibble", mult: 1.5, img: IMG_SWING, rarity: 'rare' },
+            'giant': { name: "Giant Pibble", mult: 3.0, img: IMG_PIBBLE, rarity: 'legendary', style: 'transform: scale(1.5);' },
+            'bear': { name: "Bear Pibble", mult: 5.0, img: IMG_BEAR, rarity: 'common' },
+            'froggy': { name: "Froggy Pibble", mult: 8.5, img: IMG_FROG, rarity: 'rare' },
+            'alien': { name: "Alien Pibble", mult: 15.0, img: IMG_ALIEN, rarity: 'legendary' },
+            'fry': { name: "Fry Pibble", mult: 25.0, img: IMG_FRY, rarity: 'rare' },
+            'pumpkin': { name: "Pumpkin Pibble", mult: 40.0, img: IMG_PUMPKIN, rarity: 'epic' },
+            'carti': { name: "Pibble Carti", mult: 100.0, img: IMG_CARTI, rarity: 'mythical' },
+            'target': { name: "Target Pibble", mult: 250.0, img: IMG_TARGET, rarity: 'rare' },
+            'save': { name: "Save Pibble", mult: 250.0, img: IMG_SAVE, rarity: 'rare' },
+            'giant_alien': { name: "Giant Alien Pibble", mult: 1000.0, img: IMG_ALIEN, rarity: 'godly', style: 'transform: scale(1.8); filter: hue-rotate(90deg);' },
+            'floppa': { name: "Floppa", mult: 2000.0, img: IMG_FLOPPA, rarity: 'epic' },
+            'underwater': { name: "Underwater Pibble", mult: 2000.0, img: IMG_UNDERWATER, rarity: 'epic' },
+            'scary': { name: "Scary Pibble", mult: 10000.0, img: IMG_SCARY, rarity: 'legendary' },
+            'flying': { name: "Flying Pibble", mult: 50000.0, img: IMG_FLYING, rarity: 'mythical' },
+            'angry': { name: "Angry Pibble", mult: 50000.0, img: IMG_ANGRY, rarity: 'mythical' },
+            'giant_angry': { name: "Giant Angry Pibble", mult: 500000.0, img: IMG_ANGRY, rarity: 'godly', style: 'transform: scale(1.8);' }
+        };
+
+        // --- GLOBAL FUNCTIONS ---
+
+        window.toggleMusic = () => {
+            const bgm = document.getElementById('bgm');
+            if (musicPlaying) {
+                bgm.pause();
+                musicPlaying = false;
+                document.getElementById('music-btn').innerText = "🎵 Music: Off";
+                document.getElementById('music-btn').classList.replace('bg-green-100', 'bg-amber-100');
+            } else {
+                bgm.volume = 0.3;
+                bgm.play().then(() => {
+                    musicPlaying = true;
+                    document.getElementById('music-btn').innerText = "🎵 Music: On";
+                    document.getElementById('music-btn').classList.replace('bg-amber-100', 'bg-green-100');
+                }).catch(e => console.log("Interact first"));
+            }
+        };
+
+        window.clickPibble = (e) => {
+            if (!musicPlaying) window.toggleMusic();
+            
+            let mult = 1.0;
+            game.equipped.forEach(id => {
+                const pet = game.pets.find(p => p.id === id);
+                if (pet) mult += (pet.mult - 1);
+            });
+            
+            const gain = Math.floor(1 * mult);
+            game.pibbles += gain;
+            
+            const base = document.getElementById('sfx-click-base');
+            const clone = base.cloneNode();
+            clone.volume = 0.5;
+            clone.play().catch(() => {});
+
+            const btn = document.getElementById('pibble-btn');
+            btn.classList.remove('clicked');
+            void btn.offsetWidth;
+            btn.classList.add('clicked');
+            
+            createFloater(e.clientX, e.clientY, gain);
+            updateUI();
+            saveGame();
+        };
+
+        window.buyEgg = (eggKey) => {
+            const egg = EGGS[eggKey];
+            if (game.pibbles >= egg.cost) {
+                game.pibbles -= egg.cost;
+                updateUI();
+                window.closeModal('egg-store');
+                playHatchAnimation(eggKey);
+            } else {
+                alert("Not enough Pibbles!");
+            }
+        };
+
+        window.equipBest = () => {
+            if (game.pets.length === 0) return;
+            game.equipped = [];
+            const sorted = [...game.pets].sort((a, b) => b.mult - a.mult);
+            const best = sorted.slice(0, 5);
+            best.forEach(p => game.equipped.push(p.id));
+            renderInventory();
+            renderEquippedPets();
+            updateUI();
+            saveGame();
+        };
+
+        window.toggleMultiDelete = () => {
+            isDeleteMode = !isDeleteMode;
+            selectedForDelete = [];
+            const btn = document.getElementById('multi-delete-btn');
+            const confirmBtn = document.getElementById('confirm-delete-btn');
+            
+            if (isDeleteMode) {
+                btn.classList.replace('bg-gray-200', 'bg-red-200');
+                btn.classList.replace('text-gray-700', 'text-red-800');
+                btn.innerText = '❌ Cancel';
+                confirmBtn.classList.remove('hidden');
+            } else {
+                btn.classList.replace('bg-red-200', 'bg-gray-200');
+                btn.classList.replace('text-red-800', 'text-gray-700');
+                btn.innerText = '🗑️ Delete';
+                confirmBtn.classList.add('hidden');
+            }
+            renderInventory();
+        };
+
+        window.confirmDelete = () => {
+            if (selectedForDelete.length === 0) return;
+            if (confirm(`Delete ${selectedForDelete.length} pets? Permanent!`)) {
+                game.pets = game.pets.filter(p => !selectedForDelete.includes(p.id));
+                selectedForDelete = [];
+                window.toggleMultiDelete();
+                saveGame();
+                renderInventory();
+                updateUI();
+            }
+        };
+
+        window.travelTo = (areaKey) => {
+            const targetArea = AREAS[areaKey];
+            
+            if (game.unlockedAreas.includes(areaKey)) {
+                game.currentArea = areaKey;
+                window.closeModal('travel');
+                updateAreaVisuals();
+                updateUI();
+                saveGame();
+            } else {
+                if (game.pibbles >= targetArea.cost) {
+                    if(confirm(`Unlock ${targetArea.name} for ${formatNumber(targetArea.cost)} Pibbles?`)) {
+                        game.pibbles -= targetArea.cost;
+                        game.unlockedAreas.push(areaKey);
+                        game.currentArea = areaKey;
+                        window.closeModal('travel');
+                        updateAreaVisuals();
+                        updateUI();
+                        saveGame();
+                    }
+                } else {
+                    alert(`Need ${formatNumber(targetArea.cost)} Pibbles to unlock!`);
+                }
+            }
+        };
+
+        // --- DB FUNCTIONS ---
+        
+        window.syncSave = async () => {
+            if (!currentUser) return alert("Not connected to cloud!");
+            try {
+                // Ensure no undefined values exist by serialization
+                const safeGame = JSON.parse(JSON.stringify(game));
+                
+                await setDoc(doc(db, 'users', currentUser.uid), safeGame);
+                await setDoc(doc(db, 'leaderboard', currentUser.uid), {
+                    score: game.pibbles,
+                    name: `Player ${currentUser.uid.substr(0,4)}`
+                });
+                alert("Game Saved to Cloud! ☁️");
+                fetchLeaderboard();
+            } catch (e) {
+                // Suppress permission error in console, trigger modal instead
+                if (e.code !== 'permission-denied') console.error(e);
+                
+                if (e.code === 'permission-denied') {
+                    if(!window.hasShownSetup) {
+                        window.openModal('setup');
+                        window.hasShownSetup = true;
+                    }
+                } else {
+                    alert("Save failed: " + e.message);
+                }
+            }
+        };
+
+        window.loadSave = async () => {
+            if (!currentUser) return alert("Not connected to cloud!");
+            try {
+                const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    game = { ...game, ...data };
+                    if(!game.unlockedAreas) game.unlockedAreas = ['forest'];
+                    updateAreaVisuals();
+                    updateUI();
+                    renderEquippedPets();
+                    alert("Save Loaded! 📥");
+                } else {
+                    alert("No cloud save found.");
+                }
+            } catch (e) {
+                // Suppress permission error in console, trigger modal instead
+                if (e.code !== 'permission-denied') console.error(e);
+
+                if (e.code === 'permission-denied') {
+                    if(!window.hasShownSetup) {
+                        window.openModal('setup');
+                        window.hasShownSetup = true;
+                    }
+                } else {
+                    alert("Load failed: " + e.message);
+                }
+            }
+        };
+
+        async function fetchLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '<div class="text-center text-gray-400 mt-4">Loading scores...</div>';
+            
+            try {
+                const q = query(collection(db, 'leaderboard'));
+                const snap = await getDocs(q);
+                let scores = [];
+                snap.forEach(d => scores.push(d.data()));
+                
+                scores.sort((a,b) => b.score - a.score);
+                scores = scores.slice(0, 10);
+
+                list.innerHTML = '';
+                scores.forEach((s, i) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex justify-between items-center p-2 border-b border-amber-100 last:border-0';
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold w-6 text-amber-500">#${i+1}</span>
+                            <span class="font-semibold text-gray-700">${s.name || 'Anonymous'}</span>
+                        </div>
+                        <div class="font-mono font-bold text-amber-600">${formatNumber(s.score)}</div>
+                    `;
+                    list.appendChild(row);
+                });
+                
+                if(scores.length === 0) list.innerHTML = '<div class="text-center text-gray-400 mt-4">No scores yet. Be the first!</div>';
+
+            } catch (e) {
+                // Suppress permission error in console, show informative UI
+                if (e.code !== 'permission-denied') console.error(e);
+
+                if (e.code === 'permission-denied') {
+                    list.innerHTML = '<div class="text-center text-red-400 mt-4 text-xs">Database Locked.<br>See Setup Guide.</div>';
+                    if(!window.hasShownSetup) {
+                        window.openModal('setup');
+                        window.hasShownSetup = true;
+                    }
+                } else {
+                    list.innerHTML = '<div class="text-center text-red-400 mt-4">Failed to load.</div>';
+                }
+            }
+        }
+
+        window.openModal = (id) => {
+            document.getElementById(`modal-${id}`).classList.add('active');
+            if (id === 'inventory') renderInventory();
+            if (id === 'travel') renderTravelList();
+            if (id === 'cloud') fetchLeaderboard();
+            if (id === 'egg-store') renderEggStore();
+        };
+
+        window.closeModal = (id) => document.getElementById(`modal-${id}`).classList.remove('active');
+
+        window.resetGame = () => {
+            if(confirm("Full Reset?")) {
+                localStorage.removeItem('pibbleClicker_v5');
+                location.reload();
+            }
+        };
+
+        // --- INTERNAL HELPERS ---
+
+        function playHatchAnimation(eggKey) {
+            const overlay = document.getElementById('hatch-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                hatchPet(eggKey);
+            }, 1500);
+        }
+
+        function hatchPet(eggKey) {
+            const egg = EGGS[eggKey];
+            const rand = Math.random() * 100;
+            let acc = 0;
+            let selectedType = egg.drops[0].id;
+            let finalDrop = egg.drops[0];
+            
+            const minChance = Math.min(...egg.drops.map(d => d.c));
+
+            for (let drop of egg.drops) {
+                acc += drop.c;
+                if (rand <= acc) {
+                    selectedType = drop.id;
+                    finalDrop = drop;
+                    break;
+                }
+            }
+
+            if (finalDrop.c === minChance) {
+                const s = document.getElementById('sfx-rare');
+                s.volume = 1.0;
+                s.play().catch(()=>{});
+            }
+
+            const template = PET_TYPES[selectedType];
+            const newPet = {
+                id: Date.now() + Math.random().toString(),
+                type: selectedType,
+                name: template.name,
+                mult: template.mult,
+                img: template.img,
+                rarity: template.rarity,
+                style: template.style || '' // Ensure valid string to prevent save errors
+            };
+            
+            game.pets.push(newPet);
+            saveGame();
+            updateUI();
+            
+            alert(`You hatched a ${newPet.name}! (x${newPet.mult})`);
+            window.openModal('inventory');
+        }
+
+        function updateAreaVisuals() {
+            const area = AREAS[game.currentArea];
+            const body = document.getElementById('game-body');
+            body.className = `h-screen w-screen flex flex-col text-gray-800 relative overflow-hidden ${area.className}`;
+            
+            body.classList.remove('lava-mode', 'water-mode', 'desert-mode');
+            if(game.currentArea === 'lava') body.classList.add('lava-mode');
+            if(game.currentArea === 'water') body.classList.add('water-mode');
+            if(game.currentArea === 'desert') body.classList.add('desert-mode');
+
+            document.getElementById('area-name').innerText = area.name;
+            document.getElementById('area-icon').innerText = area.icon;
+            document.getElementById('store-area-name').innerText = area.name;
+        }
+
+        function createFloater(x, y, amount) {
+            const el = document.createElement('div');
+            el.className = 'floater text-3xl md:text-4xl'; 
+            el.innerHTML = `<span>+${formatNumber(amount)}</span><img src="${IMG_PIBBLE}" class="w-6 h-6 object-contain">`;
+            
+            const rX = (Math.random() - 0.5) * 40;
+            const posX = x || window.innerWidth / 2;
+            const posY = y || window.innerHeight / 2;
+
+            el.style.left = `${posX + rX}px`;
+            el.style.top = `${posY - 80}px`; 
+            
+            document.getElementById('particles').appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function updateUI() {
+            document.getElementById('score').innerText = formatNumber(game.pibbles);
+            let mult = 1.0;
+            game.equipped.forEach(id => {
+                const pet = game.pets.find(p => p.id === id);
+                if(pet) mult += (pet.mult - 1);
+            });
+            document.getElementById('click-mult').innerText = 'x' + mult.toFixed(2);
+        }
+
+        function renderInventory() {
+            const grid = document.getElementById('inventory-grid');
+            grid.innerHTML = '';
+            
+            const sorted = [...game.pets].sort((a, b) => {
+                const aEq = game.equipped.includes(a.id);
+                const bEq = game.equipped.includes(b.id);
+                if (aEq && !bEq) return -1;
+                if (!aEq && bEq) return 1;
+                return b.mult - a.mult; 
+            });
+
+            sorted.forEach(pet => {
+                const isEquipped = game.equipped.includes(pet.id);
+                const isSelected = selectedForDelete.includes(pet.id);
+                
+                const card = document.createElement('div');
+                card.className = `pet-card relative rounded-lg p-2 border-2 flex flex-col items-center gap-1 cursor-pointer hover:shadow-md transition-all 
+                    ${isEquipped ? 'border-green-500 bg-green-50' : 'border-amber-200 bg-amber-50'}
+                    ${isSelected ? 'selected' : ''}`;
+                
+                let rClass = `rarity-${pet.rarity || 'common'}`;
+
+                card.innerHTML = `
+                    ${isEquipped ? '<div class="absolute top-1 left-1 w-3 h-3 bg-green-500 rounded-full z-10"></div>' : ''}
+                    <div class="w-14 h-14 flex items-center justify-center overflow-hidden">
+                        <img src="${pet.img}" style="${pet.style || ''}" class="max-w-full max-h-full object-contain">
+                    </div>
+                    <div class="text-[10px] font-bold text-center leading-tight ${rClass} w-full truncate">${pet.name}</div>
+                    <div class="text-[9px] bg-white px-1 rounded text-gray-400">x${pet.mult}</div>
+                `;
+                
+                card.onclick = () => {
+                    if (isDeleteMode) {
+                        if (isEquipped) return alert("Unequip first!");
+                        if (selectedForDelete.includes(pet.id)) selectedForDelete = selectedForDelete.filter(id => id !== pet.id);
+                        else selectedForDelete.push(pet.id);
+                        renderInventory();
+                        document.getElementById('confirm-delete-btn').innerText = `Delete (${selectedForDelete.length})`;
+                    } else {
+                        if (isEquipped) {
+                            game.equipped = game.equipped.filter(id => id !== pet.id);
+                        } else {
+                            if (game.equipped.length >= 5) return alert("Max 5 pets!");
+                            game.equipped.push(pet.id);
+                        }
+                        saveGame();
+                        renderInventory();
+                        renderEquippedPets();
+                        updateUI();
+                    }
+                };
+                grid.appendChild(card);
+            });
+            document.getElementById('equipped-count').innerText = game.equipped.length;
+        }
+
+        function renderEquippedPets() {
+            const c = document.getElementById('orbit-ring');
+            c.innerHTML = '';
+            if (game.equipped.length === 0) return;
+
+            game.equipped.forEach((id, index) => {
+                const pet = game.pets.find(p => p.id === id);
+                if (!pet) return;
+                
+                const el = document.createElement('div');
+                el.className = 'orbiting-pet';
+                // Negative delay to space them out
+                const delay = - (10 / game.equipped.length) * index;
+                el.style.animationDelay = `${delay}s`;
+                
+                const img = document.createElement('img');
+                img.src = pet.img;
+                if(pet.style) img.style = pet.style;
+                img.style.animationDelay = `${delay}s`;
+                
+                el.appendChild(img);
+                c.appendChild(el);
+            });
+        }
+
+        function renderEggStore() {
+            const list = document.getElementById('egg-list');
+            list.innerHTML = '';
+            const area = AREAS[game.currentArea];
+            
+            if (area.eggs.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-500 italic p-4">No eggs here!</div>`;
+                return;
+            }
+
+            area.eggs.forEach(key => {
+                const egg = EGGS[key];
+                const dropsHtml = egg.drops.map(d => {
+                    const pet = PET_TYPES[d.id];
+                    let rClass = `rarity-${pet.rarity}`;
+                    return `<div class="flex justify-between text-xs ${rClass}"><span>${pet.name}</span><span>${d.c}%</span></div>`;
+                }).join('');
+
+                const el = document.createElement('div');
+                el.className = `p-4 rounded-xl border-2 ${egg.color} shadow-sm bg-white/60`;
+                el.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-lg text-gray-800">${egg.name}</h3>
+                        <div class="font-bold text-amber-700">${formatNumber(egg.cost)} 🪙</div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="flex flex-col items-center justify-center w-20">
+                            <div class="text-4xl mb-2">🥚</div>
+                            <button onclick="window.buyEgg('${key}')" class="bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1 px-3 rounded shadow active:scale-95 w-full">Buy</button>
+                        </div>
+                        <div class="flex-1 bg-white/50 rounded p-2 space-y-1">
+                            ${dropsHtml}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        function renderTravelList() {
+            const list = document.getElementById('travel-list');
+            list.innerHTML = '';
+            
+            Object.keys(AREAS).forEach(key => {
+                const area = AREAS[key];
+                const unlocked = game.unlockedAreas.includes(key);
+                
+                const btn = document.createElement('button');
+                btn.className = `w-full relative h-20 rounded-xl overflow-hidden border-2 transition group shadow-md text-left flex items-center justify-between px-4 mb-2
+                    ${unlocked ? 'border-green-500 hover:border-green-600' : 'border-gray-300 hover:border-gray-400 opacity-80'}`;
+                
+                // Simplified BG preview
+                let bgStyle = '';
+                if(key==='forest') bgStyle = 'background-color: #f0fdf4;';
+                if(key==='lava') bgStyle = 'background-color: #450a0a;';
+                if(key==='water') bgStyle = 'background-color: #0c4a6e;';
+                if(key==='desert') bgStyle = 'background-color: #fff7ed;';
+
+                btn.innerHTML = `
+                    <div class="absolute inset-0 opacity-20" style="${bgStyle}"></div>
+                    <div class="relative z-10">
+                        <div class="font-bold text-lg ${key === 'lava' || key === 'water' ? 'text-gray-800' : 'text-gray-800'} flex items-center gap-2">
+                            ${area.icon} ${area.name}
+                        </div>
+                        <div class="text-xs font-bold ${unlocked ? 'text-green-600' : 'text-red-500'}">
+                            ${unlocked ? '✅ Unlocked' : `🔒 Cost: ${formatNumber(area.cost)}`}
+                        </div>
+                    </div>
+                    <div class="text-2xl relative z-10">${unlocked ? '🚀' : '🛒'}</div>
+                `;
+                btn.onclick = () => window.travelTo(key);
+                list.appendChild(btn);
+            });
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return Math.floor(num).toLocaleString();
+        }
+
+        function saveGame() {
+            localStorage.setItem('pibbleClicker_v5', JSON.stringify(game));
+        }
+
+        function loadGame() {
+            const save = localStorage.getItem('pibbleClicker_v5');
+            if (save) {
+                try {
+                    const saved = JSON.parse(save);
+                    game = { ...game, ...saved };
+                    if(!game.unlockedAreas) game.unlockedAreas = ['forest'];
+                } catch (e) { console.error("Save corrupted"); }
+            }
+        }
+
+        // Init
+        loadGame();
+        updateAreaVisuals();
+        updateUI();
+        renderEquippedPets();
+
+    </script>
+</body>
+</html>
+

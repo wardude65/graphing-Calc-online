@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tralala Sahur Surfers</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Bangers&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Bangers', cursive;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            transition: background 0.5s;
+        }
+
+        canvas {
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            text-shadow: 3px 3px 0px #000;
+        }
+
+        .score-box {
+            color: #ffd700;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+
+        .highscore-box {
+            color: #ff00ff;
+            font-size: 20px;
+            text-align: left;
+            margin-top: 5px;
+        }
+
+        .multiplier-box {
+            color: #00ffff;
+            font-size: 28px;
+        }
+
+        /* Powerup Bar */
+        .powerup-container {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            display: none; /* Hidden by default */
+        }
+        
+        #powerup-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00);
+            border-radius: 8px;
+            transition: width 0.1s linear;
+            box-shadow: 0 0 15px #ff0000;
+        }
+
+        .powerup-label {
+            position: absolute;
+            top: -30px;
+            width: 100%;
+            text-align: center;
+            color: #ffff00;
+            font-size: 24px;
+            text-shadow: 2px 2px #000;
+            animation: pulse 0.2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            color: #ffffff;
+            text-shadow: 5px 5px 0px #ff00ff;
+            font-size: 32px;
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        p {
+            color: #fff;
+            font-size: 18px;
+            margin: 10px 0;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-family: 'Bangers', cursive;
+            font-size: 28px;
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            border: 4px solid #ffffff;
+            color: black;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: transform 0.1s;
+            box-shadow: 0 0 20px #ff00ff;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .slang-text {
+            color: #00ffff;
+            text-transform: uppercase;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div>
+                <div class="score-box">SCORE: <span id="scoreDisplay">0</span></div>
+                <div class="highscore-box">BEST: <span id="highScoreDisplay">0</span></div>
+            </div>
+            <div class="multiplier-box">SPEED: <span id="speedDisplay">1.0x</span></div>
+        </div>
+        
+        <div id="powerupContainer" class="powerup-container">
+            <div class="powerup-label">SAHUR MODE!</div>
+            <div id="powerup-bar"></div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>TRALALA<br>SURFERS</h1>
+        <p>Run as <span class="slang-text">Shark</span> (🦈)</p>
+        <p>Avoid <span class="slang-text">Tung Tung</span> & <span class="slang-text">Croc</span></p>
+        <button class="btn" id="startBtn">START</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1>WAKE UP!</h1>
+        <p>Sahur Sahur!</p>
+        <p>Final Score: <span id="finalScore" class="slang-text">0</span></p>
+        <p>High Score: <span id="finalHighScore" class="slang-text">0</span></p>
+        <p id="msgDisplay">Tung Tung Tung.</p>
+        <button class="btn" id="restartBtn">RETRY</button>
+    </div>
+</div>
+
+<script>
+/**
+ * MEME VERSE SURFERS
+ */
+
+// --- ASSETS & AUDIO LINKS ---
+const AUDIO_TRALALA_URL = "https://www.dropbox.com/scl/fi/oav2hhtpgwmxpn6880bvk/Tralalelo_Tralala.mp3.mpeg?rlkey=rjtq1wr96p99rbr68h497pyf0&st=x3lbikfl&dl=0";   
+const AUDIO_TUNG_TUNG_URL = "https://www.dropbox.com/scl/fi/asgmoitl3vnqrrp6e1l9v/Tung_Tung_Tung_Sahur_OFFICIAL_SOUND.mp3.mpeg?rlkey=h4u85dckgb53w5t94jss5ymcp&st=i6kon53o&dl=0"; 
+const AUDIO_SAHUR_URL = "https://www.dropbox.com/scl/fi/llk3vruqffk6o9qqh5lj6/Bombardirocrcocodisound.mp3.mpeg?rlkey=gvnizfbzt3jh3ans5408d2mpm&st=nrd0dclu&dl=0";     
+
+// Background Music (Updated to new Dropbox link)
+const MUSIC_BG_URL = "https://www.dropbox.com/scl/fi/lceo7qbi2r1prkfydnpmo/DefaultSoundtrackDay.mp3.mpeg?rlkey=oprhkc3w5e5lv8fh7np7am3g8&st=k85q6n2k&dl=0"; 
+// Powerup Music (Updated to new Dropbox link - same as BG as requested)
+const MUSIC_POWERUP_URL = "https://www.dropbox.com/scl/fi/lceo7qbi2r1prkfydnpmo/DefaultSoundtrackDay.mp3.mpeg?rlkey=oprhkc3w5e5lv8fh7np7am3g8&st=k85q6n2k&dl=0";
+
+// --- IMAGES (Dropbox Links Converted to Direct) ---
+// Shark Player
+const IMG_SHARK = new Image(); 
+IMG_SHARK.crossOrigin = "anonymous";
+IMG_SHARK.src = "https://dl.dropboxusercontent.com/scl/fi/xcuvq2a2h4p4elshzoc9b/TralaleroTralala.webp?rlkey=fcxvsidj9ixg7b9mb700zdqn7&st=sqhbdmc6&dl=0";
+
+// Croc (Bombardiro) Enemy
+const IMG_CROC = new Image(); 
+IMG_CROC.crossOrigin = "anonymous";
+IMG_CROC.src = "https://dl.dropboxusercontent.com/scl/fi/fuaoqhpxbf7hchy5en11q/A_flying_alligator.webp?rlkey=baztfep9rjhom35708anwmifg&st=qcgj92yd&dl=0";
+
+// Tung Tung (Log) Enemy
+const IMG_LOG = new Image(); 
+IMG_LOG.crossOrigin = "anonymous";
+IMG_LOG.src = "https://dl.dropboxusercontent.com/scl/fi/1nsl01gc7xyk9heu15mct/Tung_Tung_Tung_Sahur.webp?rlkey=iqxjy3fqluj859lf7mgph718h&st=bww3a33t&dl=0";
+
+// Bomb (Flying Alligator) Enemy
+const IMG_BOMB = new Image();
+IMG_BOMB.crossOrigin = "anonymous";
+IMG_BOMB.src = "https://dl.dropboxusercontent.com/scl/fi/fuaoqhpxbf7hchy5en11q/A_flying_alligator.webp?rlkey=baztfep9rjhom35708anwmifg&st=qcgj92yd&dl=0";
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const highScoreDisplay = document.getElementById('highScoreDisplay');
+const speedDisplay = document.getElementById('speedDisplay');
+const powerupContainer = document.getElementById('powerupContainer');
+const powerupBar = document.getElementById('powerup-bar');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const finalScoreDisplay = document.getElementById('finalScore');
+const finalHighScoreDisplay = document.getElementById('finalHighScore');
+const msgDisplay = document.getElementById('msgDisplay');
+const gameContainer = document.getElementById('game-container');
+
+// Game State
+let isPlaying = false;
+let score = 0;
+let highScore = localStorage.getItem('tralalaHighScore') || 0;
+let gameSpeed = 10;
+let frameCount = 0;
+let shakeAmount = 0;
+
+highScoreDisplay.innerText = highScore;
+
+// Constants
+const FOV = 600; 
+const LANE_WIDTH = 140; 
+const CAM_HEIGHT = 160;
+const Z_FAR = 3000;
+const GRAVITY = 1.2;
+const JUMP_FORCE = 24;
+
+// World Objects
+let player;
+let obstacles = [];
+let particles = [];
+
+// Assets Emojis (Fallback if images fail to load)
+const EMOJI_SHARK = "🦈"; 
+const EMOJI_LOG = "🪵"; 
+const EMOJI_CROC = "🐊"; 
+const EMOJI_BOMB = "💣"; 
+const EMOJI_COIN = "🪙"; 
+const EMOJI_POWERUP = "⚡"; 
+const EMOJI_DRUM = "🥁"; 
+
+// Audio System
+const AudioSys = {
+    ctx: null,
+    sounds: {},
+    bgMusic: null,
+    powerMusic: null,
+    
+    fixUrl: function(url) {
+        if (!url) return "";
+        if (url.includes("dl.dropboxusercontent.com")) return url;
+        
+        let fixedUrl = url;
+        if (fixedUrl.includes("www.dropbox.com")) {
+            fixedUrl = fixedUrl.replace("www.dropbox.com", "dl.dropboxusercontent.com");
+        } else if (fixedUrl.includes("dropbox.com")) {
+            fixedUrl = fixedUrl.replace("dropbox.com", "dl.dropboxusercontent.com");
+        }
+        return fixedUrl;
+    },
+
+    init: function() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        const tralala = this.fixUrl(AUDIO_TRALALA_URL);
+        const tung = this.fixUrl(AUDIO_TUNG_TUNG_URL);
+        const sahur = this.fixUrl(AUDIO_SAHUR_URL);
+        const bgLink = this.fixUrl(MUSIC_BG_URL);
+        const powerLink = this.fixUrl(MUSIC_POWERUP_URL);
+
+        // SFX
+        if(tralala) { this.sounds.tralala = new Audio(tralala); this.sounds.tralala.crossOrigin = "anonymous"; }
+        if(tung) { this.sounds.tung = new Audio(tung); this.sounds.tung.crossOrigin = "anonymous"; }
+        if(sahur) { this.sounds.sahur = new Audio(sahur); this.sounds.sahur.crossOrigin = "anonymous"; }
+
+        // Music setup 
+        if (bgLink) {
+            this.bgMusic = new Audio(bgLink); 
+            this.bgMusic.loop = true;
+            this.bgMusic.volume = 0.5;
+            this.bgMusic.crossOrigin = "anonymous";
+        }
+
+        if (powerLink) {
+            this.powerMusic = new Audio(powerLink); 
+            this.powerMusic.loop = true;
+            this.powerMusic.volume = 0.6;
+            this.powerMusic.crossOrigin = "anonymous";
+        }
+    },
+
+    startMusic: function() {
+        if(this.bgMusic) this.bgMusic.play().catch(e => console.log("Music Autoplay Blocked or Invalid Link"));
+    },
+
+    stopMusic: function() {
+        if(this.bgMusic) { this.bgMusic.pause(); this.bgMusic.currentTime = 0; }
+        if(this.powerMusic) { this.powerMusic.pause(); this.powerMusic.currentTime = 0; }
+    },
+
+    switchMusic: function(isPowerup) {
+        if(isPowerup) {
+            if(this.bgMusic) this.bgMusic.pause();
+            if(this.powerMusic) this.powerMusic.play().catch(e => {});
+        } else {
+            if(this.powerMusic) this.powerMusic.pause();
+            if(this.bgMusic) this.bgMusic.play().catch(e => {});
+        }
+    },
+
+    playTone: function(freq, type, duration, vol=0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+
+    playJump: function() { this.playTone(400, 'sine', 0.2); },
+    
+    playCoin: function() { 
+        if(this.sounds.tralala) {
+            const sound = this.sounds.tralala.cloneNode();
+            sound.volume = 0.6;
+            sound.play().catch(e => {});
+        } else {
+            this.playTone(1500, 'square', 0.1, 0.05); 
+        }
+    },
+    
+    playCrash: function() { 
+        if(this.sounds.tung) {
+            this.sounds.tung.currentTime = 0;
+            this.sounds.tung.play().catch(e => {});
+        } else {
+            this.playTone(100, 'sawtooth', 0.3); 
+        }
+    },
+    
+    playPowerupSFX: function() {
+        if(this.sounds.sahur) {
+            this.sounds.sahur.currentTime = 0;
+            this.sounds.sahur.play().catch(e => {});
+        } else {
+            this.playTone(600, 'sawtooth', 0.5, 0.1);
+        }
+    }
+};
+
+class Player {
+    constructor() {
+        this.lane = 0; 
+        this.x = 0; 
+        this.y = 0; 
+        this.z = 100;
+        this.vy = 0;
+        this.isJumping = false;
+        this.isDucking = false;
+        this.duckTimer = 0;
+        this.targetLaneX = 0;
+        this.isInvincible = false;
+        this.invincibleTimer = 0;
+    }
+
+    update() {
+        this.targetLaneX = this.lane * LANE_WIDTH;
+        this.x += (this.targetLaneX - this.x) * 0.25; 
+
+        if (this.isJumping) {
+            this.y += this.vy;
+            this.vy -= GRAVITY;
+            if (this.y <= 0) {
+                this.y = 0;
+                this.isJumping = false;
+                this.vy = 0;
+            }
+        } else if (this.isDucking) {
+            this.duckTimer--;
+            if (this.duckTimer <= 0) this.isDucking = false;
+        }
+
+        if (this.isInvincible) {
+            this.invincibleTimer--;
+            const pct = (this.invincibleTimer / 300) * 100;
+            powerupBar.style.width = `${pct}%`;
+            
+            const hue = (frameCount * 5) % 360;
+            gameContainer.style.background = `linear-gradient(${frameCount}deg, hsl(${hue}, 100%, 50%), hsl(${hue+180}, 100%, 50%))`;
+
+            if (this.invincibleTimer <= 0) {
+                this.deactivatePowerup();
+            }
+            shakeAmount = 5;
+        } else {
+            shakeAmount = Math.max(0, shakeAmount - 1);
+        }
+    }
+
+    activatePowerup() {
+        this.isInvincible = true;
+        this.invincibleTimer = 300; 
+        AudioSys.playPowerupSFX();
+        AudioSys.switchMusic(true); // Play Rap
+        powerupContainer.style.display = 'block';
+        
+        for(let i=0; i<20; i++) {
+            particles.push(new Particle(0, 100, "⚡", "#ffff00"));
+        }
+    }
+    
+    deactivatePowerup() {
+        this.isInvincible = false;
+        AudioSys.switchMusic(false); // Back to BG
+        powerupContainer.style.display = 'none';
+        gameContainer.style.background = 'linear-gradient(to bottom, #0f0c29 0%, #302b63 50%, #24243e 100%)';
+    }
+
+    jump() {
+        if (!this.isJumping && !this.isDucking) {
+            this.isJumping = true;
+            this.vy = JUMP_FORCE;
+            AudioSys.playJump();
+        }
+    }
+
+    duck() {
+        if (!this.isJumping && !this.isDucking) {
+            this.isDucking = true;
+            this.duckTimer = 40; 
+        } else if (this.isJumping) {
+            this.vy = -18; 
+        }
+    }
+
+    moveLane(dir) {
+        if (this.lane + dir >= -1 && this.lane + dir <= 1) {
+            this.lane += dir;
+        }
+    }
+}
+
+class Entity {
+    constructor(z, lane, type) {
+        this.z = z;
+        this.lane = lane;
+        this.x = lane * LANE_WIDTH;
+        this.type = type; 
+        this.y = 0; 
+        this.active = true;
+        this.scale = 1.0;
+        
+        if (type === 'obstacle') {
+            const rand = Math.random();
+            // Logic for specific enemies
+            if (rand < 0.3) {
+                this.typeId = 'log'; // Tung Tung
+            } else if (rand < 0.6) {
+                this.typeId = 'drum'; // Drum
+            } else if (rand < 0.8) {
+                this.typeId = 'croc'; // Bombardiro Croc
+            } else {
+                this.typeId = 'bomb'; // Bomb
+            }
+            
+            // Flying logic
+            if ((this.typeId === 'croc' || this.typeId === 'bomb') && Math.random() > 0.6) {
+                this.y = 140; 
+                this.isFlying = true;
+            } else if (this.typeId === 'drum' && Math.random() > 0.8) {
+                this.y = 130;
+                this.isFlying = true;
+            } else {
+                this.isFlying = false;
+            }
+
+        } else if (type === 'coin') {
+            this.typeId = 'coin';
+            this.y = Math.random() > 0.5 ? 90 : 30; 
+        } else if (type === 'powerup') {
+            this.typeId = 'powerup';
+            this.y = 60;
+        }
+    }
+
+    update(speed) {
+        this.z -= speed;
+        if (this.z < -100) this.active = false;
+    }
+}
+
+class Particle {
+    constructor(x, y, text, color) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.color = color;
+        this.life = 1.0;
+        this.vy = -4 - Math.random() * 4;
+        this.vx = (Math.random() - 0.5) * 15;
+    }
+    
+    update() {
+        this.y += this.vy;
+        this.x += this.vx;
+        this.life -= 0.03;
+    }
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function project(x, y, z) {
+    const scale = FOV / (FOV + z);
+    const shakeX = (Math.random() - 0.5) * shakeAmount;
+    const shakeY = (Math.random() - 0.5) * shakeAmount;
+    const screenX = (canvas.width / 2) + (x * scale) + shakeX;
+    const screenY = (canvas.height / 2) - ((y - CAM_HEIGHT) * scale) + shakeY;
+    return { x: screenX, y: screenY, scale: scale };
+}
+
+function spawnObstacle() {
+    const lane = Math.floor(Math.random() * 3) - 1; 
+    const zPos = Z_FAR;
+    
+    if (Math.random() < 0.05) {
+        obstacles.push(new Entity(zPos, lane, 'powerup'));
+        return;
+    }
+
+    obstacles.push(new Entity(zPos, lane, 'obstacle'));
+    
+    if (Math.random() > 0.3) {
+        let coinLane = Math.floor(Math.random() * 3) - 1;
+        if (coinLane !== lane) {
+            obstacles.push(new Entity(zPos, coinLane, 'coin'));
+            obstacles.push(new Entity(zPos + 100, coinLane, 'coin'));
+        }
+    }
+}
+
+function checkCollisions() {
+    const hitZDepth = 60; 
+    
+    for (let obj of obstacles) {
+        if (!obj.active) continue;
+
+        if (Math.abs(obj.z - player.z) < hitZDepth) {
+            if (obj.lane === player.lane) {
+                
+                if (obj.typeId === 'coin') {
+                    obj.active = false;
+                    score += 10;
+                    AudioSys.playCoin();
+                    if (Math.random() > 0.7) {
+                        const p = project(player.x, player.y + 120, player.z);
+                        const words = ["TRALALA", "DING DING", "SAHUR!", "WOW"];
+                        particles.push(new Particle(p.x, p.y, words[Math.floor(Math.random()*words.length)], "#00ffff"));
+                    }
+                } 
+                else if (obj.typeId === 'powerup') {
+                    obj.active = false;
+                    player.activatePowerup();
+                    const p = project(player.x, player.y + 120, player.z);
+                    particles.push(new Particle(p.x, p.y, "SAHUR MODE!", "#ffff00"));
+                }
+                else { // Obstacle
+                    if (player.isInvincible) {
+                        obj.active = false;
+                        score += 100;
+                        shakeAmount = 20; 
+                        const p = project(obj.x, obj.y, obj.z);
+                        particles.push(new Particle(p.x, p.y, "BOOM", "#ff0000"));
+                        return;
+                    }
+
+                    let hit = true;
+                    if (obj.isFlying) {
+                        if (player.isDucking) hit = false;
+                    } else {
+                        if (player.y > 70) hit = false; 
+                    }
+
+                    if (hit) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+    }
+}
+
+function update() {
+    if (!isPlaying) return;
+
+    player.update();
+    const currentSpeed = (gameSpeed + (score / 500)) * (player.isInvincible ? 1.5 : 1); 
+    let spawnRate = Math.floor(60 - currentSpeed);
+    if (spawnRate < 20) spawnRate = 20;
+    
+    if (frameCount % spawnRate === 0) spawnObstacle();
+    
+    obstacles.forEach(obj => obj.update(currentSpeed));
+    obstacles = obstacles.filter(obj => obj.active);
+    
+    particles.forEach(p => p.update());
+    particles = particles.filter(p => p.life > 0);
+
+    checkCollisions();
+    
+    score++;
+    scoreDisplay.innerText = Math.floor(score);
+    speedDisplay.innerText = (currentSpeed / 10).toFixed(1) + "x";
+    frameCount++;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (!player.isInvincible) {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#0f0c29');
+        grad.addColorStop(0.5, '#302b63');
+        grad.addColorStop(1, '#24243e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    const gridSpacing = 200;
+    const offset = (frameCount * (gameSpeed + score/500)) % gridSpacing;
+    
+    ctx.lineWidth = 4;
+    for (let z = 0; z < Z_FAR; z += gridSpacing) {
+        const drawZ = z - offset;
+        if (drawZ < 10) continue;
+        const pLeft = project(-1.5 * LANE_WIDTH, 0, drawZ);
+        const pRight = project(1.5 * LANE_WIDTH, 0, drawZ);
+        ctx.globalAlpha = 0.5 * (1 - (drawZ / Z_FAR));
+        ctx.strokeStyle = player.isInvincible ? "#ffff00" : "#ff00ff";
+        ctx.beginPath(); ctx.moveTo(pLeft.x, pLeft.y); ctx.lineTo(pRight.x, pRight.y); ctx.stroke();
+    }
+    
+    ctx.strokeStyle = "#00ffff"; ctx.globalAlpha = 0.3; ctx.beginPath();
+    for (let l = -1.5; l <= 1.5; l += 1) {
+        const p1 = project(l * LANE_WIDTH, 0, 10);
+        const p2 = project(l * LANE_WIDTH, 0, Z_FAR);
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1.0;
+
+    let renderList = [...obstacles];
+    const playerRenderObj = { isPlayer: true, z: player.z, y: player.y, x: player.x };
+    renderList.push(playerRenderObj);
+    renderList.sort((a, b) => b.z - a.z); 
+
+    renderList.forEach(obj => {
+        if (obj.isPlayer) drawPlayer();
+        else drawEntity(obj);
+    });
+    
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.font = "bold 30px 'Bangers'";
+        ctx.textAlign = "center";
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate((Math.random()-0.5)*0.2);
+        ctx.fillText(p.text, 0, 0); ctx.restore();
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+function drawEntity(obj) {
+    const p = project(obj.x, obj.y, obj.z);
+    const size = 130 * p.scale;
+    
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, size/3, size/6, 0, 0, Math.PI*2); ctx.fill();
+    
+    let img = null;
+    let txt = "";
+
+    if (obj.typeId === 'log') {
+        img = IMG_LOG; txt = EMOJI_LOG;
+    } else if (obj.typeId === 'croc') {
+        img = IMG_CROC; txt = EMOJI_CROC;
+    } else if (obj.typeId === 'coin') {
+        txt = EMOJI_COIN;
+    } else if (obj.typeId === 'powerup') {
+        txt = EMOJI_POWERUP;
+    } else if (obj.typeId === 'bomb') {
+        img = IMG_BOMB; txt = EMOJI_BOMB;
+    } else {
+        txt = EMOJI_DRUM;
+    }
+
+    // Draw Image if loaded, else text
+    if (img && img.complete && img.naturalWidth > 0) {
+        // Keep aspect ratio approx
+        ctx.drawImage(img, p.x - size/2, p.y - size, size, size);
+    } else {
+        ctx.font = `${size}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText(txt, p.x, p.y);
+    }
+}
+
+function drawPlayer() {
+    const p = project(player.x, player.y, player.z);
+    const size = (player.isInvincible ? 180 : 130) * p.scale;
+
+    if (player.y > 10) {
+        const groundP = project(player.x, 0, player.z);
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.beginPath();
+        const shadowScale = Math.max(0.2, 1 - (player.y / 250));
+        ctx.ellipse(groundP.x, groundP.y, (size/3)*shadowScale, (size/6)*shadowScale, 0, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    if (player.isInvincible) {
+        ctx.shadowBlur = 30; ctx.shadowColor = "#ffff00";
+    } else {
+        ctx.shadowBlur = 0;
+    }
+
+    let wobble = 0;
+    if (player.y === 0 && isPlaying) {
+        wobble = Math.sin(frameCount * 0.3) * 8;
+    }
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(wobble * Math.PI / 180);
+
+    // Draw Shark Image if loaded, else emoji
+    if (IMG_SHARK.complete && IMG_SHARK.naturalWidth > 0 && !player.isDucking) {
+        ctx.drawImage(IMG_SHARK, -size/2, -size, size, size);
+    } else {
+        ctx.font = `${size}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        let sprite = "🦈";
+        if (player.isDucking) sprite = "👟";
+        if (!isPlaying) sprite = "💀";
+        ctx.fillText(sprite, 0, 0);
+    }
+
+    ctx.restore();
+    ctx.shadowBlur = 0; 
+}
+
+function init() {
+    resize();
+    window.addEventListener('resize', resize);
+    document.addEventListener('keydown', handleInput);
+    
+    let touchStartX = 0;
+    let touchStartY = 0;
+    document.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, {passive: false});
+    
+    document.addEventListener('touchend', e => {
+        const touchEndX = e.changedTouches[0].screenX;
+        const touchEndY = e.changedTouches[0].screenY;
+        handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
+    }, {passive: false});
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', startGame);
+    
+    player = new Player();
+    requestAnimationFrame(loop);
+}
+
+function startGame() {
+    AudioSys.init();
+    AudioSys.startMusic();
+    score = 0;
+    gameSpeed = 15;
+    obstacles = [];
+    particles = [];
+    player = new Player();
+    isPlaying = true;
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    player.deactivatePowerup();
+}
+
+function gameOver() {
+    isPlaying = false;
+    AudioSys.playCrash();
+    AudioSys.stopMusic();
+    
+    // Save High Score
+    if (score > highScore) {
+        highScore = Math.floor(score);
+        localStorage.setItem('tralalaHighScore', highScore);
+        highScoreDisplay.innerText = highScore;
+    }
+    
+    const messages = [
+        "TUNG TUNG TUNG!", 
+        "Sahur Sahur!", 
+        "Croc ate you.", 
+        "Bombardiro!",
+        "You Lost!"
+    ];
+    msgDisplay.innerText = messages[Math.floor(Math.random() * messages.length)];
+    finalScoreDisplay.innerText = Math.floor(score);
+    finalHighScoreDisplay.innerText = highScore;
+    
+    gameOverScreen.classList.remove('hidden');
+    player.deactivatePowerup();
+}
+
+function handleInput(e) {
+    if (!isPlaying) return;
+    switch(e.key) {
+        case 'ArrowLeft': case 'a': case 'A': player.moveLane(-1); break;
+        case 'ArrowRight': case 'd': case 'D': player.moveLane(1); break;
+        case 'ArrowUp': case 'w': case 'W': case ' ': player.jump(); break;
+        case 'ArrowDown': case 's': case 'S': player.duck(); break;
+    }
+}
+
+function handleSwipe(x1, y1, x2, y2) {
+    if (!isPlaying) return;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (Math.abs(dx) > 30) dx > 0 ? player.moveLane(1) : player.moveLane(-1);
+    } else {
+        if (Math.abs(dy) > 30) dy < 0 ? player.jump() : player.duck();
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+init();
+
+</script>
+</body>
+</html>

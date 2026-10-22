@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCU Chronological Watch Order Checklist</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background-color: white !important;
+        color: black !important;
+        font-size: 11pt;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .page-break-inside-avoid {
+        break-inside: avoid;
+      }
+      .print-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.75rem !important;
+      }
+      .print-card {
+        border: 1px solid #d1d5db !important;
+        background: white !important;
+        color: black !important;
+        box-shadow: none !important;
+        padding: 0.5rem 0.75rem !important;
+      }
+      .print-title {
+        color: #111827 !important;
+      }
+      .print-tag {
+        border: 1px solid #9ca3af !important;
+        color: #374151 !important;
+        background: transparent !important;
+      }
+      .checkbox-print {
+        border: 1.5px solid #000 !important;
+        border-radius: 2px !important;
+        width: 14px !important;
+        height: 14px !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-16 selection:bg-red-600 selection:text-white">
+
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-red-900 via-slate-900 to-slate-950 border-b border-slate-800 relative overflow-hidden">
+    <div class="absolute -right-10 -top-10 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold uppercase tracking-wider mb-3">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 8 0 100-16 8 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"/></svg>
+            Chronological Timeline
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            Marvel Cinematic Universe <span class="text-red-500">Watch List</span>
+          </h1>
+          <p class="mt-2 text-slate-400 text-sm sm:text-base max-w-xl">
+            The definitive chronological viewing order for rewatching the entire MCU—from Captain America's WWII roots to the Multiverse Saga.
+          </p>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex flex-wrap items-center gap-3 no-print">
+          <button onclick="window.print()" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-semibold text-sm transition shadow-lg shadow-red-900/30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Print / Save PDF
+          </button>
+          <button onclick="resetProgress()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-sm transition border border-slate-700">
+            Reset Progress
+          </button>
+        </div>
+      </div>
+
+      <!-- Tracker Bar -->
+      <div class="mt-8 bg-slate-900/80 border border-slate-800 rounded-xl p-4 sm:p-5 backdrop-blur">
+        <div class="flex items-center justify-between text-sm mb-2">
+          <span class="font-semibold text-slate-200">Rewatch Progress</span>
+          <span id="progress-text" class="font-bold text-red-400">0 / 0 Completed (0%)</span>
+        </div>
+        <div class="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
+          <div id="progress-bar" class="bg-gradient-to-r from-red-600 to-amber-500 h-full w-0 transition-all duration-500 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 no-print">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+      
+      <!-- Filter Tabs -->
+      <div class="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+        <button onclick="setFilter('all')" id="btn-filter-all" class="px-3 py-1.5 rounded-lg bg-red-600 text-white transition">All</button>
+        <button onclick="setFilter('movie')" id="btn-filter-movie" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Movies Only</button>
+        <button onclick="setFilter('show')" id="btn-filter-show" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Shows & Specials</button>
+        <button onclick="setFilter('unwatched')" id="btn-filter-unwatched" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Remaining</button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative min-w-[220px]">
+        <input type="text" id="search-input" oninput="handleSearch()" placeholder="Search movie or show..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-red-500 transition">
+        <svg class="w-4 h-4 text-slate-500 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Checklist Content -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-10" id="checklist-container">
+    <!-- JS will populate sections here -->
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-8 border-t border-slate-800 text-center text-xs text-slate-500 no-print">
+    Marvel Cinematic Universe Chronological Guide • Built for Rewatching • Saves progress automatically in your browser.
+  </footer>
+
+  <script>
+    // Complete MCU Chronological Dataset
+    const mcuTimeline = [
+      {
+        era: "1. Historical Origins & Early Foundations",
+        description: "From WWII through the mid-1990s establishing super-soldier origins and cosmic roots.",
+        items: [
+          { id: "mcu-1", title: "Captain America: The First Avenger", year: "1942–1945", type: "movie", note: "WWII & Steve Rogers origin" },
+          { id: "mcu-2", title: "Agent Carter (Seasons 1–2)", year: "1946–1947", type: "show", note: "Early SSR & Peggy Carter" },
+          { id: "mcu-3", title: "Captain Marvel", year: "1995", type: "movie", note: "Kree-Skrull War & Nick Fury's eye" }
+        ]
+      },
+      {
+        era: "2. The Age of Iron & Avengers Assemble",
+        description: "The modern era begins, culminating in Fury's Big Week and the Battle of New York.",
+        items: [
+          { id: "mcu-4", title: "Iron Man", year: "2008 / 2010", type: "movie", note: "Tony Stark builds Mark I" },
+          { id: "mcu-5", title: "Iron Man 2", year: "2011", type: "movie", note: "Happens during Fury's Big Week" },
+          { id: "mcu-6", title: "The Incredible Hulk", year: "2011", type: "movie", note: "Culminates in Harlem battle" },
+          { id: "mcu-7", title: "Thor", year: "2011", type: "movie", note: "Thor banished to New Mexico" },
+          { id: "mcu-8", title: "The Avengers", year: "2012", type: "movie", note: "Battle of New York crossover" },
+          { id: "mcu-9", title: "Iron Man 3", year: "2012", type: "movie", note: "Post-New York PTSD & Extremis" }
+        ]
+      },
+      {
+        era: "3. Cosmic Expansion & The Ultron Crisis",
+        description: "The universe grows into the cosmos while Earth deals with artificial intelligence and fallouts.",
+        items: [
+          { id: "mcu-10", title: "Thor: The Dark World", year: "2013", type: "movie", note: "Convergence & The Reality Stone" },
+          { id: "mcu-11", title: "Captain America: The Winter Soldier", year: "2014", type: "movie", note: "Fall of S.H.I.E.L.D." },
+          { id: "mcu-12", title: "Guardians of the Galaxy", year: "2014", type: "movie", note: "Power Stone in Xandar" },
+          { id: "mcu-13", title: "Guardians of the Galaxy Vol. 2", year: "2014", type: "movie", note: "Takes place 2 months after Vol. 1" },
+          { id: "mcu-14", title: "I Am Groot (Shorts S1–S2)", year: "2014", type: "special", note: "Baby Groot adventures" },
+          { id: "mcu-15", title: "Avengers: Age of Ultron", year: "2015", type: "movie", note: "Sokovia conflict & Mind Stone" },
+          { id: "mcu-16", title: "Ant-Man", year: "2015", type: "movie", note: "Pym particles & heist" }
+        ]
+      },
+      {
+        era: "4. Schism, Fractures & Infinity War",
+        description: "Heroes divide over the Sokovia Accords right before Thanos sets his sights on Earth.",
+        items: [
+          { id: "mcu-17", title: "Captain America: Civil War", year: "2016", type: "movie", note: "Sokovia Accords split" },
+          { id: "mcu-18", title: "Black Widow", year: "2016", type: "movie", note: "Set immediately after Civil War" },
+          { id: "mcu-19", title: "Black Panther", year: "2016", type: "movie", note: "Wakanda succession following Civil War" },
+          { id: "mcu-20", title: "Spider-Man: Homecoming", year: "2016", type: "movie", note: "Peter Parker post-Civil War" },
+          { id: "mcu-21", title: "Doctor Strange", year: "2016–2017", type: "movie", note: "Sorcerer Supreme & Time Stone" },
+          { id: "mcu-22", title: "Thor: Ragnarok", year: "2017", type: "movie", note: "Destruction of Asgard" },
+          { id: "mcu-23", title: "Ant-Man and the Wasp", year: "2018", type: "movie", note: "Quantum Realm (ends during Snap)" },
+          { id: "mcu-24", title: "Avengers: Infinity War", year: "2018", type: "movie", note: "Thanos collects the 6 Stones" },
+          { id: "mcu-25", title: "Avengers: Endgame", year: "2018 / 2023", type: "movie", note: "Time Heist & Battle of Earth" }
+        ]
+      },
+      {
+        era: "5. Optional: Street-Level Defenders Saga",
+        description: "Gritty street-level stories best experienced before modern street-level events.",
+        items: [
+          { id: "mcu-def-1", title: "Daredevil (Seasons 1–3)", year: "2015–2018", type: "show", note: "Matt Murdock vs Kingpin" },
+          { id: "mcu-def-2", title: "Jessica Jones (Seasons 1–3)", year: "2015–2019", type: "show", note: "Alias Investigations" },
+          { id: "mcu-def-3", title: "Luke Cage (Seasons 1–2)", year: "2016–2018", type: "show", note: "Hero of Harlem" },
+          { id: "mcu-def-4", title: "Iron Fist (Seasons 1–2)", year: "2017–2018", type: "show", note: "K'un-Lun protector" },
+          { id: "mcu-def-5", title: "The Defenders", year: "2017", type: "show", note: "Team-up event against The Hand" },
+          { id: "mcu-def-6", title: "The Punisher (Seasons 1–2)", year: "2017–2019", type: "show", note: "Frank Castle crusade" }
+        ]
+      },
+      {
+        era: "6. Multiverse & Post-Snap Rebuilding",
+        description: "The aftermath of the Snap, time branching, and opening of the Multiverse.",
+        items: [
+          { id: "mcu-26", title: "Loki (Seasons 1 & 2)", year: "Outside Time", type: "show", note: "TVA & Multiverse branching (watch right after Endgame)" },
+          { id: "mcu-27", title: "What If...? (Seasons 1–3)", year: "Multiverse", type: "show", note: "Alternate reality animated tales" },
+          { id: "mcu-28", title: "WandaVision", year: "2023", type: "show", note: "Westview anomaly (3 weeks post-Endgame)" },
+          { id: "mcu-29", title: "The Falcon and the Winter Soldier", year: "2024", type: "show", note: "Captain America legacy" },
+          { id: "mcu-30", title: "Shang-Chi and the Legend of Ten Rings", year: "2024", type: "movie", note: "Ten Rings origin" },
+          { id: "mcu-31", title: "Eternals", year: "2024", type: "movie", note: "Emergence event" },
+          { id: "mcu-32", title: "Spider-Man: Far From Home", year: "2024", type: "movie", note: "European trip post-Endgame" },
+          { id: "mcu-33", title: "Spider-Man: No Way Home", year: "2024", type: "movie", note: "Multiverse villains collide" },
+          { id: "mcu-34", title: "Doctor Strange in Multiverse of Madness", year: "2024", type: "movie", note: "Incursions & Darkhold" }
+        ]
+      },
+      {
+        era: "7. The Next Generation & New Legends",
+        description: "New champions emerge as new cosmic and supernatural threats loom.",
+        items: [
+          { id: "mcu-35", title: "Hawkeye", year: "2024 (Christmas)", type: "show", note: "Clint Barton & Kate Bishop" },
+          { id: "mcu-36", title: "Moon Knight", year: "2025", type: "show", note: "Egyptian pantheon" },
+          { id: "mcu-37", title: "Echo", year: "2025", type: "show", note: "Maya Lopez vs Kingpin" },
+          { id: "mcu-38", title: "She-Hulk: Attorney at Law", year: "2025", type: "show", note: "Jennifer Walters" },
+          { id: "mcu-39", title: "Ms. Marvel", year: "2025", type: "show", note: "Kamala Khan origin" },
+          { id: "mcu-40", title: "Thor: Love and Thunder", year: "2025", type: "movie", note: "Gorr & Mighty Thor" },
+          { id: "mcu-41", title: "Werewolf by Night", year: "2025", type: "special", note: "Monsters & Bloodstone" },
+          { id: "mcu-42", title: "Black Panther: Wakanda Forever", year: "2025", type: "movie", note: "Namor & Talokan conflict" },
+          { id: "mcu-43", title: "Guardians of Galaxy Holiday Special", year: "2025", type: "special", note: "Knowhere Christmas" }
+        ]
+      },
+      {
+        era: "8. Multiverse Escalation & The Current Era",
+        description: "The culmination of the Multiverse saga and major new cinematic chapters.",
+        items: [
+          { id: "mcu-44", title: "Ant-Man and the Wasp: Quantumania", year: "2026", type: "movie", note: "Kang in Quantum Realm" },
+          { id: "mcu-45", title: "Guardians of the Galaxy Vol. 3", year: "2026", type: "movie", note: "High Evolutionary & Rocket's past" },
+          { id: "mcu-46", title: "Secret Invasion", year: "2026", type: "show", note: "Skrull infiltration on Earth" },
+          { id: "mcu-47", title: "The Marvels", year: "2026", type: "movie", note: "Carol, Kamala & Monica entangle" },
+          { id: "mcu-48", title: "Deadpool & Wolverine", year: "2026", type: "movie", note: "Void, TVA & Fox X-Men legacy" },
+          { id: "mcu-49", title: "Agatha All Along", year: "2026", type: "show", note: "Witches' Road adventure" },
+          { id: "mcu-50", title: "Daredevil: Born Again", year: "2026", type: "show", note: "NYC street level resurgence" },
+          { id: "mcu-51", title: "Captain America: Brave New World", year: "2026", type: "movie", note: "Sam Wilson & Red Hulk" },
+          { id: "mcu-52", title: "Thunderbolts*", year: "2026", type: "movie", note: "Anti-hero operative team" }
+        ]
+      }
+    ];
+
+    // Local Storage State
+    let checkedState = JSON.parse(localStorage.getItem('mcu_checklist_state') || '{}');
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    function saveState() {
+      localStorage.setItem('mcu_checklist_state', JSON.stringify(checkedState));
+      updateProgress();
+    }
+
+    function toggleCheck(id) {
+      checkedState[id] = !checkedState[id];
+      const checkbox = document.getElementById(`check-${id}`);
+      const card = document.getElementById(`card-${id}`);
+      
+      if (checkbox) checkbox.checked = checkedState[id];
+      if (card) {
+        if (checkedState[id]) {
+          card.classList.add('opacity-60', 'border-emerald-900/40', 'bg-slate-900/30');
+        } else {
+          card.classList.remove('opacity-60', 'border-emerald-900/40', 'bg-slate-900/30');
+        }
+      }
+      saveState();
+    }
+
+    function updateProgress() {
+      let total = 0;
+      let completed = 0;
+
+      mcuTimeline.forEach(era => {
+        era.items.forEach(item => {
+          total++;
+          if (checkedState[item.id]) completed++;
+        });
+      });
+
+      const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+      document.getElementById('progress-text').innerText = `${completed} / ${total} Completed (${percentage}%)`;
+      document.getElementById('progress-bar').style.width = `${percentage}%`;
+    }
+
+    function resetProgress() {
+      if (confirm("Are you sure you want to reset all your checked items?")) {
+        checkedState = {};
+        saveState();
+        renderChecklist();
+      }
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'movie', 'show', 'unwatched'].forEach(f => {
+        const btn = document.getElementById(`btn-filter-${f}`);
+        if (btn) {
+          if (f === filter) {
+            btn.className = "px-3 py-1.5 rounded-lg bg-red-600 text-white transition font-medium";
+          } else {
+            btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition font-medium";
+          }
+        }
+      });
+      renderChecklist();
+    }
+
+    function handleSearch() {
+      searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+      renderChecklist();
+    }
+
+    function renderChecklist() {
+      const container = document.getElementById('checklist-container');
+      container.innerHTML = '';
+
+      mcuTimeline.forEach((eraData, eraIndex) => {
+        // Filter items
+        const filteredItems = eraData.items.filter(item => {
+          const isChecked = !!checkedState[item.id];
+          
+          // Filter by tab type
+          if (currentFilter === 'movie' && item.type !== 'movie') return false;
+          if (currentFilter === 'show' && (item.type !== 'show' && item.type !== 'special')) return false;
+          if (currentFilter === 'unwatched' && isChecked) return false;
+
+          // Search query
+          if (searchQuery) {
+            const matchesTitle = item.title.toLowerCase().includes(searchQuery);
+            const matchesNote = item.note.toLowerCase().includes(searchQuery);
+            const matchesYear = item.year.toLowerCase().includes(searchQuery);
+            return matchesTitle || matchesNote || matchesYear;
+          }
+
+          return true;
+        });
+
+        if (filteredItems.length === 0) return;
+
+        // Build Era Section
+        const eraSection = document.createElement('section');
+        eraSection.className = 'page-break-inside-avoid';
+
+        const eraHeader = `
+          <div class="mb-4 border-b border-slate-800 pb-2">
+            <h2 class="text-lg sm:text-xl font-bold text-slate-100 print-title flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-red-500 inline-block no-print"></span>
+              ${eraData.era}
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">${eraData.description}</p>
+          </div>
+        `;
+
+        let itemsGrid = document.createElement('div');
+        itemsGrid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3.5 print-grid';
+
+        filteredItems.forEach(item => {
+          const isChecked = !!checkedState[item.id];
+          
+          let badgeColor = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+          let typeLabel = "Feature Film";
+          if (item.type === "show") {
+            badgeColor = "bg-purple-500/10 text-purple-400 border-purple-500/20";
+            typeLabel = "Series";
+          } else if (item.type === "special") {
+            badgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+            typeLabel = "Special";
+          }
+
+          const card = document.createElement('div');
+          card.id = `card-${item.id}`;
+          card.className = `p-3.5 rounded-xl border border-slate-800 bg-slate-900/70 hover:border-slate-700 transition cursor-pointer flex items-start gap-3.5 print-card ${isChecked ? 'opacity-60 border-emerald-900/40 bg-slate-900/30' : ''}`;
+          card.onclick = (e) => {
+            if (e.target.tagName !== 'INPUT') {
+              toggleCheck(item.id);
+            }
+          };
+
+          card.innerHTML = `
+            <div class="pt-0.5">
+              <input type="checkbox" id="check-${item.id}" ${isChecked ? 'checked' : ''} 
+                onchange="toggleCheck('${item.id}')"
+                class="w-4 h-4 rounded border-slate-700 bg-slate-950 text-red-600 focus:ring-red-500/50 focus:ring-offset-slate-900 cursor-pointer checkbox-print">
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-xs font-semibold text-slate-400">${item.year}</span>
+                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full border ${badgeColor} print-tag">${typeLabel}</span>
+              </div>
+              <h3 class="font-semibold text-sm text-slate-100 truncate print-title">${item.title}</h3>
+              <p class="text-xs text-slate-400 mt-0.5 line-clamp-1">${item.note}</p>
+            </div>
+          `;
+
+          itemsGrid.appendChild(card);
+        });
+
+        eraSection.innerHTML = eraHeader;
+        eraSection.appendChild(itemsGrid);
+        container.appendChild(eraSection);
+      });
+
+      if (container.children.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-16 text-slate-500">
+            <svg class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <p class="text-sm font-medium">No watch list items found matching your filters.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      renderChecklist();
+      updateProgress();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steal a Fluff 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: #f8fafc;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Conveyor Belt Animation */
+        .conveyor-container {
+            position: relative;
+            width: 100%;
+            height: 160px;
+            background: #1e293b;
+            border-radius: 16px;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5), 0 4px 15px rgba(0,0,0,0.4);
+            border: 2px solid #334155;
+            overflow: hidden;
+        }
+        
+        .conveyor-track {
+            position: absolute;
+            top: 20px;
+            bottom: 20px;
+            left: 0;
+            width: 200%;
+            background: repeating-linear-gradient(
+                90deg,
+                #334155,
+                #334155 40px,
+                #1e293b 40px,
+                #1e293b 80px
+            );
+            animation: moveBelt 3s linear infinite;
+            border-top: 4px solid #475569;
+            border-bottom: 4px solid #475569;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        @keyframes moveBelt {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-80px); }
+        }
+
+        .fluff-container {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 10;
+        }
+        .fluff-container:hover {
+            transform: translateY(-60%) scale(1.15);
+            z-index: 20;
+        }
+        .fluff-info {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            margin-bottom: 8px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+        .fluff-body {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.3);
+            user-select: none;
+            position: relative;
+        }
+
+        .base-fluff-wrapper {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .base-fluff-wrapper:hover {
+            transform: scale(1.15) translateY(-5px);
+        }
+        .sell-mode .base-fluff-wrapper {
+            animation: shake 0.5s infinite;
+        }
+        .sell-mode .fluff-body {
+            border-color: #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+        }
+        
+        /* Tooltip */
+        #tooltip {
+            position: fixed;
+            display: none;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 100;
+            font-size: 14px;
+            backdrop-filter: blur(8px);
+        }
+
+        /* Notifications */
+        #notifications {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .notification {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            animation: slide-down 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), fade-out 0.4s ease-in 2.6s forwards;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .notification.error { border-left: 4px solid #ef4444; }
+        .notification.success { border-left: 4px solid #10b981; }
+
+        @keyframes slide-down { from { transform: translateY(-30px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes fade-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-20px); } }
+
+        /* Fancy Text Gradients */
+        .text-gradient-green { background: linear-gradient(to right, #4ade80, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .text-gradient-blue { background: linear-gradient(to right, #60a5fa, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .text-gradient-purple { background: linear-gradient(to right, #c084fc, #9333ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            display: none; align-items: center; justify-content: center; z-index: 2000; opacity: 0; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-content {
+            background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+            width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; padding: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        
+        /* Admin Input specific */
+        .admin-input {
+            background: #0f172a; border: 1px solid #334155; color: #38bdf8; font-family: monospace;
+        }
+        .admin-input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+    <div id="notifications"></div>
+    <div id="tooltip"></div>
+
+    <!-- Index Modal -->
+    <div id="index-modal" class="modal-overlay">
+        <div class="modal-content text-white">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                <h2 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Fluff Index</h2>
+                <button id="close-modal-btn" class="text-slate-400 hover:text-white text-3xl font-bold">&times;</button>
+            </div>
+            <div class="mb-6">
+                <p class="text-slate-300 text-lg">Discovered: <span id="discovered-count" class="font-bold text-white">0</span> / <span id="total-fluffs-count">0</span></p>
+            </div>
+            <div id="index-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <!-- Index Fluffs populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="admin-login-modal" class="modal-overlay">
+        <div class="modal-content text-white !max-w-md">
+            <h2 class="text-2xl font-black text-red-500 mb-4 text-center">RESTRICTED ACCESS</h2>
+            <p class="text-slate-400 text-center mb-4 text-sm">Enter the developer passphrase to access the admin panel.</p>
+            <input type="password" id="admin-password-input" class="admin-input w-full p-3 rounded-lg mb-4 text-center text-lg" placeholder="••••••••">
+            <div class="flex gap-3">
+                <button id="admin-login-btn" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-lg transition-colors">Access</button>
+                <button onclick="document.getElementById('admin-login-modal').classList.remove('active')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Modal -->
+    <div id="admin-panel-modal" class="modal-overlay">
+        <div class="modal-content text-white !max-w-xl">
+            <div class="flex justify-between items-center mb-6 border-b border-red-900 pb-4">
+                <h2 class="text-3xl font-black text-red-500">Admin Console</h2>
+                <button onclick="document.getElementById('admin-panel-modal').classList.remove('active')" class="text-slate-400 hover:text-white text-3xl font-bold">&times;</button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Money Action -->
+                <div class="bg-black/40 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="font-bold text-blue-400 text-lg flex items-center">Add Funds <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded ml-2 uppercase tracking-wide">Just Me</span></div>
+                        <div class="text-sm text-slate-500">Instantly grants money.</div>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-1/2">
+                        <input type="number" id="admin-money-amt" class="admin-input w-full p-2 rounded-lg" value="1000000000">
+                        <button id="admin-give-money" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold shadow-lg transition-colors">Give</button>
+                    </div>
+                </div>
+
+                <!-- Capacity Action -->
+                <div class="bg-black/40 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="font-bold text-emerald-400 text-lg flex items-center">Set Capacity <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded ml-2 uppercase tracking-wide">Just Me</span></div>
+                        <div class="text-sm text-slate-500">Force your base size.</div>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-1/2">
+                        <input type="number" id="admin-cap-amt" class="admin-input w-full p-2 rounded-lg" value="50">
+                        <button id="admin-set-cap" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-bold shadow-lg transition-colors">Set</button>
+                    </div>
+                </div>
+
+                <!-- Spawn Action -->
+                <div class="bg-black/40 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="font-bold text-purple-400 text-lg flex items-center">Force Spawn <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded ml-2 uppercase tracking-wide">Just Me</span></div>
+                        <div class="text-sm text-slate-500">Spawns any fluff on belt.</div>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-1/2">
+                        <select id="admin-spawn-select" class="admin-input w-full p-2 rounded-lg text-sm bg-slate-800">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <button id="admin-do-spawn" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold shadow-lg transition-colors">Spawn</button>
+                    </div>
+                </div>
+
+                <!-- Server Message Action -->
+                <div class="bg-black/40 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="font-bold text-amber-400 text-lg flex items-center">Server Message <span class="text-xs bg-amber-700 text-white px-2 py-0.5 rounded ml-2 uppercase tracking-wide animate-pulse">Global</span></div>
+                        <div class="text-sm text-slate-500">Broadcasts a system alert.</div>
+                    </div>
+                    <div class="flex gap-2 w-full sm:w-1/2">
+                        <input type="text" id="admin-msg-val" class="admin-input w-full p-2 rounded-lg text-sm" placeholder="Message...">
+                        <button id="admin-do-msg" class="bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded-lg font-bold shadow-lg transition-colors">Send</button>
+                    </div>
+                </div>
+
+                <!-- Nuke Action -->
+                <div class="bg-black/40 p-4 rounded-xl border border-red-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="font-bold text-red-500 text-lg flex items-center">Nuke Base <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded ml-2 uppercase tracking-wide">Just Me</span></div>
+                        <div class="text-sm text-slate-500">Deletes all owned fluffs.</div>
+                    </div>
+                    <button id="admin-do-nuke" class="bg-red-600 hover:bg-red-500 px-8 py-2 rounded-lg font-bold shadow-lg transition-colors w-full sm:w-auto">NUKE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full max-w-5xl mt-6">
+        <div class="text-center mb-10 relative">
+            <h1 class="text-5xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 drop-shadow-lg inline-block py-2">
+                Steal a Fluff 2
+            </h1>
+            <p class="text-slate-400 text-lg font-semibold mt-2 tracking-wide uppercase">The Bamboo Empire</p>
+            
+            <div class="absolute top-0 right-0 flex flex-col sm:flex-row gap-2">
+                <button id="index-btn" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-bold shadow-lg active:scale-95 text-white border border-purple-400/30 transition-all">
+                    📖 Fluff Index
+                </button>
+                <button id="save-btn" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-xl font-bold shadow-lg active:scale-95 text-white border border-emerald-400/30 transition-all flex items-center justify-center gap-2">
+                    <span id="save-icon">☁️</span> Save Game
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center items-center text-center transform transition hover:-translate-y-1">
+                <p class="text-slate-400 font-bold uppercase tracking-wider text-sm mb-1">Total Funds</p>
+                <h2 class="text-4xl font-black text-gradient-green">$<span id="money-display">100</span></h2>
+            </div>
+            
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center items-center text-center transform transition hover:-translate-y-1">
+                <p class="text-slate-400 font-bold uppercase tracking-wider text-sm mb-1">Passive Income</p>
+                <h2 class="text-4xl font-black text-gradient-blue">$<span id="mps-display">0</span> <span class="text-xl text-blue-400">/sec</span></h2>
+            </div>
+
+            <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center items-center text-center transform transition hover:-translate-y-1">
+                <p class="text-slate-400 font-bold uppercase tracking-wider text-sm mb-1">Base Capacity</p>
+                <h2 class="text-4xl font-black text-gradient-purple"><span id="count-display">0</span> <span class="text-2xl text-purple-400">/ <span id="capacity-display">10</span></span></h2>
+            </div>
+        </div>
+
+        <!-- The Belt -->
+        <div class="conveyor-container mb-8">
+            <div class="conveyor-track"></div>
+            <div id="conveyor-belt" class="absolute inset-0"></div>
+        </div>
+
+        <!-- Base and Controls -->
+        <div class="glass-panel p-8 rounded-2xl">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 border-b border-slate-700/50 pb-6 gap-4">
+                <h2 class="text-2xl font-black text-white flex items-center gap-2">
+                    <span class="text-3xl">🏠</span> Your Base
+                </h2>
+                <div class="flex gap-3 w-full sm:w-auto">
+                    <button id="upgrade-btn" class="flex-1 sm:flex-none px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/25 active:scale-95 text-white">
+                        +5 Capacity <span class="bg-black/20 px-2 py-1 rounded ml-2 text-sm">$<span id="upgrade-cost">250</span></span>
+                    </button>
+                    <button id="sell-toggle-btn" class="flex-1 sm:flex-none px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-white border border-slate-500">
+                        Sell Mode: OFF
+                    </button>
+                </div>
+            </div>
+            
+            <div id="base-grid" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-4 min-h-[80px] p-4 bg-black/20 rounded-xl border border-black/40 shadow-inner">
+                <!-- Fluffs go here -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE CLOUD SAVE SETUP ---
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        const appId = 'steal-a-fluff-2';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCA-je6SyoN2igkD4zVJk9i1m2FS2lPSX4",
+            authDomain: "banana-clicker-234e9.firebaseapp.com",
+            projectId: "banana-clicker-234e9",
+            storageBucket: "banana-clicker-234e9.firebasestorage.app",
+            messagingSenderId: "510097564777",
+            appId: "1:510097564777:web:f29540ab89eb102718aef8",
+            measurementId: "G-PNT0BDMC9E"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            // Automatically log players in anonymously to tie their save to their browser
+            signInAnonymously(auth).catch((error) => {
+                console.error("Anonymous auth failed:", error);
+            });
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    await loadGameFromCloud();
+                }
+            });
+        } catch (err) {
+            console.error("Firebase init failed", err);
+        }
+
+        async function saveGameToCloud() {
+            if (!currentUser || !db) {
+                notify("Cloud saving is disconnected.", "error");
+                return;
+            }
+            const saveIcon = document.getElementById('save-icon');
+            saveIcon.textContent = "⏳";
+            try {
+                const saveData = {
+                    money,
+                    mps,
+                    capacity,
+                    capacityUpgradeCost,
+                    baseFluffs,
+                    discoveredFluffs: Array.from(discoveredFluffs)
+                };
+                
+                // Writing explicitly to the private user path
+                await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'saveData', 'main'), saveData);
+                notify("Game saved to cloud! ☁️", "success");
+            } catch (e) {
+                console.error("Save error", e);
+                notify("Failed to save to cloud.", "error");
+            }
+            saveIcon.textContent = "☁️";
+        }
+
+        async function loadGameFromCloud() {
+            if (!currentUser || !db) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'saveData', 'main');
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    money = data.money || 100;
+                    capacity = data.capacity || 10;
+                    capacityUpgradeCost = data.capacityUpgradeCost || 250;
+                    baseFluffs = data.baseFluffs || [];
+                    discoveredFluffs = new Set(data.discoveredFluffs || []);
+                    
+                    renderBase();
+                    calculateMPS();
+                    updateUI();
+                    notify("Cloud save loaded successfully!", "success");
+                }
+            } catch (e) {
+                console.error("Load error", e);
+            }
+        }
+
+        // Auto-save every 30 seconds
+        setInterval(() => {
+            if (currentUser && db) {
+                saveGameToCloud();
+            }
+        }, 30000);
+
+        // --- GAME STATE ---
+        let money = 100;
+        let mps = 0; 
+        let capacity = 10;
+        let baseFluffs = [];
+        let discoveredFluffs = new Set();
+        let sellMode = false;
+        let capacityUpgradeCost = 250;
+
+        // --- NEW PANDA-THEMED FLUFF DATA ---
+        const RARITIES = {
+            common:    { chance: 0.495, color: 'bg-gradient-to-br from-slate-400 to-slate-600 shadow-slate-500/50', name: 'Common', textColor: 'text-slate-300' },
+            uncommon:  { chance: 0.25, color: 'bg-gradient-to-br from-emerald-400 to-teal-600 shadow-emerald-500/50', name: 'Uncommon', textColor: 'text-emerald-400' },
+            rare:      { chance: 0.15, color: 'bg-gradient-to-br from-cyan-400 to-blue-600 shadow-blue-500/50', name: 'Rare', textColor: 'text-cyan-400' },
+            epic:      { chance: 0.07, color: 'bg-gradient-to-br from-fuchsia-400 to-purple-600 shadow-purple-500/50', name: 'Epic', textColor: 'text-fuchsia-400' },
+            legendary: { chance: 0.03, color: 'bg-gradient-to-br from-amber-300 to-orange-600 shadow-orange-500/50', name: 'Legendary', textColor: 'text-amber-400' },
+            mythic:    { chance: 0.005, color: 'bg-gradient-to-br from-rose-500 to-red-800 shadow-red-600/60 border-red-400', name: 'Mythic', textColor: 'text-rose-400' }
+        };
+
+        const FLUFFS = {
+            common: [
+                { name: 'Bamboo Nibbler', cost: 10, mps: 1 },
+                { name: 'Sleepy Cub', cost: 25, mps: 3 },
+                { name: 'Rollie Pollie', cost: 50, mps: 6 },
+                { name: 'Dirt Panda', cost: 65, mps: 8 },
+                { name: 'Grass Chewer', cost: 80, mps: 10 },
+                { name: 'Lazy Bones', cost: 95, mps: 12 },
+                { name: 'Pebble Paws', cost: 110, mps: 14 },
+                { name: 'Twig Snapper', cost: 130, mps: 16 },
+                { name: 'Muddy Fluff', cost: 150, mps: 18 },
+                { name: 'Leaf Eater', cost: 175, mps: 21 },
+                { name: 'Snoozer', cost: 200, mps: 24 },
+                { name: 'Yawner', cost: 225, mps: 27 },
+                { name: 'Blinker', cost: 250, mps: 30 }
+            ],
+            uncommon: [
+                { name: 'Tree Climber', cost: 100, mps: 15 },
+                { name: 'Bamboo Bandit', cost: 250, mps: 40 },
+                { name: 'Snack Hoarder', cost: 500, mps: 85 },
+                { name: 'Branch Swinger', cost: 750, mps: 130 },
+                { name: 'Berry Picker', cost: 1000, mps: 180 },
+                { name: 'Puddle Splash', cost: 1250, mps: 230 },
+                { name: 'River Fisher', cost: 1500, mps: 280 },
+                { name: 'Rock Skipper', cost: 1800, mps: 340 },
+                { name: 'Hollow Dweller', cost: 2100, mps: 400 },
+                { name: 'Vine Swinger', cost: 2500, mps: 480 },
+                { name: 'Bush Wacker', cost: 3000, mps: 580 },
+                { name: 'Seed Finder', cost: 3500, mps: 690 },
+                { name: 'Moss Roller', cost: 4000, mps: 800 }
+            ],
+            rare: [
+                { name: 'Shadow Panda', cost: 1200, mps: 220 },
+                { name: 'Golden Paw', cost: 2800, mps: 550 },
+                { name: 'Jade Chewer', cost: 6000, mps: 1200 },
+                { name: 'Moonlight Walker', cost: 10000, mps: 2000 },
+                { name: 'Sun Bather', cost: 15000, mps: 3100 },
+                { name: 'Star Gazer', cost: 22000, mps: 4600 },
+                { name: 'Cloud Surfer', cost: 30000, mps: 6400 },
+                { name: 'Rain Dancer', cost: 40000, mps: 8600 },
+                { name: 'Storm Chaser', cost: 55000, mps: 12000 },
+                { name: 'Frost Weaver', cost: 75000, mps: 16500 },
+                { name: 'Ember Spark', cost: 100000, mps: 22500 },
+                { name: 'Crystal Gazer', cost: 130000, mps: 29500 },
+                { name: 'Pearl Hunter', cost: 175000, mps: 40000 }
+            ],
+            epic: [
+                { name: 'Mystic Monk', cost: 15000, mps: 3500 },
+                { name: 'Elemental Bear', cost: 45000, mps: 11000 },
+                { name: 'Spirit Guide', cost: 120000, mps: 30000 },
+                { name: 'Aura Weaver', cost: 250000, mps: 65000 },
+                { name: 'Rune Reader', cost: 500000, mps: 135000 },
+                { name: 'Totem Bearer', cost: 900000, mps: 250000 },
+                { name: 'Dream Walker', cost: 1500000, mps: 425000 },
+                { name: 'Void Stalker', cost: 2500000, mps: 720000 },
+                { name: 'Time Bender', cost: 4000000, mps: 1180000 },
+                { name: 'Space Jumper', cost: 6500000, mps: 1950000 },
+                { name: 'Mind Reader', cost: 10000000, mps: 3050000 },
+                { name: 'Soul Whisperer', cost: 15000000, mps: 4700000 }
+            ],
+            legendary: [
+                { name: 'Cosmic Panda', cost: 250000, mps: 65000 },
+                { name: 'The Bamboo King', cost: 1000000, mps: 300000 },
+                { name: 'Galaxy Emperor', cost: 5000000, mps: 1600000 },
+                { name: 'Nebula Weaver', cost: 15000000, mps: 5000000 },
+                { name: 'Astral Guardian', cost: 35000000, mps: 12000000 },
+                { name: 'Dimension Drifter', cost: 75000000, mps: 26500000 },
+                { name: 'Eternity Keeper', cost: 150000000, mps: 54000000 },
+                { name: 'Infinity Lord', cost: 300000000, mps: 110000000 },
+                { name: 'Celestial Sovereign', cost: 600000000, mps: 225000000 },
+                { name: 'Quantum Beast', cost: 1200000000, mps: 460000000 },
+                { name: 'Starlight Champion', cost: 2500000000, mps: 980000000 },
+                { name: 'Nova Crusher', cost: 5000000000, mps: 2000000000 }
+            ],
+            mythic: [
+                { name: 'Chud Fluff', cost: 15000000000, mps: 8000000000 },
+                { name: 'Flufflet', cost: 50000000000, mps: 30000000000 }
+            ]
+        };
+
+        // --- DOM ELEMENTS ---
+        const DOM = {
+            money: document.getElementById('money-display'),
+            mps: document.getElementById('mps-display'),
+            count: document.getElementById('count-display'),
+            capacity: document.getElementById('capacity-display'),
+            belt: document.getElementById('conveyor-belt'),
+            base: document.getElementById('base-grid'),
+            upgradeBtn: document.getElementById('upgrade-btn'),
+            upgradeCost: document.getElementById('upgrade-cost'),
+            sellToggleBtn: document.getElementById('sell-toggle-btn'),
+            notifications: document.getElementById('notifications'),
+            tooltip: document.getElementById('tooltip'),
+            indexBtn: document.getElementById('index-btn'),
+            saveBtn: document.getElementById('save-btn'),
+            indexModal: document.getElementById('index-modal'),
+            closeModalBtn: document.getElementById('close-modal-btn'),
+            indexGrid: document.getElementById('index-grid'),
+            discoveredCount: document.getElementById('discovered-count'),
+            totalFluffsCount: document.getElementById('total-fluffs-count'),
+            
+            // Admin specific
+            adminLoginModal: document.getElementById('admin-login-modal'),
+            adminPasswordInput: document.getElementById('admin-password-input'),
+            adminLoginBtn: document.getElementById('admin-login-btn'),
+            adminPanelModal: document.getElementById('admin-panel-modal'),
+            
+            // New Admin Inputs
+            adminMoneyAmt: document.getElementById('admin-money-amt'),
+            adminGiveMoneyBtn: document.getElementById('admin-give-money'),
+            adminCapAmt: document.getElementById('admin-cap-amt'),
+            adminSetCapBtn: document.getElementById('admin-set-cap'),
+            adminSpawnSelect: document.getElementById('admin-spawn-select'),
+            adminDoSpawnBtn: document.getElementById('admin-do-spawn'),
+            adminDoNukeBtn: document.getElementById('admin-do-nuke'),
+            adminMsgVal: document.getElementById('admin-msg-val'),
+            adminDoMsgBtn: document.getElementById('admin-do-msg')
+        };
+
+        // --- CORE FUNCTIONS ---
+        function format(num) {
+            if (num >= 1000000000000) return (num / 1000000000000).toFixed(2) + 'T';
+            if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return Math.floor(num).toString();
+        }
+
+        function notify(msg, type = 'success') {
+            const el = document.createElement('div');
+            el.className = `notification ${type}`;
+            
+            // Add a little icon based on type
+            const icon = type === 'success' ? '✓' : '⚠️';
+            el.innerHTML = `<span class="text-xl">${icon}</span> <span>${msg}</span>`;
+            
+            DOM.notifications.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        function updateUI() {
+            DOM.money.textContent = format(money);
+            DOM.mps.textContent = format(mps);
+            DOM.count.textContent = baseFluffs.length;
+            DOM.capacity.textContent = capacity;
+            DOM.upgradeCost.textContent = format(capacityUpgradeCost);
+            
+            if (money < capacityUpgradeCost) {
+                DOM.upgradeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                DOM.upgradeBtn.classList.remove('hover:from-blue-500', 'hover:to-indigo-500', 'hover:shadow-blue-500/25', 'active:scale-95');
+            } else {
+                DOM.upgradeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                DOM.upgradeBtn.classList.add('hover:from-blue-500', 'hover:to-indigo-500', 'hover:shadow-blue-500/25', 'active:scale-95');
+            }
+        }
+
+        function calculateMPS() {
+            mps = baseFluffs.reduce((total, fluff) => total + fluff.mps, 0);
+            updateUI();
+        }
+
+        // --- BELT & SPAWNING ---
+        function getRandomFluff() {
+            const rand = Math.random();
+            let cumulative = 0;
+            let selectedRarity = 'common';
+
+            for (const [key, data] of Object.entries(RARITIES)) {
+                cumulative += data.chance;
+                if (rand <= cumulative) {
+                    selectedRarity = key;
+                    break;
+                }
+            }
+
+            const list = FLUFFS[selectedRarity];
+            const fluffDef = list[Math.floor(Math.random() * list.length)];
+            
+            return {
+                id: Date.now() + Math.random(),
+                ...fluffDef,
+                rarity: RARITIES[selectedRarity].name,
+                color: RARITIES[selectedRarity].color,
+                textColor: RARITIES[selectedRarity].textColor
+            };
+        }
+
+        function spawnOnBelt() {
+            const fluffData = getRandomFluff();
+            const el = document.createElement('div');
+            el.className = 'fluff-container';
+            el.style.left = '-100px';
+            
+            el.innerHTML = `
+                <div class="fluff-info">
+                    <span class="${fluffData.textColor}">${fluffData.name}</span><br>
+                    <span class="text-yellow-400 drop-shadow-md">$${format(fluffData.cost)}</span>
+                </div>
+                <div class="fluff-body ${fluffData.color}">🐼</div>
+            `;
+
+            // Handle Buying
+            el.onclick = () => {
+                if (baseFluffs.length >= capacity) {
+                    notify("Base is full! Upgrade capacity or sell.", "error");
+                    return;
+                }
+                if (money >= fluffData.cost) {
+                    money -= fluffData.cost;
+                    baseFluffs.push(fluffData);
+                    
+                    // Track discovery
+                    if (!discoveredFluffs.has(fluffData.name)) {
+                        discoveredFluffs.add(fluffData.name);
+                        notify(`New Fluff Discovered: ${fluffData.name}! 📖`, "success");
+                    }
+
+                    renderBase();
+                    calculateMPS();
+                    
+                    // Create floating text effect
+                    createFloatingText(`-$${format(fluffData.cost)}`, el.getBoundingClientRect(), 'text-red-400');
+                    el.remove();
+                } else {
+                    notify("Not enough money!", "error");
+                }
+            };
+
+            DOM.belt.appendChild(el);
+            animateAcrossBelt(el);
+
+            // Schedule next spawn
+            setTimeout(spawnOnBelt, 800 + Math.random() * 2000);
+        }
+
+        function animateAcrossBelt(el) {
+            const duration = 5000 + Math.random() * 3000; // 5 to 8 seconds
+            const start = Date.now();
+            const beltWidth = DOM.belt.offsetWidth + 120;
+
+            function frame() {
+                if (!document.body.contains(el)) return; // Fluff was bought
+                
+                const progress = (Date.now() - start) / duration;
+                if (progress >= 1) {
+                    el.remove(); // Fell off the belt
+                } else {
+                    el.style.left = `calc(${progress * 100}% - 100px)`;
+                    requestAnimationFrame(frame);
+                }
+            }
+            requestAnimationFrame(frame);
+        }
+
+        function createFloatingText(text, rect, colorClass) {
+            const floatEl = document.createElement('div');
+            floatEl.textContent = text;
+            floatEl.className = `fixed font-black text-xl z-50 pointer-events-none drop-shadow-lg transition-all duration-1000 ${colorClass}`;
+            floatEl.style.left = `${rect.left + rect.width / 2}px`;
+            floatEl.style.top = `${rect.top}px`;
+            floatEl.style.transform = 'translate(-50%, 0)';
+            floatEl.style.opacity = '1';
+            
+            document.body.appendChild(floatEl);
+
+            requestAnimationFrame(() => {
+                floatEl.style.transform = 'translate(-50%, -40px)';
+                floatEl.style.opacity = '0';
+            });
+
+            setTimeout(() => floatEl.remove(), 1000);
+        }
+
+        // --- BASE & INTERACTION ---
+        function renderBase() {
+            DOM.base.innerHTML = '';
+            baseFluffs.forEach(fluff => {
+                const el = document.createElement('div');
+                el.className = 'base-fluff-wrapper';
+                el.innerHTML = `<div class="fluff-body ${fluff.color} mx-auto hover:shadow-lg" style="width: 48px; height: 48px; font-size: 24px;">🐼</div>`;
+                
+                // Tooltip logic
+                el.onmouseenter = (e) => {
+                    DOM.tooltip.style.display = 'block';
+                    const sellPrice = Math.floor(fluff.cost * 0.5);
+                    DOM.tooltip.innerHTML = `
+                        <div class="mb-1">
+                            <strong class="text-lg ${fluff.textColor}">${fluff.name}</strong> 
+                            <span class="text-xs uppercase tracking-wider text-slate-400 ml-1">(${fluff.rarity})</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <span class="text-slate-300">Income:</span>
+                            <span class="text-emerald-400 font-bold text-right">+$${format(fluff.mps)}/s</span>
+                            <span class="text-slate-300">Sell Value:</span>
+                            <span class="text-amber-400 font-bold text-right">+$${format(sellPrice)}</span>
+                        </div>
+                    `;
+                    positionTooltip(e);
+                };
+                el.onmousemove = positionTooltip;
+                el.onmouseleave = () => {
+                    DOM.tooltip.style.display = 'none';
+                };
+
+                // Sell logic
+                el.onclick = (e) => {
+                    if (sellMode) {
+                        const sellPrice = Math.floor(fluff.cost * 0.5);
+                        money += sellPrice;
+                        baseFluffs = baseFluffs.filter(f => f.id !== fluff.id);
+                        DOM.tooltip.style.display = 'none';
+                        
+                        createFloatingText(`+$${format(sellPrice)}`, el.getBoundingClientRect(), 'text-amber-400');
+                        
+                        renderBase();
+                        calculateMPS();
+                    }
+                };
+
+                DOM.base.appendChild(el);
+            });
+        }
+
+        function positionTooltip(e) {
+            const tooltipRect = DOM.tooltip.getBoundingClientRect();
+            let left = e.pageX + 15;
+            let top = e.pageY + 15;
+
+            if (left + tooltipRect.width > window.innerWidth) {
+                left = e.pageX - tooltipRect.width - 15;
+            }
+            if (top + tooltipRect.height > window.innerHeight) {
+                top = e.pageY - tooltipRect.height - 15;
+            }
+            
+            DOM.tooltip.style.left = left + 'px';
+            DOM.tooltip.style.top = top + 'px';
+        }
+
+        // --- BUTTON BINDINGS ---
+        DOM.sellToggleBtn.onclick = () => {
+            sellMode = !sellMode;
+            if (sellMode) {
+                DOM.sellToggleBtn.innerHTML = '🔥 Selling: ON';
+                DOM.sellToggleBtn.classList.replace('from-slate-600', 'from-red-600');
+                DOM.sellToggleBtn.classList.replace('to-slate-700', 'to-red-700');
+                DOM.sellToggleBtn.classList.replace('hover:from-slate-500', 'hover:from-red-500');
+                DOM.sellToggleBtn.classList.replace('hover:to-slate-600', 'hover:to-red-600');
+                DOM.sellToggleBtn.classList.replace('border-slate-500', 'border-red-400');
+                DOM.base.classList.add('sell-mode');
+            } else {
+                DOM.sellToggleBtn.innerHTML = 'Sell Mode: OFF';
+                DOM.sellToggleBtn.classList.replace('from-red-600', 'from-slate-600');
+                DOM.sellToggleBtn.classList.replace('to-red-700', 'to-slate-700');
+                DOM.sellToggleBtn.classList.replace('hover:from-red-500', 'hover:from-slate-500');
+                DOM.sellToggleBtn.classList.replace('hover:to-red-600', 'hover:to-slate-600');
+                DOM.sellToggleBtn.classList.replace('border-red-400', 'border-slate-500');
+                DOM.base.classList.remove('sell-mode');
+            }
+        };
+
+        DOM.upgradeBtn.onclick = () => {
+            if (money >= capacityUpgradeCost) {
+                money -= capacityUpgradeCost;
+                capacity += 5;
+                capacityUpgradeCost = Math.floor(capacityUpgradeCost * 2.5);
+                updateUI();
+                notify("Base expanded successfully!", "success");
+            }
+        };
+
+        // --- INDEX MODAL LOGIC ---
+        function openIndexModal() {
+            DOM.indexGrid.innerHTML = '';
+            
+            let totalFluffs = 0;
+            let discoveredCount = 0;
+
+            for (const [rarityKey, data] of Object.entries(RARITIES)) {
+                const list = FLUFFS[rarityKey];
+                
+                list.forEach(fluff => {
+                    totalFluffs++;
+                    const isDiscovered = discoveredFluffs.has(fluff.name);
+                    if (isDiscovered) discoveredCount++;
+
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-xl flex flex-col items-center justify-center text-center transition-all ${isDiscovered ? 'bg-slate-800 border border-slate-600 shadow-lg' : 'bg-slate-900 border border-slate-800 opacity-50'}`;
+                    
+                    if (isDiscovered) {
+                        card.innerHTML = `
+                            <div class="fluff-body ${data.color} mb-3 shadow-lg" style="width: 48px; height: 48px; font-size: 24px;">🐼</div>
+                            <h3 class="font-bold text-sm ${data.textColor}">${fluff.name}</h3>
+                            <p class="text-xs text-emerald-400 mt-1 font-bold">+$${format(fluff.mps)}/s</p>
+                        `;
+                    } else {
+                        card.innerHTML = `
+                            <div class="fluff-body bg-slate-800 mb-3 grayscale" style="width: 48px; height: 48px; font-size: 24px; border-color: #334155;">❓</div>
+                            <h3 class="font-bold text-sm text-slate-500">???</h3>
+                            <p class="text-xs text-slate-600 mt-1 uppercase tracking-wider">${data.name}</p>
+                        `;
+                    }
+                    DOM.indexGrid.appendChild(card);
+                });
+            }
+
+            DOM.discoveredCount.textContent = discoveredCount;
+            DOM.totalFluffsCount.textContent = totalFluffs;
+            
+            DOM.indexModal.classList.add('active');
+        }
+
+        DOM.indexBtn.onclick = openIndexModal;
+        DOM.closeModalBtn.onclick = () => DOM.indexModal.classList.remove('active');
+        DOM.saveBtn.onclick = saveGameToCloud;
+
+        // --- ADMIN ABUSE LOGIC ---
+        let isAdminUnlocked = false;
+
+        // Populate the dropdown menu dynamically with all fluffs
+        for (const [rKey, rData] of Object.entries(RARITIES)) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = rData.name;
+            optgroup.className = 'bg-slate-900 text-slate-300';
+            FLUFFS[rKey].forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.name;
+                opt.textContent = f.name;
+                optgroup.appendChild(opt);
+            });
+            DOM.adminSpawnSelect.appendChild(optgroup);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '`' || e.key === '~') {
+                e.preventDefault();
+                if (isAdminUnlocked) {
+                    DOM.adminPanelModal.classList.add('active');
+                } else {
+                    DOM.adminLoginModal.classList.add('active');
+                    setTimeout(() => DOM.adminPasswordInput.focus(), 100);
+                }
+            }
+        });
+
+        DOM.adminLoginBtn.onclick = () => {
+            if (DOM.adminPasswordInput.value === 'FakYou') {
+                isAdminUnlocked = true; // Stay unlocked!
+                DOM.adminLoginModal.classList.remove('active');
+                DOM.adminPanelModal.classList.add('active');
+                DOM.adminPasswordInput.value = '';
+            } else {
+                notify("Access Denied.", "error");
+                DOM.adminPasswordInput.value = '';
+            }
+        };
+
+        // Allow 'Enter' to submit login
+        DOM.adminPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') DOM.adminLoginBtn.click();
+        });
+
+        // --- ADMIN BUTTON ACTIONS ---
+        DOM.adminGiveMoneyBtn.onclick = () => {
+            const amount = parseInt(DOM.adminMoneyAmt.value);
+            if (!isNaN(amount)) {
+                money += amount;
+                notify(`Admin: Added $${format(amount)}`, "success");
+                updateUI();
+            }
+        };
+
+        DOM.adminSetCapBtn.onclick = () => {
+            const amount = parseInt(DOM.adminCapAmt.value);
+            if (!isNaN(amount) && amount > 0) {
+                capacity = amount;
+                notify(`Admin: Capacity set to ${amount}`, "success");
+                updateUI();
+            }
+        };
+
+        DOM.adminDoNukeBtn.onclick = () => {
+            baseFluffs = [];
+            renderBase();
+            calculateMPS();
+            notify("Admin: BASE NUKED ☢️", "error");
+        };
+
+        DOM.adminDoMsgBtn.onclick = () => {
+            const msg = DOM.adminMsgVal.value.trim();
+            if (msg) {
+                const el = document.createElement('div');
+                el.className = `notification !bg-amber-600/90 !border-amber-400 !shadow-amber-500/50`;
+                el.innerHTML = `<span class="text-2xl animate-pulse">📢</span> <span class="font-black tracking-wide">[GLOBAL] Server: ${msg}</span>`;
+                DOM.notifications.appendChild(el);
+                setTimeout(() => el.remove(), 6000);
+                DOM.adminMsgVal.value = '';
+            }
+        };
+
+        DOM.adminDoSpawnBtn.onclick = () => {
+            const searchName = DOM.adminSpawnSelect.value;
+            let foundFluff = null;
+            let foundRarity = null;
+
+            for (const [rKey, rData] of Object.entries(RARITIES)) {
+                const match = FLUFFS[rKey].find(f => f.name === searchName);
+                if (match) {
+                    foundFluff = match;
+                    foundRarity = rData;
+                    break;
+                }
+            }
+
+            if (foundFluff) {
+                const fluffData = {
+                    id: Date.now() + Math.random(),
+                    ...foundFluff,
+                    rarity: foundRarity.name,
+                    color: foundRarity.color,
+                    textColor: foundRarity.textColor
+                };
+
+                const el = document.createElement('div');
+                el.className = 'fluff-container';
+                el.style.left = '-100px';
+                
+                el.innerHTML = `
+                    <div class="fluff-info">
+                        <span class="${fluffData.textColor}">${fluffData.name}</span><br>
+                        <span class="text-yellow-400 drop-shadow-md">ADMIN SPAWN</span>
+                    </div>
+                    <div class="fluff-body ${fluffData.color}">🐼</div>
+                `;
+
+                el.onclick = () => {
+                    if (baseFluffs.length >= capacity) {
+                        notify("Base is full! Upgrade capacity or sell.", "error");
+                        return;
+                    }
+                    // Admin spawned fluffs are free to grab!
+                    baseFluffs.push(fluffData);
+                    
+                    if (!discoveredFluffs.has(fluffData.name)) {
+                        discoveredFluffs.add(fluffData.name);
+                        notify(`New Fluff Discovered: ${fluffData.name}! 📖`, "success");
+                    }
+
+                    renderBase();
+                    calculateMPS();
+                    el.remove();
+                };
+
+                DOM.belt.appendChild(el);
+                animateAcrossBelt(el);
+                notify(`Admin: Spawned ${foundFluff.name}`, "success");
+            }
+        };
+
+        // Close modal on background click
+        DOM.indexModal.onclick = (e) => {
+            if (e.target === DOM.indexModal) {
+                DOM.indexModal.classList.remove('active');
+            }
+        };
+
+        // --- MAIN LOOP ---
+        setInterval(() => {
+            if (mps > 0) {
+                money += mps;
+                updateUI();
+            }
+        }, 1000);
+
+        // INIT
+        spawnOnBelt();
+        updateUI();
+
+    </script>
+</body>
+</html>

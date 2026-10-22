@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Survive the Island</title>
+    <style>
+        :root {
+            --bg-color: #87CEEB; /* Sky blue */
+            --ui-bg: rgba(255, 255, 255, 0.9);
+            --ui-border: 4px solid #fff;
+            --primary: #4CAF50; /* Green */
+            --primary-dark: #388E3C;
+            --secondary: #FF9800; /* Orange */
+            --danger: #F44336; /* Red */
+            --text-main: #333;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --coin-color: #FFD700;
+            --gem-color: #E0B0FF;
+            --panel-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            --btn-shadow: 0 4px 0 rgba(0,0,0,0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        
+        body, html {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            touch-action: none; /* Prevent pinch zoom etc */
+        }
+
+        #game-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
+        
+        canvas {
+            display: block; width: 100%; height: 100%;
+        }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 10;
+        }
+        .screen.active { display: flex; }
+
+        .panel {
+            background: var(--ui-bg); border-radius: 24px; padding: 30px;
+            box-shadow: var(--panel-shadow); border: var(--ui-border);
+            text-align: center; max-width: 90%; max-height: 90%; overflow-y: auto;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        h1 { font-size: 3rem; color: var(--primary); text-transform: uppercase; text-shadow: 2px 2px 0px #fff, 4px 4px 0px rgba(0,0,0,0.2); margin-bottom: 20px; font-weight: 900;}
+        h2 { font-size: 2rem; margin-bottom: 15px; color: var(--text-main); }
+        p { font-size: 1.2rem; margin-bottom: 10px; font-weight: bold; color: #555;}
+
+        .btn {
+            background: var(--primary); color: white; border: none;
+            padding: 15px 30px; font-size: 1.5rem; font-weight: bold; border-radius: 12px;
+            cursor: pointer; transition: all 0.1s; box-shadow: var(--btn-shadow);
+            margin: 10px; text-transform: uppercase; width: 250px;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+        .btn.secondary { background: var(--secondary); }
+        .btn.danger { background: var(--danger); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 20px; }
+
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5; display: none; padding: 15px;
+        }
+        #hud.active { display: block; }
+
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        .hud-box {
+            background: rgba(255,255,255,0.8); padding: 10px 20px; border-radius: 12px;
+            font-weight: bold; font-size: 1.2rem; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 2px solid white; pointer-events: auto;
+        }
+
+        #timer-box { font-size: 2rem; text-align: center; }
+        
+        .stat-line { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .icon { font-size: 1.5rem; }
+
+        #warning-banner {
+            position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
+            background: rgba(244, 67, 54, 0.9); color: white; padding: 15px 30px;
+            border-radius: 12px; font-weight: bold; font-size: 1.5rem; text-align: center;
+            box-shadow: 0 0 20px rgba(244, 67, 54, 0.8); border: 3px solid white;
+            display: none; animation: pulse 0.5s infinite alternate; pointer-events: none;
+        }
+        @keyframes pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.05); } }
+
+        .shop-item {
+            background: #f0f0f0; border-radius: 12px; padding: 15px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; border: 2px solid #ddd;
+        }
+        .shop-item-info { text-align: left; }
+        .shop-item-title { font-size: 1.2rem; font-weight: bold; color: var(--primary-dark); }
+        .shop-item-desc { font-size: 0.9rem; color: #666; }
+
+        .currency-display { display: flex; gap: 20px; justify-content: center; margin-bottom: 20px; font-size: 1.5rem; font-weight: bold;}
+        .coin-text { color: #D4AF37; text-shadow: 1px 1px 0 #000; }
+        .gem-text { color: #8A2BE2; text-shadow: 1px 1px 0 #000; }
+
+        #mobile-controls {
+            position: absolute; bottom: 20px; left: 20px; width: 150px; height: 150px;
+            background: rgba(255,255,255,0.2); border-radius: 50%; display: none;
+            touch-action: none; pointer-events: auto; z-index: 6; border: 2px solid rgba(255,255,255,0.5);
+        }
+        #stick {
+            position: absolute; top: 50px; left: 50px; width: 50px; height: 50px;
+            background: rgba(255,255,255,0.8); border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .floating-text {
+            position: absolute; font-weight: bold; pointer-events: none; z-index: 4;
+            animation: floatUp 1s ease-out forwards; text-shadow: 1px 1px 2px black;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+
+        .progress-bar-container {
+            width: 100%; background: #ddd; border-radius: 10px; height: 20px; margin-top: 5px; overflow: hidden; border: 2px solid white;
+        }
+        .progress-bar { height: 100%; background: var(--secondary); width: 0%; transition: width 0.3s; }
+        .hp-bar { background: var(--danger); width: 100%; }
+        
+        #xp-bar-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 60%; height: 25px; pointer-events: auto;}
+        #xp-text { position: absolute; width: 100%; text-align: center; top: 2px; font-size: 0.9rem; color: white; font-weight: bold; text-shadow: 1px 1px 1px black;}
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="hud">
+        <div class="hud-top">
+            <div class="hud-box">
+                <div class="stat-line"><span class="icon">❤️</span> <span id="hud-hp">100/100</span></div>
+                <div class="progress-bar-container"><div class="progress-bar hp-bar" id="hud-hp-bar"></div></div>
+                <div class="stat-line" style="margin-top:5px; font-size:1rem;"><span class="icon">⭐</span> Lvl <span id="hud-level">1</span></div>
+            </div>
+            
+            <div class="hud-box" id="timer-box">
+                ⏱️ <span id="hud-time">00:00</span>
+            </div>
+            
+            <div class="hud-box" style="text-align: right;">
+                <div class="stat-line justify-end"><span id="hud-coins" class="coin-text">0</span> <span class="icon">🪙</span></div>
+                <div class="stat-line justify-end"><span id="hud-gems" class="gem-text">0</span> <span class="icon">💎</span></div>
+            </div>
+        </div>
+        
+        <div id="warning-banner">⚠️ WARNING: DISASTER ⚠️</div>
+        
+        <div class="progress-bar-container" id="xp-bar-container">
+            <div class="progress-bar" id="hud-xp-bar"></div>
+            <div id="xp-text">XP: 0 / 100</div>
+        </div>
+
+        <div id="mobile-controls">
+            <div id="stick"></div>
+        </div>
+    </div>
+</div>
+
+<div id="screen-main" class="screen active">
+    <div class="panel">
+        <h1>SURVIVE THE ISLAND</h1>
+        <div class="currency-display">
+            <div><span class="icon">🪙</span> <span id="menu-coins">0</span></div>
+            <div><span class="icon">💎</span> <span id="menu-gems">0</span></div>
+        </div>
+        <p>Best Time: <span id="menu-best-time">00:00</span></p>
+        <p>Level: <span id="menu-level">1</span></p>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
+            <button class="btn" onclick="startGame()">▶ PLAY</button>
+            <button class="btn secondary" onclick="showScreen('screen-maps')" style="background:#2196F3;">🌍 MAPS</button>
+            <button class="btn secondary" onclick="showScreen('screen-upgrades')">⬆ UPGRADES</button>
+            <button class="btn secondary" onclick="showScreen('screen-pets')">🐶 PETS</button>
+        </div>
+        <button class="btn danger" style="margin-top: 30px; font-size: 1rem; width: auto; padding: 10px 20px;" onclick="resetSaveData()">Reset Save</button>
+    </div>
+</div>
+
+<div id="screen-maps" class="screen">
+    <div class="panel" style="width: 600px;">
+        <h2>SELECT MAP</h2>
+        <div class="currency-display">
+            <div><span class="icon">🪙</span> <span id="maps-coins">0</span></div>
+        </div>
+        
+        <div id="maps-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-height: 400px; overflow-y: auto;">
+            <!-- Maps injected here via JS -->
+        </div>
+        
+        <button class="btn danger" onclick="showScreen('screen-main')" style="margin-top: 20px;">BACK</button>
+    </div>
+</div>
+
+<div id="screen-upgrades" class="screen">
+    <div class="panel" style="width: 500px;">
+        <h2>PERMANENT UPGRADES</h2>
+        <div class="currency-display">
+            <div><span class="icon">🪙</span> <span id="upgrades-coins">0</span></div>
+        </div>
+        
+        <div id="upgrades-list" style="max-height: 400px; overflow-y: auto; text-align: left;">
+            <!-- Upgrades injected here via JS -->
+        </div>
+        
+        <button class="btn danger" onclick="showScreen('screen-main')" style="margin-top: 20px;">BACK</button>
+    </div>
+</div>
+
+<div id="screen-pets" class="screen">
+    <div class="panel" style="width: 500px;">
+        <h2>PET SYSTEM</h2>
+        <div class="currency-display">
+            <div><span class="icon">🪙</span> <span id="pets-coins">0</span></div>
+            <div><span class="icon">💎</span> <span id="pets-gems">0</span></div>
+        </div>
+        
+        <div style="background:#e0f7fa; padding:15px; border-radius:12px; margin-bottom:15px;">
+            <h3>Hatch an Egg</h3>
+            <p>1,000 🪙 or 50 💎</p>
+            <button class="btn" style="width:auto; font-size:1.2rem;" onclick="hatchEgg('coin')">Hatch (🪙)</button>
+            <button class="btn" style="background:#8A2BE2; width:auto; font-size:1.2rem;" onclick="hatchEgg('gem')">Hatch (💎)</button>
+            <div id="hatch-result" style="margin-top:10px; font-weight:bold; font-size:1.5rem;"></div>
+        </div>
+
+        <h3>Your Pets</h3>
+        <div id="pets-list" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-height: 200px; overflow-y: auto; padding: 10px; background:#f5f5f5; border-radius:12px;">
+            <!-- Pets injected here -->
+        </div>
+        
+        <button class="btn danger" onclick="showScreen('screen-main')" style="margin-top: 20px;">BACK</button>
+    </div>
+</div>
+
+<div id="screen-gameover" class="screen">
+    <div class="panel">
+        <h1 style="color: var(--danger);">YOU DIED!</h1>
+        <h2 id="death-cause" style="color: #666; font-size:1.5rem; margin-bottom: 20px;">Cause of death...</h2>
+        
+        <div style="text-align: left; display: inline-block; font-size: 1.5rem; margin-bottom: 20px; line-height: 1.6;">
+            <div class="stat-line">⏱️ Time Survived: <span id="go-time" style="margin-left:auto;">00:00</span></div>
+            <div class="stat-line">🪙 Coins Earned: <span id="go-coins" class="coin-text" style="margin-left:auto;">0</span></div>
+            <div class="stat-line" style="color:#2196F3;">⭐ XP Earned: <span id="go-xp" style="margin-left:auto;">0</span></div>
+        </div>
+        
+        <div id="level-up-msg" style="color:var(--secondary); font-weight:bold; font-size:1.5rem; display:none; animation: pulse 1s infinite;">LEVEL UP!</div>
+
+        <div style="margin-top: 30px;">
+            <button class="btn" onclick="startGame()">PLAY AGAIN</button>
+            <button class="btn secondary" onclick="showScreen('screen-main')">MAIN MENU</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- AUDIO SYSTEM ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playSound(type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+        
+        if (type === 'coin') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'hit') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'warning') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.setValueAtTime(600, now + 0.2);
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.4);
+            osc.start(now); osc.stop(now + 0.4);
+        } else if (type === 'buy') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.setValueAtTime(600, now+0.1);
+            osc.frequency.setValueAtTime(800, now+0.2);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'level') {
+            osc.type = 'square';
+            [400, 500, 600, 800].forEach((freq, i) => {
+                osc.frequency.setValueAtTime(freq, now + i*0.1);
+            });
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        }
+    }
+
+    // --- GAME STATE & SAVE DATA ---
+    const defaultSave = {
+        coins: 0, gems: 0,
+        level: 1, xp: 0,
+        bestTime: 0, totalRuns: 0,
+        upgrades: { health: 1, speed: 1, coinMult: 1, regen: 1, armor: 1, gemChance: 1 },
+        pets: [], equippedPetIndex: -1,
+        unlockedMaps: ['island'], selectedMap: 'island'
+    };
+
+    let save = JSON.parse(localStorage.getItem('surviveIslandSave')) || JSON.parse(JSON.stringify(defaultSave));
+    
+    // SAVE FIXER & HYDRATOR: Ensures old saves get new features without crashing
+    if(!save.upgrades) save.upgrades = {...defaultSave.upgrades};
+    if(!save.pets) save.pets = [];
+    if(!save.unlockedMaps) save.unlockedMaps = ['island'];
+    if(!save.selectedMap) save.selectedMap = 'island';
+    
+    // Vital fix for NaN health caused by new missing upgrades
+    if(save.upgrades.armor === undefined) save.upgrades.armor = 1;
+    if(save.upgrades.gemChance === undefined) save.upgrades.gemChance = 1;
+
+    function saveGame() {
+        localStorage.setItem('surviveIslandSave', JSON.stringify(save));
+        updateMenuUI();
+    }
+
+    function resetSaveData() {
+        if(confirm("Are you sure you want to completely reset your progress? This cannot be undone.")) {
+            save = JSON.parse(JSON.stringify(defaultSave));
+            saveGame();
+        }
+    }
+
+    // --- CONFIGURATION ---
+    const UPGRADE_DEF = {
+        health: { name: "Max Health", baseCost: 100, mult: 1.5, start: 100, step: 25, unit: "HP", icon: "❤️" },
+        speed: { name: "Movement Speed", baseCost: 150, mult: 1.6, start: 250, step: 25, unit: "px/s", icon: "⚡" },
+        coinMult: { name: "Coin Multiplier", baseCost: 500, mult: 2.0, start: 1, step: 0.2, unit: "x", icon: "🪙" },
+        regen: { name: "Health Regen", baseCost: 300, mult: 1.8, start: 0, step: 1, unit: "HP/s", icon: "💖" },
+        armor: { name: "Armor", baseCost: 400, mult: 1.7, start: 0, step: 4, unit: "% Block", icon: "🛡️" },
+        gemChance: { name: "Gem Finding", baseCost: 1000, mult: 2.5, start: 0, step: 2, unit: "% Chance", icon: "💎" }
+    };
+
+    const PET_RARITIES = [
+        { name: "Common", chance: 0.6, color: "#aaa", mult: 1.05 },
+        { name: "Uncommon", chance: 0.25, color: "#4CAF50", mult: 1.1 },
+        { name: "Rare", chance: 0.1, color: "#2196F3", mult: 1.2 },
+        { name: "Epic", chance: 0.04, color: "#9C27B0", mult: 1.5 },
+        { name: "Legendary", chance: 0.01, color: "#FFD700", mult: 2.0 }
+    ];
+    
+    const PET_TYPES = ["🐶 Dog", "🐱 Cat", "🐢 Turtle", "🐒 Monkey", "🐉 Dragon", "👽 Alien"];
+
+    const MAP_DEF = {
+        'island': { name: "Normal Island", cost: 0, water: '#4FC3F7', sand: '#F2D2A9', grass: '#81C784' },
+        'town': { name: "Town Map", cost: 5000, water: '#4DD0E1', sand: '#E0E0E0', grass: '#AED581' },
+        'jungle': { name: "Deep Jungle", cost: 15000, water: '#00695C', sand: '#795548', grass: '#2E7D32' },
+        'city': { name: "Concrete City", cost: 30000, water: '#37474F', sand: '#9E9E9E', grass: '#607D8B' }
+    };
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
+    let lastTime = 0;
+    
+    // Camera and World
+    let camera = { x: 0, y: 0 };
+    const WORLD_SIZE = 2000;
+    const WATER_COLOR = '#4FC3F7';
+    const SAND_COLOR = '#F2D2A9';
+    const GRASS_COLOR = '#81C784';
+
+    // In-game variables
+    let player = { x: 0, y: 0, vx: 0, vy: 0, hp: 100, maxHp: 100, speed: 250, size: 20, color: '#FF5722' };
+    let inputs = { w: false, a: false, s: false, d: false, up:false, down:false, left:false, right:false };
+    let joystick = { active: false, dx: 0, dy: 0 };
+    
+    let runStats = { time: 0, coins: 0, xp: 0 };
+    let entities = []; // Trees, rocks (collidable)
+    let hazards = []; // Active disasters
+    let pickups = []; // Coins, health packs
+    let floatingTexts = [];
+    let particles = [];
+    
+    let eventTimer = 0;
+    let nextEventDelay = 5; // Seconds until first event
+    let activeWarning = null;
+    let timeOfDay = 0; // 0 to 24 (hours representation)
+    let moneyTimer = 0; // Timer for earning money
+
+    // Resize handling
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const CHEAT_CODE = "money";
+    let cheatIdx = 0;
+
+    window.addEventListener('keydown', (e) => {
+        if(e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') inputs.w = true;
+        if(e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') inputs.a = true;
+        if(e.key.toLowerCase() === 's' || e.key === 'ArrowDown') inputs.s = true;
+        if(e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') inputs.d = true;
+
+        // Cheat code logic
+        if (e.key.toLowerCase() === CHEAT_CODE[cheatIdx]) {
+            cheatIdx++;
+            if (cheatIdx === CHEAT_CODE.length) {
+                save.coins += 1000;
+                saveGame();
+                playSound('buy');
+                if (gameState === 'PLAYING') {
+                    floatingTexts.push({text: "CHEAT: +1000🪙!", color: '#FFD700', x: player.x, y: player.y - 80, life: 2});
+                }
+                cheatIdx = 0;
+            }
+        } else {
+            cheatIdx = (e.key.toLowerCase() === CHEAT_CODE[0]) ? 1 : 0;
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        if(e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') inputs.w = false;
+        if(e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') inputs.a = false;
+        if(e.key.toLowerCase() === 's' || e.key === 'ArrowDown') inputs.s = false;
+        if(e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') inputs.d = false;
+    });
+
+    // Mobile Joystick
+    const mobileControls = document.getElementById('mobile-controls');
+    const stick = document.getElementById('stick');
+    let stickCenter = {x:0, y:0};
+
+    // Show joystick on touch devices
+    window.addEventListener('touchstart', () => {
+        if(gameState === 'PLAYING') mobileControls.style.display = 'block';
+    }, {once:true});
+
+    mobileControls.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const rect = mobileControls.getBoundingClientRect();
+        stickCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+        handleTouch(e.touches[0]);
+    });
+    mobileControls.addEventListener('touchmove', (e) => {
+        e.preventDefault(); handleTouch(e.touches[0]);
+    });
+    mobileControls.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        joystick.active = false; joystick.dx = 0; joystick.dy = 0;
+        stick.style.transform = `translate(0px, 0px)`;
+    });
+
+    function handleTouch(touch) {
+        joystick.active = true;
+        let dx = touch.clientX - stickCenter.x;
+        let dy = touch.clientY - stickCenter.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        let maxDist = 50;
+        
+        if (dist > maxDist) {
+            dx = (dx/dist) * maxDist;
+            dy = (dy/dist) * maxDist;
+        }
+        
+        stick.style.transform = `translate(${dx}px, ${dy}px)`;
+        // Normalize for movement
+        joystick.dx = dx / maxDist;
+        joystick.dy = dy / maxDist;
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        if(id) document.getElementById(id).classList.add('active');
+        
+        if(id === 'screen-main') updateMenuUI();
+        if(id === 'screen-upgrades') renderUpgrades();
+        if(id === 'screen-pets') renderPets();
+        if(id === 'screen-maps') renderMaps();
+    }
+
+    function formatTime(seconds) {
+        let m = Math.floor(seconds / 60);
+        let s = Math.floor(seconds % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+    
+    function calculateXPRequirement(lvl) {
+        return Math.floor(100 * Math.pow(1.2, lvl - 1));
+    }
+
+    function updateMenuUI() {
+        document.getElementById('menu-coins').innerText = save.coins;
+        document.getElementById('menu-gems').innerText = save.gems;
+        document.getElementById('menu-best-time').innerText = formatTime(save.bestTime);
+        document.getElementById('menu-level').innerText = save.level;
+    }
+
+    function getUpgradeCost(id) {
+        let level = save.upgrades[id];
+        return Math.floor(UPGRADE_DEF[id].baseCost * Math.pow(UPGRADE_DEF[id].mult, level - 1));
+    }
+    
+    function getUpgradeValue(id, level=null) {
+        if(level===null) level = save.upgrades[id];
+        return UPGRADE_DEF[id].start + (level-1) * UPGRADE_DEF[id].step;
+    }
+
+    function renderUpgrades() {
+        document.getElementById('upgrades-coins').innerText = save.coins;
+        const list = document.getElementById('upgrades-list');
+        list.innerHTML = '';
+        
+        for(let id in UPGRADE_DEF) {
+            let def = UPGRADE_DEF[id];
+            let lvl = save.upgrades[id];
+            let cost = getUpgradeCost(id);
+            let currentVal = getUpgradeValue(id);
+            let nextVal = getUpgradeValue(id, lvl+1);
+            
+            let html = `
+                <div class="shop-item">
+                    <div class="shop-item-info">
+                        <div class="shop-item-title">${def.icon} ${def.name} (Lvl ${lvl})</div>
+                        <div class="shop-item-desc">Current: ${currentVal} ${def.unit} &rarr; Next: ${nextVal} ${def.unit}</div>
+                    </div>
+                    <button class="btn" style="width: auto; padding: 10px 20px; font-size:1rem;" 
+                            onclick="buyUpgrade('${id}')" ${save.coins < cost ? 'disabled' : ''}>
+                        ${cost} 🪙
+                    </button>
+                </div>
+            `;
+            list.innerHTML += html;
+        }
+    }
+
+    function buyUpgrade(id) {
+        let cost = getUpgradeCost(id);
+        if(save.coins >= cost) {
+            save.coins -= cost;
+            save.upgrades[id]++;
+            playSound('buy');
+            saveGame();
+            renderUpgrades();
+        }
+    }
+
+    function hatchEgg(currencyType) {
+        let cost = currencyType === 'coin' ? 1000 : 50;
+        if(currencyType === 'coin' && save.coins < cost) return alert("Not enough coins!");
+        if(currencyType === 'gem' && save.gems < cost) return alert("Not enough gems!");
+
+        if(currencyType === 'coin') save.coins -= cost;
+        else save.gems -= cost;
+
+        playSound('buy');
+
+        // Roll rarity
+        let r = Math.random();
+        let cumulative = 0;
+        let selectedRarity = PET_RARITIES[0];
+        for(let i=0; i<PET_RARITIES.length; i++) {
+            cumulative += PET_RARITIES[i].chance;
+            if(r <= cumulative) { selectedRarity = PET_RARITIES[i]; break; }
+        }
+
+        // Roll type
+        let type = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
+        let newPet = { type: type, rarity: selectedRarity.name, color: selectedRarity.color, mult: selectedRarity.mult };
+        
+        save.pets.push(newPet);
+        saveGame();
+        
+        let resDiv = document.getElementById('hatch-result');
+        resDiv.style.color = newPet.color;
+        resDiv.innerText = `You hatched a ${newPet.rarity} ${newPet.type}!`;
+        
+        renderPets();
+    }
+
+    function renderPets() {
+        document.getElementById('pets-coins').innerText = save.coins;
+        document.getElementById('pets-gems').innerText = save.gems;
+        const list = document.getElementById('pets-list');
+        list.innerHTML = '';
+        
+        save.pets.forEach((pet, index) => {
+            let isEquipped = save.equippedPetIndex === index;
+            let html = `
+                <div style="border:2px solid ${pet.color}; padding:10px; border-radius:10px; text-align:center; background:white; width:120px; position:relative;">
+                    ${isEquipped ? '<div style="position:absolute;top:-10px;right:-10px;background:gold;border-radius:50%;padding:5px;font-size:0.8rem;">⭐</div>' : ''}
+                    <div style="font-size:2rem;">${pet.type.split(' ')[0]}</div>
+                    <div style="font-weight:bold; font-size:0.8rem; color:${pet.color}">${pet.rarity}</div>
+                    <div style="font-size:0.8rem; margin-bottom:5px;">+${Math.round((pet.mult-1)*100)}% Stats</div>
+                    <button class="btn ${isEquipped ? 'secondary' : ''}" style="width:100%; padding:5px; font-size:0.8rem; margin:0;" 
+                            onclick="equipPet(${index})">
+                        ${isEquipped ? 'Equipped' : 'Equip'}
+                    </button>
+                </div>
+            `;
+            list.innerHTML += html;
+        });
+    }
+
+    function equipPet(index) {
+        if(save.equippedPetIndex === index) save.equippedPetIndex = -1; // unequip
+        else save.equippedPetIndex = index;
+        saveGame();
+        renderPets();
+    }
+
+    function renderMaps() {
+        document.getElementById('maps-coins').innerText = save.coins;
+        const list = document.getElementById('maps-list');
+        list.innerHTML = '';
+        
+        for(let id in MAP_DEF) {
+            let def = MAP_DEF[id];
+            let isUnlocked = save.unlockedMaps.includes(id);
+            let isSelected = save.selectedMap === id;
+            
+            let html = `
+                <div style="border: 4px solid ${isSelected ? 'var(--primary)' : '#ccc'}; padding: 15px; border-radius: 12px; background: white; text-align: center;">
+                    <div style="height: 60px; background: ${def.grass}; border: 8px solid ${def.sand}; border-radius: 50%; width: 60px; margin: 0 auto 10px;"></div>
+                    <h3 style="margin-bottom: 5px;">${def.name}</h3>
+                    ${isUnlocked ? 
+                        `<button class="btn ${isSelected ? 'secondary' : ''}" style="width:100%; font-size:1rem; padding: 10px;" onclick="selectMap('${id}')">
+                            ${isSelected ? 'SELECTED' : 'SELECT'}
+                        </button>` : 
+                        `<button class="btn" style="width:100%; font-size:1rem; padding: 10px; background: #607D8B;" onclick="buyMap('${id}')" ${save.coins < def.cost ? 'disabled' : ''}>
+                            Buy: ${def.cost} 🪙
+                        </button>`
+                    }
+                </div>
+            `;
+            list.innerHTML += html;
+        }
+    }
+
+    function buyMap(id) {
+        let cost = MAP_DEF[id].cost;
+        if(save.coins >= cost) {
+            save.coins -= cost;
+            save.unlockedMaps.push(id);
+            playSound('buy');
+            saveGame();
+            renderMaps();
+        }
+    }
+
+    function selectMap(id) {
+        save.selectedMap = id;
+        saveGame();
+        renderMaps();
+    }
+
+    function generateIsland() {
+        entities = [];
+        let mapType = save.selectedMap || 'island';
+        
+        if (mapType === 'island') {
+            for(let i=0; i<80; i++) spawnEntityInBounds('tree', 20, 200);
+            for(let i=0; i<30; i++) spawnEntityInBounds('rock', 30, 150);
+        } else if (mapType === 'town') {
+            for(let i=0; i<15; i++) spawnEntityInBounds('house', 50, 200);
+            for(let i=0; i<40; i++) spawnEntityInBounds('bush', 15, 100);
+            for(let i=0; i<10; i++) spawnEntityInBounds('rock', 20, 150);
+        } else if (mapType === 'jungle') {
+            for(let i=0; i<120; i++) spawnEntityInBounds('jungle_tree', 30, 150);
+            for(let i=0; i<20; i++) spawnEntityInBounds('ruin', 40, 200);
+        } else if (mapType === 'city') {
+            for(let i=0; i<40; i++) spawnEntityInBounds('building', 60, 200);
+            for(let i=0; i<20; i++) spawnEntityInBounds('car', 25, 150);
+        }
+    }
+    
+    function spawnEntityInBounds(type, size, centerSafeRadius) {
+        let angle = Math.random() * Math.PI * 2;
+        // Keep objects outside the spawn radius
+        let radius = centerSafeRadius + Math.random() * (WORLD_SIZE/2 - centerSafeRadius - 50);
+        let x = Math.cos(angle) * radius;
+        let y = Math.sin(angle) * radius;
+        entities.push({ type: type, x: x, y: y, size: size });
+    }
+
+    function startGame() {
+        showScreen(null);
+        document.getElementById('hud').classList.add('active');
+        document.getElementById('warning-banner').style.display = 'none';
+        document.getElementById('level-up-msg').style.display = 'none';
+        
+        // Calculate effective stats including pet bonus
+        let petBonus = 1.0;
+        if(save.equippedPetIndex >= 0 && save.pets[save.equippedPetIndex]) {
+            petBonus = save.pets[save.equippedPetIndex].mult;
+        }
+
+        let maxHp = getUpgradeValue('health') * petBonus;
+        player = {
+            x: 0, y: 0, vx: 0, vy: 0, size: 20,
+            maxHp: maxHp,
+            hp: maxHp,
+            speed: getUpgradeValue('speed') * petBonus,
+            regen: getUpgradeValue('regen') * petBonus,
+            coinMult: getUpgradeValue('coinMult') * petBonus,
+            armor: getUpgradeValue('armor'),
+            gemChance: getUpgradeValue('gemChance')
+        };
+
+        runStats = { time: 0, coins: 0, xp: 0 };
+        hazards = [];
+        pickups = [];
+        particles = [];
+        floatingTexts = [];
+        eventTimer = 0;
+        moneyTimer = 0;
+        nextEventDelay = 5;
+        timeOfDay = 8; // Start at 8 AM
+        
+        generateIsland();
+        
+        gameState = 'PLAYING';
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop(timestamp) {
+        if (gameState !== 'PLAYING') return;
+
+        let dt = (timestamp - lastTime) / 1000; // Delta time in seconds
+        if (dt > 0.1) dt = 0.1; // Cap delta time to prevent huge jumps
+        lastTime = timestamp;
+
+        update(dt);
+        draw();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function update(dt) {
+        runStats.time += dt;
+        timeOfDay = (timeOfDay + dt * 0.5) % 24; // 48 seconds = 1 full day
+        
+        // Input processing
+        let moveX = 0; let moveY = 0;
+        if(inputs.a) moveX -= 1;
+        if(inputs.d) moveX += 1;
+        if(inputs.w) moveY -= 1;
+        if(inputs.s) moveY += 1;
+
+        if(joystick.active) {
+            moveX = joystick.dx;
+            moveY = joystick.dy;
+        }
+
+        // Normalize diagonal movement
+        if (moveX !== 0 || moveY !== 0) {
+            let len = Math.sqrt(moveX*moveX + moveY*moveY);
+            if(len > 1) { moveX /= len; moveY /= len; }
+        }
+
+        player.vx = moveX * player.speed;
+        player.vy = moveY * player.speed;
+
+        // Apply movement and collision (Sliding collision against multiple solid types)
+        let nextX = player.x + player.vx * dt;
+        let nextY = player.y + player.vy * dt;
+        let canMoveX = true;
+        let canMoveY = true;
+
+        let collidables = ['rock', 'house', 'building', 'car', 'ruin'];
+        for(let e of entities) {
+            if(collidables.includes(e.type)) {
+                // Check X-axis collision
+                let dxX = nextX - e.x; let dyX = player.y - e.y;
+                if(Math.sqrt(dxX*dxX + dyX*dyX) < player.size + e.size) canMoveX = false;
+                
+                // Check Y-axis collision
+                let dxY = player.x - e.x; let dyY = nextY - e.y;
+                if(Math.sqrt(dxY*dxY + dyY*dyY) < player.size + e.size) canMoveY = false;
+            }
+        }
+
+        if(canMoveX) player.x = nextX;
+        if(canMoveY) player.y = nextY;
+
+        // Island boundaries (circular island)
+        let distFromCenter = Math.sqrt(player.x*player.x + player.y*player.y);
+        if (distFromCenter > WORLD_SIZE/2 - player.size) {
+            // Push back
+            let angle = Math.atan2(player.y, player.x);
+            player.x = Math.cos(angle) * (WORLD_SIZE/2 - player.size);
+            player.y = Math.sin(angle) * (WORLD_SIZE/2 - player.size);
+            
+            // Damage if in water too long (simple implementation: instant small damage)
+            takeDamage(5 * dt, "Drowned");
+        }
+
+        // Health Regen
+        if(player.hp < player.maxHp && player.regen > 0) {
+            player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
+        }
+
+        // Camera follow
+        camera.x = player.x - canvas.width/2;
+        camera.y = player.y - canvas.height/2;
+
+        updateEvents(dt);
+        updatePickups(dt);
+        updateParticles(dt);
+        updateHUD();
+
+        if (player.hp <= 0) gameOver();
+    }
+
+    function takeDamage(amount, cause) {
+        if(player.hp <= 0) return;
+
+        // Apply armor damage reduction
+        let armorBlock = Math.min(0.8, (player.armor || 1) / 100); // Failsafe fallback to 1
+        amount = amount * (1 - armorBlock);
+
+        player.hp -= amount;
+        
+        // Damage number visual
+        if(amount > 1 && Math.random() > 0.5) {
+            floatingTexts.push({
+                text: `-${Math.ceil(amount)}`, color: varDangerColor, x: player.x, y: player.y - 30, life: 1
+            });
+        }
+
+        if(player.hp <= 0) {
+            document.getElementById('death-cause').innerText = `Eliminated by: ${cause}`;
+        }
+    }
+
+    const varDangerColor = getComputedStyle(document.documentElement).getPropertyValue('--danger').trim();
+    const varSecondaryColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim();
+
+    function updateEvents(dt) {
+        eventTimer += dt;
+        moneyTimer += dt;
+        
+        // Earn money every 10 seconds instead of random floating coins
+        if(moneyTimer >= 10) {
+            moneyTimer -= 10;
+            // SCALE: Base money goes up by 10 for every full minute survived!
+            let currentMins = Math.floor(runStats.time / 60);
+            let baseReward = 15 + (currentMins * 10); 
+            
+            let earned = Math.floor(baseReward * player.coinMult); 
+            runStats.coins += earned;
+            floatingTexts.push({
+                text: `+${earned}🪙 Survived 10s!`, color: '#FFD700', x: player.x, y: player.y - 50, life: 2
+            });
+
+            if (Math.random() * 100 < player.gemChance) {
+                save.gems += 1;
+                floatingTexts.push({
+                    text: `+1💎 Found Gem!`, color: '#8A2BE2', x: player.x, y: player.y - 80, life: 2
+                });
+            }
+
+            playSound('coin');
+        }
+
+        // Spawn Disasters
+        if (eventTimer >= nextEventDelay) {
+            eventTimer = 0;
+            spawnRandomDisaster();
+            // Events get faster over time, min delay 3s
+            nextEventDelay = Math.max(3, 8 - (runStats.time / 60)); 
+        }
+
+        // Update active hazards
+        for (let i = hazards.length - 1; i >= 0; i--) {
+            let h = hazards[i];
+            h.life -= dt;
+            
+            if (h.state === 'warning') {
+                if (h.life <= h.activeTime) h.state = 'active';
+            } 
+            
+            if (h.state === 'active') {
+                // Hazard specific logic
+                if (h.type === 'meteor' || h.type === 'coconut' || h.type === 'geyser' || h.type === 'fireball') {
+                    // Strike damage
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage, h.name);
+                    }
+                    createExplosion(h.x, h.y, h.radius, h.type === 'geyser' ? '#00BCD4' : '#FF5722');
+                    playSound('hit');
+                    
+                    if(h.type === 'fireball') {
+                        // Fireball leaves burning ground
+                        hazards.push({
+                            type: 'fire_patch', name: 'Fire', state: 'active',
+                            x: h.x, y: h.y, radius: h.radius * 0.8, life: 5, damage: 15
+                        });
+                    }
+                    
+                    hazards.splice(i, 1); // Remove immediately after strike
+                    continue;
+                }
+                
+                if (h.type === 'tornado') {
+                    // Move towards center or player slightly
+                    let tx = (player.x - h.x); let ty = (player.y - h.y);
+                    let tLen = Math.sqrt(tx*tx + ty*ty);
+                    h.x += (tx/tLen) * h.speed * dt + (Math.random()-0.5)*100*dt;
+                    h.y += (ty/tLen) * h.speed * dt + (Math.random()-0.5)*100*dt;
+                    
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                        // Pull effect
+                        player.x -= (dx/tLen) * 50 * dt;
+                        player.y -= (dy/tLen) * 50 * dt;
+                    }
+                }
+                
+                if (h.type === 'lava') {
+                    h.radius += h.speed * dt; // Expand
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                }
+                
+                if (h.type === 'tsunami') {
+                    h.x += h.vx * dt;
+                    h.y += h.vy * dt;
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                        // Push player along with the wave
+                        player.x += h.vx * 0.8 * dt;
+                        player.y += h.vy * 0.8 * dt;
+                    }
+                }
+
+                if (h.type === 'poison') {
+                    h.x += h.vx * dt;
+                    h.y += h.vy * dt;
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                }
+
+                if (h.type === 'fire_patch') {
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                }
+
+                if (h.type === 'ufo') {
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    // Move towards player
+                    if(dist > 0) {
+                        h.x += (dx/dist) * h.speed * dt;
+                        h.y += (dy/dist) * h.speed * dt;
+                    }
+                    
+                    // Tractor beam pull
+                    if (dist < h.pullRadius) {
+                        player.x -= (dx/dist) * h.pullForce * dt;
+                        player.y -= (dy/dist) * h.pullForce * dt;
+                    }
+                    // Core damage
+                    if (dist < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                }
+
+                if (h.type === 'blackhole') {
+                    let dx = h.x - player.x; let dy = h.y - player.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < h.pullRadius) {
+                        player.x += (dx/dist) * h.pullForce * dt;
+                        player.y += (dy/dist) * h.pullForce * dt;
+                    }
+                    if (dist < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                }
+
+                if (h.type === 'sandstorm') {
+                    // Global push and tick damage
+                    player.x += h.vx * dt;
+                    player.y += h.vy * dt;
+                    takeDamage(h.damage * dt, h.name); 
+                }
+                
+                if (h.type === 'laser' || h.type === 'laser_grid') {
+                    let dx = player.x - h.x;
+                    let dy = player.y - h.y;
+                    // Rotate point by -angle to align line with x-axis
+                    let rotatedY = -dx * Math.sin(h.angle) + dy * Math.cos(h.angle);
+                    if (Math.abs(rotatedY) < (h.width/2) + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                }
+                
+                // NEW NPC HAZARDS AI LOGIC
+                if (h.type === 'monkey' || h.type === 'zombie' || h.type === 'alien' || h.type === 'soldier' || h.type === 'tank' || h.type === 'helicopter' || h.type === 'slime') {
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (h.type === 'slime') {
+                        // Slime jumps
+                        if (h.z > 0 || h.vz > 0) {
+                            h.z += h.vz * dt;
+                            h.vz -= 400 * dt; // Gravity
+                            h.x += h.vx * dt; h.y += h.vy * dt; // move while airborne
+                            if(h.z <= 0) { // Landed
+                                h.z = 0; h.vz = 0;
+                                // AoE Damage
+                                if(dist < h.radius*1.5 + player.size) takeDamage(h.damage, h.name);
+                                createExplosion(h.x, h.y, h.radius, '#00E676');
+                                playSound('hit');
+                                h.jumpTimer = 1.5; // wait before next jump
+                            }
+                        } else {
+                            h.jumpTimer -= dt;
+                            if(h.jumpTimer <= 0) {
+                                h.vz = 300; // Jump power
+                                h.vx = (dx/dist) * h.speed;
+                                h.vy = (dy/dist) * h.speed;
+                            }
+                        }
+                    } else if (dist > 0) {
+                        h.x += (dx/dist) * h.speed * dt;
+                        h.y += (dy/dist) * h.speed * dt;
+                    }
+                    
+                    // Melee Damage
+                    if ((h.type === 'monkey' || h.type === 'zombie' || h.type === 'alien') && dist < h.radius + player.size) {
+                        takeDamage(h.damage * dt, h.name);
+                    }
+                    
+                    // Ranged Attacks
+                    if (h.attackTimer !== undefined) {
+                        h.attackTimer -= dt;
+                        if (h.attackTimer <= 0) {
+                            if (h.type === 'soldier' || h.type === 'alien') {
+                                hazards.push({
+                                    type: 'projectile', name: h.type === 'alien' ? 'Plasma' : 'Bullet', state: 'active',
+                                    x: h.x, y: h.y, radius: 5, vx: (dx/dist)*400, vy: (dy/dist)*400,
+                                    life: 3, damage: 15
+                                });
+                                h.attackTimer = h.type === 'alien' ? 1.0 : 1.5;
+                                playSound('hit');
+                            } else if (h.type === 'tank') {
+                                hazards.push({
+                                    type: 'meteor', name: 'Tank Shell', state: 'warning',
+                                    x: player.x, y: player.y, radius: 70, life: 1.5, activeTime: 0.2, damage: 45
+                                });
+                                h.attackTimer = 3.5;
+                                playSound('warning');
+                            } else if (h.type === 'helicopter') {
+                                hazards.push({
+                                    type: 'meteor', name: 'Bomb', state: 'warning',
+                                    x: h.x, y: h.y, radius: 50, life: 1.0, activeTime: 0.2, damage: 30
+                                });
+                                h.attackTimer = 1.0;
+                            }
+                        }
+                    }
+                }
+
+                if (h.type === 'projectile') {
+                    h.x += h.vx * dt; h.y += h.vy * dt;
+                    let dx = player.x - h.x; let dy = player.y - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.radius + player.size) {
+                        takeDamage(h.damage, h.name);
+                        h.life = 0; // destroyed on hit
+                    }
+                }
+            }
+
+            if (h.life <= 0) {
+                hazards.splice(i, 1);
+            }
+        }
+    }
+
+    function showWarning(text) {
+        const banner = document.getElementById('warning-banner');
+        banner.innerText = `⚠️ ${text} ⚠️`;
+        banner.style.display = 'block';
+        playSound('warning');
+        setTimeout(() => { banner.style.display = 'none'; }, 2000);
+    }
+
+    function spawnRandomDisaster() {
+        let r = Math.random();
+        let min = runStats.time / 60; // minutes survived
+        
+        // Determine event tier based on survival time (harder events become much more common!)
+        let tier = 'easy';
+        if (min < 2) {
+            tier = r < 0.7 ? 'easy' : 'medium'; // 70% easy, 30% medium
+        } else if (min < 4) {
+            tier = r < 0.3 ? 'easy' : (r < 0.7 ? 'medium' : 'hard'); // 30% easy, 40% med, 30% hard
+        } else if (min < 7) {
+            tier = r < 0.1 ? 'easy' : (r < 0.3 ? 'medium' : (r < 0.7 ? 'hard' : 'extreme')); // 10% easy, 20% med, 40% hard, 30% extreme
+        } else {
+            tier = r < 0.2 ? 'medium' : (r < 0.5 ? 'hard' : 'extreme'); // 0% easy, 20% med, 30% hard, 50% extreme
+        }
+        
+        if (tier === 'easy') {
+            let randEasy = Math.random();
+            if(randEasy < 0.25) {
+                showWarning("Falling Coconuts!");
+                for(let i=0; i<3; i++) {
+                    hazards.push({
+                        type: 'coconut', name: 'Coconut', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*400, y: player.y + (Math.random()-0.5)*400,
+                        radius: 50, life: 2, activeTime: 0.1, damage: 15
+                    });
+                }
+            } else if(randEasy < 0.5) {
+                showWarning("Small Earthquake!");
+                for(let i=0; i<8; i++) {
+                     hazards.push({
+                        type: 'meteor', name: 'Debris', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*600, y: player.y + (Math.random()-0.5)*600,
+                        radius: 30, life: 1.5 + Math.random(), activeTime: 0.1, damage: 10
+                     });
+                 }
+            } else if(randEasy < 0.75) {
+                showWarning("Geysers Erupting!");
+                for(let i=0; i<5; i++) {
+                    hazards.push({
+                        type: 'geyser', name: 'Geyser', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*500, y: player.y + (Math.random()-0.5)*500,
+                        radius: 60, life: 2.5, activeTime: 0.3, damage: 20
+                    });
+                }
+            } else {
+                showWarning("Lightning Strike!");
+                hazards.push({
+                    type: 'meteor', name: 'Lightning', state: 'warning',
+                    x: player.x, y: player.y,
+                    radius: 80, life: 1.5, activeTime: 0.2, damage: 30
+                });
+            }
+        } else if (tier === 'medium') {
+            let randMed = Math.random();
+            if(randMed < 0.15) {
+                showWarning("Meteor Shower!");
+                for(let i=0; i<5; i++) {
+                    hazards.push({
+                        type: 'meteor', name: 'Meteor', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*600, y: player.y + (Math.random()-0.5)*600,
+                        radius: 120, life: 2 + Math.random()*2, activeTime: 0.2, damage: 45
+                    });
+                }
+            } else if(randMed < 0.3) {
+                showWarning("Alien Laser!");
+                hazards.push({
+                    type: 'laser', name: 'Alien Laser', state: 'warning',
+                    x: player.x, y: player.y, angle: Math.random() * Math.PI,
+                    width: 150, life: 3.5, activeTime: 0.5, damage: 50
+                });
+            } else if(randMed < 0.4) {
+                showWarning("Giant Slime!");
+                hazards.push({
+                    type: 'slime', name: 'Giant Slime', state: 'active',
+                    x: player.x + 600, y: player.y + 600,
+                    radius: 40, life: 15, damage: 30, speed: 250, z: 0, vz: 0, jumpTimer: 0.5
+                });
+            } else if(randMed < 0.55) {
+                showWarning("Poison Fog!");
+                for(let i=0; i<3; i++) {
+                    hazards.push({
+                        type: 'poison', name: 'Toxic Gas', state: 'active',
+                        x: player.x + (Math.random()-0.5)*800, y: player.y + (Math.random()-0.5)*800,
+                        vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100,
+                        radius: 150, life: 8, activeTime: 8, damage: 15
+                    });
+                }
+            } else if(randMed < 0.70) {
+                showWarning("Tornado!");
+                hazards.push({
+                    type: 'tornado', name: 'Tornado', state: 'active',
+                    x: (Math.random()-0.5)*WORLD_SIZE/2, y: (Math.random()-0.5)*WORLD_SIZE/2,
+                    radius: 100, life: 10, activeTime: 10, damage: 20, speed: 150
+                });
+            } else if(randMed < 0.75) {
+                showWarning("Angry Monkeys!");
+                for(let i=0; i<8; i++) {
+                    let angle = Math.random() * Math.PI * 2;
+                    hazards.push({
+                        type: 'monkey', name: 'Monkey', state: 'active',
+                        x: player.x + Math.cos(angle)*600, y: player.y + Math.sin(angle)*600,
+                        radius: 15, life: 12, damage: 20, speed: 180
+                    });
+                }
+            } else if(randMed < 0.85) {
+                showWarning("Acid Rain!");
+                for(let i=0; i<15; i++) {
+                     hazards.push({
+                        type: 'poison', name: 'Acid Puddle', state: 'active',
+                        x: player.x + (Math.random()-0.5)*1000, y: player.y + (Math.random()-0.5)*1000,
+                        vx: 0, vy: 0, radius: 80, life: 6, activeTime: 6, damage: 25
+                    });
+                }
+            } else {
+                showWarning("Zombie Horde!");
+                for(let i=0; i<15; i++) {
+                    let angle = Math.random() * Math.PI * 2;
+                    hazards.push({
+                        type: 'zombie', name: 'Zombie', state: 'active',
+                        x: player.x + Math.cos(angle)*700, y: player.y + Math.sin(angle)*700,
+                        radius: 18, life: 20, damage: 30, speed: 80
+                    });
+                }
+            }
+        } else if (tier === 'hard') {
+            let randHard = Math.random();
+            if (randHard < 0.15) {
+                showWarning("Firestorm!");
+                for(let i=0; i<10; i++) {
+                    hazards.push({
+                        type: 'fireball', name: 'Fireball', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*800, y: player.y + (Math.random()-0.5)*800,
+                        radius: 60, life: 2 + Math.random(), activeTime: 0.2, damage: 40
+                    });
+                }
+            } else if (randHard < 0.3) {
+                showWarning("Volcanic Eruption!");
+                hazards.push({
+                    type: 'lava', name: 'Lava', state: 'warning',
+                    x: 0, y: 0, // Center of island
+                    radius: 10, life: 15, activeTime: 13, damage: 40, speed: 40
+                });
+                for(let i=0; i<4; i++) {
+                    hazards.push({
+                        type: 'meteor', name: 'Volcanic Rock', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*500, y: player.y + (Math.random()-0.5)*500,
+                        radius: 100, life: 3, activeTime: 0.2, damage: 50
+                    });
+                }
+            } else if (randHard < 0.45) {
+                showWarning("Alien UFO!");
+                hazards.push({
+                    type: 'ufo', name: 'UFO Abduction', state: 'active',
+                    x: player.x + 500, y: player.y - 500,
+                    radius: 30, pullRadius: 250, pullForce: 200, speed: 120, life: 12, damage: 150
+                });
+            } else if (randHard < 0.6) {
+                showWarning("Black Hole!");
+                hazards.push({
+                    type: 'blackhole', name: 'Singularity', state: 'warning',
+                    x: player.x + (Math.random()-0.5)*300, y: player.y + (Math.random()-0.5)*300,
+                    radius: 40, pullRadius: 500, pullForce: 150, life: 8, activeTime: 6, damage: 200
+                });
+            } else if (randHard < 0.6) {
+                showWarning("Mega Tsunami!");
+                let spawnAngle = Math.random() * Math.PI * 2;
+                hazards.push({
+                    type: 'tsunami', name: 'Tsunami', state: 'warning',
+                    x: Math.cos(spawnAngle) * (WORLD_SIZE/2 + 300), 
+                    y: Math.sin(spawnAngle) * (WORLD_SIZE/2 + 300),
+                    vx: -Math.cos(spawnAngle) * 400, 
+                    vy: -Math.sin(spawnAngle) * 400,
+                    radius: 400, life: 12, activeTime: 10, damage: 30
+                });
+            } else if (randHard < 0.75) {
+                showWarning("Soldiers Deployed!");
+                for(let i=0; i<4; i++) {
+                    hazards.push({
+                        type: 'soldier', name: 'Soldier', state: 'active',
+                        x: player.x + (Math.random()-0.5)*800, y: player.y + (Math.random()-0.5)*800,
+                        radius: 20, life: 15, damage: 15, speed: 100, attackTimer: Math.random() * 2
+                    });
+                }
+            } else if (randHard < 0.9) {
+                showWarning("Enemy Tank!");
+                hazards.push({
+                    type: 'tank', name: 'Tank', state: 'active',
+                    x: player.x + (Math.random()>0.5?600:-600), y: player.y + (Math.random()>0.5?600:-600),
+                    radius: 40, life: 25, damage: 40, speed: 40, attackTimer: 2
+                });
+            } else {
+                showWarning("Attack Helicopter!");
+                hazards.push({
+                    type: 'helicopter', name: 'Helicopter', state: 'active',
+                    x: player.x + 800, y: player.y + 800,
+                    radius: 30, life: 20, damage: 30, speed: 150, attackTimer: 1
+                });
+            }
+        } else {
+            // Extreme Tier
+            let randExt = Math.random();
+            if (randExt < 0.25) {
+                showWarning("Apocalypse Laser Grid!");
+                for(let i=0; i<3; i++) {
+                    hazards.push({
+                        type: 'laser_grid', name: 'Apocalypse Laser', state: 'warning',
+                        x: player.x + (Math.random()-0.5)*400, y: player.y + (Math.random()-0.5)*400, 
+                        angle: (Math.PI / 3) * i, // Creates a star pattern
+                        width: 120, life: 4, activeTime: 1.5, damage: 80 
+                    });
+                }
+            } else if (randExt < 0.5) {
+                showWarning("Massive Sandstorm!");
+                let windDir = Math.random() * Math.PI * 2;
+                hazards.push({
+                    type: 'sandstorm', name: 'Sandstorm', state: 'active',
+                    x: 0, y: 0, vx: Math.cos(windDir) * 120, vy: Math.sin(windDir) * 120,
+                    radius: 0, life: 10, activeTime: 10, damage: 10
+                });
+            } else if (randExt < 0.7) {
+                showWarning("Tornado Fever!");
+                for(let i=0; i<10; i++) {
+                    hazards.push({
+                        type: 'tornado', name: 'Tornado', state: 'active',
+                        x: player.x + (Math.random()-0.5)*1200, y: player.y + (Math.random()-0.5)*1200,
+                        radius: 80, life: 15, activeTime: 15, damage: 25, speed: 200
+                    });
+                }
+            } else if (randExt < 0.85) {
+                showWarning("Full Military Assault!");
+                hazards.push({
+                    type: 'tank', name: 'Tank', state: 'active',
+                    x: player.x + 600, y: player.y, radius: 40, life: 20, damage: 40, speed: 40, attackTimer: 3
+                });
+                hazards.push({
+                    type: 'helicopter', name: 'Helicopter', state: 'active',
+                    x: player.x - 600, y: player.y, radius: 30, life: 20, damage: 30, speed: 150, attackTimer: 1.5
+                });
+                for(let i=0; i<4; i++) {
+                    hazards.push({
+                        type: 'soldier', name: 'Soldier', state: 'active',
+                        x: player.x + (Math.random()-0.5)*800, y: player.y + (Math.random()-0.5)*800,
+                        radius: 20, life: 20, damage: 15, speed: 100, attackTimer: Math.random() * 2
+                    });
+                }
+            } else {
+                showWarning("Alien Mothership!");
+                // Spawns big laser and a squad of aliens
+                hazards.push({
+                    type: 'laser', name: 'Mothership Beam', state: 'warning',
+                    x: player.x, y: player.y, angle: Math.random() * Math.PI,
+                    width: 300, life: 5, activeTime: 2, damage: 100
+                });
+                for(let i=0; i<5; i++) {
+                    hazards.push({
+                        type: 'alien', name: 'Alien', state: 'active',
+                        x: player.x + (Math.random()-0.5)*600, y: player.y + (Math.random()-0.5)*600,
+                        radius: 18, life: 15, damage: 30, speed: 130, attackTimer: Math.random() * 1.5
+                    });
+                }
+            }
+        }
+        
+        // Award ONLY survival XP for events triggering. Coins are strictly timer-based.
+        addReward(0, 15);
+    }
+
+    function addReward(coins, xp) {
+        let finalCoins = Math.floor(coins * player.coinMult);
+        runStats.coins += finalCoins;
+        runStats.xp += xp;
+        
+        if(coins > 0) {
+             floatingTexts.push({
+                text: `+${finalCoins}🪙`, color: '#FFD700', x: player.x, y: player.y - 50, life: 1
+            });
+        }
+    }
+
+    function updatePickups(dt) {
+        for (let i = pickups.length - 1; i >= 0; i--) {
+            let p = pickups[i];
+            p.life -= dt;
+            
+            // Magnet effect (pull towards player if close)
+            let dx = player.x - p.x; let dy = player.y - p.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if(dist < 150) { // Magnet radius
+                p.x += (dx/dist) * 200 * dt;
+                p.y += (dy/dist) * 200 * dt;
+            }
+
+            // Collection
+            if (dist < player.size + 15) {
+                if(p.type === 'coin') {
+                    addReward(p.value, 1);
+                    playSound('coin');
+                }
+                pickups.splice(i, 1);
+                continue;
+            }
+
+            if (p.life <= 0) pickups.splice(i, 1);
+        }
+    }
+    
+    function createExplosion(x, y, radius, color) {
+        for(let i=0; i<10; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random()-0.5)*300, vy: (Math.random()-0.5)*300,
+                life: 0.5 + Math.random()*0.5, size: 5 + Math.random()*10, color: color
+            });
+        }
+    }
+
+    function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.life -= dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+        
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+            let ft = floatingTexts[i];
+            ft.life -= dt;
+            ft.y -= 30 * dt; // Float up
+            if(ft.life <= 0) floatingTexts.splice(i, 1);
+        }
+    }
+
+    function updateHUD() {
+        document.getElementById('hud-hp').innerText = `${Math.floor(player.hp)}/${Math.floor(player.maxHp)}`;
+        document.getElementById('hud-hp-bar').style.width = `${Math.max(0, (player.hp/player.maxHp)*100)}%`;
+        
+        document.getElementById('hud-time').innerText = formatTime(runStats.time);
+        document.getElementById('hud-coins').innerText = runStats.coins;
+        document.getElementById('hud-gems').innerText = save.gems; // Static during run usually
+        document.getElementById('hud-level').innerText = save.level;
+        
+        // XP Bar
+        let currentLevelXPReq = calculateXPRequirement(save.level);
+        let totalXP = save.xp + runStats.xp;
+        
+        // Check real-time level up
+        if(totalXP >= currentLevelXPReq) {
+            save.level++;
+            save.xp = totalXP - currentLevelXPReq;
+            runStats.xp = 0; // Reset run xp so we don't double count
+            save.gems += 5; // Level up reward
+            playSound('level');
+            let msg = document.getElementById('level-up-msg');
+            msg.style.display = 'block';
+            setTimeout(()=>msg.style.display='none', 3000);
+            
+            // Re-calculate to show correct bar progress immediately
+            currentLevelXPReq = calculateXPRequirement(save.level);
+            totalXP = save.xp;
+        }
+
+        let xpPct = Math.min(100, (totalXP / currentLevelXPReq) * 100);
+        document.getElementById('hud-xp-bar').style.width = `${xpPct}%`;
+        document.getElementById('xp-text').innerText = `XP: ${Math.floor(totalXP)} / ${currentLevelXPReq}`;
+    }
+
+    function gameOver() {
+        gameState = 'GAMEOVER';
+        document.getElementById('hud').classList.remove('active');
+        document.getElementById('mobile-controls').style.display = 'none';
+        
+        // Apply final rewards to save
+        save.coins += runStats.coins;
+        save.xp += runStats.xp;
+        save.totalRuns++;
+        if (runStats.time > save.bestTime) save.bestTime = runStats.time;
+
+        // Process XP properly on death in case they didn't level up during play
+        while(save.xp >= calculateXPRequirement(save.level)) {
+             save.xp -= calculateXPRequirement(save.level);
+             save.level++;
+             save.gems += 5;
+        }
+
+        saveGame();
+
+        // Show death screen
+        document.getElementById('go-time').innerText = formatTime(runStats.time);
+        document.getElementById('go-coins').innerText = runStats.coins;
+        document.getElementById('go-xp').innerText = runStats.xp;
+        
+        showScreen('screen-gameover');
+    }
+
+    function draw() {
+        let currentMap = MAP_DEF[save.selectedMap || 'island'];
+        
+        // Clear screen and draw water background
+        ctx.fillStyle = currentMap.water;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        ctx.translate(-camera.x, -camera.y);
+
+        // Draw Island Base
+        ctx.fillStyle = currentMap.sand;
+        ctx.beginPath();
+        ctx.arc(0, 0, WORLD_SIZE/2, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = currentMap.grass;
+        ctx.beginPath();
+        ctx.arc(0, 0, WORLD_SIZE/2 - (save.selectedMap==='city'? 40 : 20), 0, Math.PI*2);
+        ctx.fill();
+
+        // Draw Environment based on map types
+        for(let e of entities) {
+            if(e.type === 'tree') {
+                ctx.fillStyle = '#795548'; ctx.fillRect(e.x - 5, e.y, 10, e.size); // Trunk
+                ctx.fillStyle = '#2E7D32'; // Leaves
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x-10, e.y+10, e.size*0.8, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x+10, e.y+10, e.size*0.8, 0, Math.PI*2); ctx.fill();
+            } else if (e.type === 'jungle_tree') {
+                ctx.fillStyle = '#4E342E'; ctx.fillRect(e.x - 8, e.y, 16, e.size); // Trunk
+                ctx.fillStyle = '#1B5E20'; // Dark leaves
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x-15, e.y+15, e.size*0.9, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(e.x+15, e.y+15, e.size*0.9, 0, Math.PI*2); ctx.fill();
+            } else if (e.type === 'rock') {
+                ctx.fillStyle = '#9E9E9E';
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#BDBDBD'; ctx.beginPath(); ctx.arc(e.x-5, e.y-5, e.size/2, 0, Math.PI*2); ctx.fill();
+            } else if (e.type === 'bush') {
+                ctx.fillStyle = '#689F38';
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+            } else if (e.type === 'house') {
+                ctx.fillStyle = '#FFF3E0'; ctx.fillRect(e.x - e.size/2, e.y - e.size/2, e.size, e.size);
+                ctx.fillStyle = '#D32F2F'; // Roof
+                ctx.beginPath(); ctx.moveTo(e.x - e.size/2 - 5, e.y - e.size/2); 
+                ctx.lineTo(e.x + e.size/2 + 5, e.y - e.size/2); ctx.lineTo(e.x, e.y - e.size); ctx.fill();
+            } else if (e.type === 'building') {
+                ctx.fillStyle = '#455A64'; ctx.fillRect(e.x - e.size/2, e.y - e.size, e.size, e.size*1.5);
+                ctx.fillStyle = '#CFD8DC'; // Windows
+                for(let wx=0; wx<3; wx++) {
+                    for(let wy=0; wy<4; wy++) {
+                        if(Math.random()>0.2) ctx.fillRect(e.x - e.size/2 + 8 + wx*16, e.y - e.size + 8 + wy*18, 10, 10);
+                    }
+                }
+            } else if (e.type === 'car') {
+                ctx.fillStyle = '#1565C0'; ctx.fillRect(e.x - e.size/2, e.y - 10, e.size, 20);
+                ctx.fillStyle = '#424242'; ctx.fillRect(e.x - e.size/4, e.y - 15, e.size/2, 30);
+            } else if (e.type === 'ruin') {
+                ctx.fillStyle = '#757575'; ctx.fillRect(e.x - e.size/2, e.y - e.size/2, e.size, e.size);
+                ctx.fillStyle = '#4CAF50'; ctx.fillRect(e.x - e.size/2, e.y, e.size/2, 10); // moss
+            }
+        }
+
+        // Draw Pickups
+        for(let p of pickups) {
+            if(p.type === 'coin') {
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#B8860B'; ctx.lineWidth = 2; ctx.stroke();
+                // Simple animation
+                if(Math.floor(runStats.time * 4) % 2 === 0) {
+                     ctx.fillStyle = '#FFF';
+                     ctx.fillRect(p.x-2, p.y-5, 4, 10);
+                }
+            }
+        }
+
+        // Draw Player
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.stroke();
+        // Eyes
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(player.x-8, player.y-5, 6, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(player.x+8, player.y-5, 6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'black';
+        // Pupil direction based on velocity
+        let px = player.vx !== 0 ? Math.sign(player.vx)*2 : 0;
+        let py = player.vy !== 0 ? Math.sign(player.vy)*2 : 0;
+        ctx.beginPath(); ctx.arc(player.x-8+px, player.y-5+py, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(player.x+8+px, player.y-5+py, 3, 0, Math.PI*2); ctx.fill();
+
+        // Draw Pet
+        if(save.equippedPetIndex >= 0 && save.pets[save.equippedPetIndex]) {
+            let pet = save.pets[save.equippedPetIndex];
+            // Follow player with lag
+            let tgtX = player.x - (player.vx > 0 ? 40 : (player.vx < 0 ? -40 : 0));
+            let tgtY = player.y - 40;
+            // Simple interpolation for drawing (doesn't need tight physics)
+            ctx.fillStyle = pet.color;
+            ctx.beginPath(); ctx.arc(tgtX, tgtY, 12, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth=2; ctx.stroke();
+            // Emoji representation
+            ctx.font = "16px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(pet.type.split(' ')[0], tgtX, tgtY);
+        }
+
+        // Draw Hazards
+        for(let h of hazards) {
+            if (h.state === 'warning') {
+                if (h.type === 'laser' || h.type === 'laser_grid') {
+                    ctx.save();
+                    ctx.translate(h.x, h.y);
+                    ctx.rotate(h.angle);
+                    ctx.fillStyle = h.type === 'laser_grid' ? 'rgba(156, 39, 176, 0.2)' : 'rgba(255, 0, 0, 0.2)';
+                    ctx.fillRect(-2000, -h.width/2, 4000, h.width);
+                    ctx.strokeStyle = h.type === 'laser_grid' ? 'rgba(156, 39, 176, 0.8)' : 'rgba(255, 0, 0, 0.8)'; 
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-2000, -h.width/2, 4000, h.width);
+                    ctx.restore();
+                } else if (h.type === 'geyser') {
+                    ctx.fillStyle = 'rgba(0, 188, 212, 0.3)';
+                    ctx.strokeStyle = 'rgba(0, 188, 212, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                } else if (h.type === 'blackhole') {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.strokeStyle = 'rgba(156, 39, 176, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.pullRadius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.stroke();
+                } else {
+                    ctx.fillStyle = h.type==='fireball' ? 'rgba(255, 87, 34, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+                    ctx.strokeStyle = h.type==='fireball' ? 'rgba(255, 87, 34, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+                    ctx.lineWidth = 2;
+                    let drawRadius = h.radius || 50;
+                    ctx.beginPath(); ctx.arc(h.x, h.y, drawRadius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                    
+                    // Pulsing crosshair
+                    let pulse = Math.abs(Math.sin(runStats.time * 10)) * drawRadius;
+                    ctx.beginPath(); ctx.arc(h.x, h.y, pulse, 0, Math.PI*2); ctx.stroke();
+                }
+            } else if (h.state === 'active') {
+                if(h.type === 'tornado') {
+                    ctx.fillStyle = 'rgba(150, 150, 150, 0.6)';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    // Draw spinning debris
+                    ctx.strokeStyle = '#555'; ctx.lineWidth = 3;
+                    for(let i=0; i<3; i++) {
+                        let angle = runStats.time * 5 + (i * Math.PI*2/3);
+                        ctx.beginPath();
+                        ctx.arc(h.x, h.y, h.radius*0.8, angle, angle + Math.PI);
+                        ctx.stroke();
+                    }
+                } else if (h.type === 'lava') {
+                    ctx.fillStyle = '#FF5722';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#FFEB3B';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius*0.7, 0, Math.PI*2); ctx.fill();
+                } else if (h.type === 'tsunami') {
+                    ctx.fillStyle = 'rgba(33, 150, 243, 0.8)'; // Blue water
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 5; ctx.stroke(); // foam line
+                } else if (h.type === 'laser') {
+                    ctx.save();
+                    ctx.translate(h.x, h.y);
+                    ctx.rotate(h.angle);
+                    ctx.fillStyle = '#F44336'; // Bright red
+                    ctx.fillRect(-2000, -h.width/2, 4000, h.width);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(-2000, -h.width/4, 4000, h.width/2);
+                    ctx.restore();
+                } else if (h.type === 'laser_grid') {
+                    ctx.save();
+                    ctx.translate(h.x, h.y);
+                    ctx.rotate(h.angle);
+                    ctx.fillStyle = '#9C27B0'; // Purple laser
+                    ctx.fillRect(-2000, -h.width/2, 4000, h.width);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(-2000, -h.width/4, 4000, h.width/2);
+                    ctx.restore();
+                } else if (h.type === 'poison') {
+                    ctx.fillStyle = 'rgba(76, 175, 80, 0.5)';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                } else if (h.type === 'fire_patch') {
+                    ctx.fillStyle = 'rgba(255, 87, 34, 0.6)';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    // little flames
+                    ctx.fillStyle = '#FFEB3B';
+                    ctx.beginPath(); ctx.arc(h.x + Math.sin(runStats.time*10)*10, h.y - 10, h.radius*0.4, 0, Math.PI*2); ctx.fill();
+                } else if (h.type === 'ufo') {
+                    // Tractor beam
+                    ctx.fillStyle = 'rgba(139, 195, 74, 0.3)';
+                    ctx.beginPath(); ctx.moveTo(h.x, h.y); ctx.lineTo(h.x - h.pullRadius, h.y + h.pullRadius); ctx.lineTo(h.x + h.pullRadius, h.y + h.pullRadius); ctx.fill();
+                    // Ship
+                    ctx.fillStyle = '#78909C';
+                    ctx.beginPath(); ctx.ellipse(h.x, h.y, h.radius*1.5, h.radius*0.8, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#81D4FA'; // Dome
+                    ctx.beginPath(); ctx.arc(h.x, h.y-10, h.radius*0.6, Math.PI, 0); ctx.fill();
+                } else if (h.type === 'blackhole') {
+                    // Event horizon
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    // Accretion disk
+                    ctx.strokeStyle = 'rgba(156, 39, 176, 0.8)';
+                    ctx.lineWidth = 5;
+                    let spin = runStats.time * 10;
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius * 1.5 + Math.sin(spin)*5, 0, Math.PI*2); ctx.stroke();
+                } else if (h.type === 'sandstorm') {
+                    // Just draw a massive tint over the camera view to simulate sandstorm
+                    ctx.save();
+                    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform to screen coords
+                    ctx.fillStyle = 'rgba(210, 180, 140, 0.3)'; 
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                } else if (h.type === 'projectile') {
+                    ctx.fillStyle = h.name === 'Plasma' ? '#00E676' : '#FFEB3B';
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = '#F44336'; ctx.lineWidth = 1; ctx.stroke();
+                } else if (h.type === 'slime') {
+                    ctx.fillStyle = 'rgba(0, 230, 118, 0.8)';
+                    let drawRad = h.radius + (h.z || 0) * 0.2; // Appears larger when high up
+                    ctx.beginPath(); ctx.arc(h.x, h.y - (h.z || 0), drawRad, 0, Math.PI*2); ctx.fill();
+                    // Shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                    ctx.beginPath(); ctx.ellipse(h.x, h.y, h.radius, h.radius*0.5, 0, 0, Math.PI*2); ctx.fill();
+                } else if (h.type === 'monkey' || h.type === 'zombie' || h.type === 'alien') {
+                    ctx.fillStyle = h.type === 'monkey' ? '#795548' : (h.type === 'zombie' ? '#4CAF50' : '#00E676');
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    // Eyes
+                    ctx.fillStyle = h.type === 'alien' ? '#000' : '#FFF';
+                    ctx.beginPath(); ctx.arc(h.x - 5, h.y - 5, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(h.x + 5, h.y - 5, 3, 0, Math.PI*2); ctx.fill();
+                    if(h.type !== 'alien') { // pupils for non-aliens
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath(); ctx.arc(h.x - 5, h.y - 5, 1.5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(h.x + 5, h.y - 5, 1.5, 0, Math.PI*2); ctx.fill();
+                    }
+                } else if (h.type === 'soldier') {
+                    ctx.fillStyle = '#388E3C'; // Green uniform
+                    ctx.beginPath(); ctx.arc(h.x, h.y, h.radius, 0, Math.PI*2); ctx.fill();
+                    // Gun
+                    ctx.fillStyle = '#212121';
+                    let ang = Math.atan2(player.y - h.y, player.x - h.x);
+                    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(ang);
+                    ctx.fillRect(10, -4, 25, 8);
+                    ctx.restore();
+                } else if (h.type === 'tank') {
+                    ctx.fillStyle = '#1B5E20';
+                    ctx.save(); ctx.translate(h.x, h.y); 
+                    let ang = Math.atan2(player.y - h.y, player.x - h.x);
+                    ctx.rotate(ang);
+                    ctx.fillRect(-35, -25, 70, 50); // Body
+                    ctx.fillStyle = '#424242';
+                    ctx.fillRect(-40, -30, 80, 10); // Tracks
+                    ctx.fillRect(-40, 20, 80, 10);
+                    ctx.fillStyle = '#212121';
+                    ctx.fillRect(10, -6, 55, 12); // Barrel
+                    ctx.fillStyle = '#2E7D32';
+                    ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI*2); ctx.fill(); // Turret
+                    ctx.restore();
+                } else if (h.type === 'helicopter') {
+                    ctx.save(); ctx.translate(h.x, h.y);
+                    let ang = Math.atan2(player.y - h.y, player.x - h.x);
+                    ctx.rotate(ang);
+                    // Body
+                    ctx.fillStyle = '#424242';
+                    ctx.beginPath(); ctx.ellipse(0, 0, 40, 18, 0, 0, Math.PI*2); ctx.fill();
+                    // Tail
+                    ctx.fillRect(-60, -4, 30, 8);
+                    ctx.beginPath(); ctx.arc(-60, 0, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                    
+                    // Rotors (untethered from helicopter rotation so they look like they're spinning flat)
+                    ctx.save(); ctx.translate(h.x, h.y);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; ctx.lineWidth = 5;
+                    let rot = runStats.time * 25; // Spin speed
+                    ctx.beginPath(); ctx.moveTo(Math.cos(rot)*50, Math.sin(rot)*50); ctx.lineTo(-Math.cos(rot)*50, -Math.sin(rot)*50); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(Math.cos(rot+Math.PI/2)*50, Math.sin(rot+Math.PI/2)*50); ctx.lineTo(-Math.cos(rot+Math.PI/2)*50, -Math.sin(rot+Math.PI/2)*50); ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }
+
+        // Draw Particles
+        for(let p of particles) {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
+        // Draw Floating Text (Needs to be untranslated or translated depending on design, here translated to stick to world)
+        for(let ft of floatingTexts) {
+            ctx.fillStyle = ft.color;
+            ctx.font = "bold 20px sans-serif";
+            ctx.textAlign = "center";
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = ft.life;
+            ctx.strokeText(ft.text, ft.x, ft.y);
+            ctx.fillText(ft.text, ft.x, ft.y);
+            ctx.globalAlpha = 1.0;
+        }
+
+        ctx.restore(); // Restore camera translation
+
+        // Draw Day/Night Cycle overlay (on top of everything)
+        // timeOfDay: 0 to 24. Night is ~18 to 6.
+        let darkness = 0;
+        if (timeOfDay > 18) {
+            darkness = Math.min(0.6, (timeOfDay - 18) * 0.1);
+        } else if (timeOfDay < 6) {
+            darkness = Math.max(0, 0.6 - (timeOfDay) * 0.1);
+        }
+        
+        if (darkness > 0) {
+            ctx.fillStyle = `rgba(0, 0, 50, ${darkness})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    // Initialize UI
+    showScreen('screen-main');
+
+</script>
+</body>
+</html>
