@@ -155,7 +155,7 @@
 <body>
     <div id="top-bar">
         <div><strong>Larp Sim</strong></div>
-        <div class="update-text">🔥 Halloween, Verity, and More! 🔥</div>
+        <div class="update-text">🔥 Boss Fights & Server Events Live 🔥</div>
         <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊 Mute Audio</button>
     </div>
 
@@ -240,6 +240,14 @@
                     <div class="shop-header"><span class="shop-title rarity-Mythic">Rebirth</span></div>
                     <div style="font-size: 0.8rem; color:#aaa;" id="rebirth-desc-text">Reset money/upgrades for +20% income & +5% luck forever.<br><b>Rebirth 50 MEGA WIPE unlocks Chests & +150% scaling!</b></div>
                     <button class="action-btn" style="background: var(--mythic); color: white;" id="btn-rebirth" onclick="showRebirthModal()">Rebirth ($<span id="cost-rebirth">10,000</span>)</button>
+                </div>
+                
+                <!-- Hard Reset Button -->
+                <hr style="border-color: #333;">
+                <div class="shop-item" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.1);">
+                    <div class="shop-header"><span class="shop-title" style="color: #ef4444; font-weight: bold;">Danger Zone</span></div>
+                    <div style="font-size: 0.8rem; color:#aaa;">Completely wipe all of your data and start fresh.</div>
+                    <button class="action-btn" style="background: #ef4444; color: white;" onclick="document.getElementById('reset-modal').style.display='flex'; document.getElementById('reset-confirm-input').value='';">HARD RESET SAVE</button>
                 </div>
             </div>
 
@@ -362,6 +370,20 @@
             <div style="display: flex; gap: 10px;">
                 <button class="action-btn" style="flex: 1; background: #444; color: white;" onclick="closeRebirthModal()">Cancel</button>
                 <button class="action-btn" style="flex: 1; background: var(--mythic); color: white;" onclick="confirmRebirth()">Rebirth!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hard Reset Modal -->
+    <div id="reset-modal" class="modal-overlay" style="z-index: 4000;">
+        <div class="modal-content" style="border-color: #ef4444;">
+            <h2 style="color: #ef4444; margin-bottom: 10px;">HARD RESET SAVE</h2>
+            <p style="margin: 15px 0; color: #aaa;">This will permanently delete all of your money, rebirths, and Larps. There is no undo!</p>
+            <p style="margin-bottom: 10px; color: white;">Type <b>I am 100% sure</b> below to confirm:</p>
+            <input type="text" id="reset-confirm-input" placeholder="Type here..." style="width: 100%; padding: 10px; margin-bottom: 15px; background: rgba(0,0,0,0.5); border: 1px solid #ef4444; color: white; border-radius: 6px; outline: none;" />
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" style="flex: 1; background: #444; color: white;" onclick="document.getElementById('reset-modal').style.display='none'">Cancel</button>
+                <button class="action-btn" style="flex: 1; background: #ef4444; color: white;" onclick="confirmResetSave()">WIPE SAVE</button>
             </div>
         </div>
     </div>
@@ -1456,6 +1478,30 @@
             }
         }
         
+        function confirmResetSave() {
+            const input = document.getElementById('reset-confirm-input').value.trim();
+            if (input === "I am 100% sure") {
+                localStorage.removeItem('LarpSimSave_Season2');
+                const defaultState = {
+                    money: 0, multLvl: 1, durLvl: 1, coolLvl: 1, rebirths: 0,
+                    currentLarp: 'excuse_me', inventory: ['excuse_me'], fruitBuffs: {}, fruitFeeds: {},
+                    isAdmin: false, adminRole: null, adminName: null, autoTapperOwned: false,
+                    quests: { date: '', taps: 0, crates: 0, claimed: false },
+                    chestUnlocked: false
+                };
+                if (userId && db) {
+                    db.collection('season2_data').doc(appId).collection('users').doc(userId).collection('data').doc('save').set(defaultState).then(() => {
+                        window.location.reload();
+                    }).catch(() => { window.location.reload(); });
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                showNotification("Incorrect text. Reset aborted.", "Mythic");
+                document.getElementById('reset-modal').style.display = 'none';
+            }
+        }
+
         function claimDailyReward() {
             if (state.quests.taps >= 25 && state.quests.crates >= 5 && getLarpTotalMult(state.currentLarp) >= 500 && !state.quests.claimed) {
                 state.quests.claimed = true; state.money += 5000000;
@@ -1539,16 +1585,30 @@
                 if (possibleLarps.length === 0) possibleLarps = LARPS.filter(l => l.rarity === 'Common');
                 won = possibleLarps[Math.floor(Math.random() * possibleLarps.length)];
             }
-            won._rolledFromCost = crateData.cost; return won;
+            
+            // MATH PATCH: Set cost to 0 if it's infinite to prevent infinite money refund glitches
+            won._rolledFromCost = (crateData.cost === Infinity) ? 0 : crateData.cost; 
+            return won;
         }
 
         function displayCrateResult(type, txtEl, nameEl, btnEl, skipBtn) {
             txtEl.className = ''; skipBtn.style.display = 'none'; const won = pendingRollData;
             txtEl.innerText = won.emoji; nameEl.innerText = won.name; nameEl.className = `rarity-${won.rarity}`; nameEl.style.display = 'block'; btnEl.style.display = 'block';
+            
             if(state.inventory.includes(won.id)) {
-                const refund = won._rolledFromCost ? won._rolledFromCost / 2 : 0;
-                if(refund > 0) { state.money += refund; showNotification(`Duplicate! Refunded $${formatNum(refund)}`, "Common"); } else showNotification(`Duplicate Larp.`, "Common");
-            } else { state.inventory.push(won.id); showNotification(`Unlocked: ${won.name}!`, won.rarity); }
+                // MATH PATCH: Ensure refund uses a valid number
+                const refund = (won._rolledFromCost && won._rolledFromCost !== Infinity) ? won._rolledFromCost / 2 : 0;
+                
+                if(refund > 0) { 
+                    state.money += refund; 
+                    showNotification(`Duplicate! Refunded $${formatNum(refund)}`, "Common"); 
+                } else {
+                    showNotification(`Duplicate Larp.`, "Common");
+                }
+            } else { 
+                state.inventory.push(won.id); 
+                showNotification(`Unlocked: ${won.name}!`, won.rarity); 
+            }
             rollingCrate = false; updateUI();
         }
 
